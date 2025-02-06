@@ -45,9 +45,9 @@ export interface TicketmasterEvent {
   }>;
 }
 
-const callTicketmasterFunction = async (endpoint: string, query?: string) => {
+const callTicketmasterFunction = async (endpoint: string, query?: string, params?: Record<string, string>) => {
   const { data, error } = await supabase.functions.invoke('ticketmaster', {
-    body: { endpoint, query },
+    body: { endpoint, query, params },
   });
 
   if (error) {
@@ -81,7 +81,6 @@ export const searchArtists = async (query: string) => {
     }
   });
 
-  // Convert to array and sort by venue capacity (as a proxy for popularity)
   return Array.from(uniqueArtists.values()).sort((a, b) => b.capacity - a.capacity);
 };
 
@@ -90,25 +89,32 @@ export const fetchArtistEvents = async (artistName: string) => {
   return callTicketmasterFunction('artist', artistName);
 };
 
-export const fetchFeaturedShows = async () => {
-  console.log('Fetching featured shows');
-  const results = await callTicketmasterFunction('featured');
-  
-  // Filter for unique artists and large venues
-  const uniqueArtistShows = new Map();
-  
-  results.forEach((event: TicketmasterEvent) => {
-    const artist = event._embedded?.attractions?.[0];
-    const venue = event._embedded?.venues?.[0];
-    const capacity = venue?.capacity || 0;
-    
-    // Only include shows in larger venues (proxy for stadium/arena shows)
-    if (artist && venue && capacity > 5000) {
-      if (!uniqueArtistShows.has(artist.name)) {
-        uniqueArtistShows.set(artist.name, event);
-      }
-    }
+export const fetchUpcomingStadiumShows = async () => {
+  console.log('Fetching upcoming stadium shows');
+  return callTicketmasterFunction('events', undefined, {
+    classificationName: 'music',
+    size: '20',
+    sort: 'date,asc',
+    segmentId: 'KZFzniwnSyZfZ7v7nJ'
   });
-
-  return Array.from(uniqueArtistShows.values());
 };
+
+export const fetchLargeVenueShows = async () => {
+  console.log('Fetching large venue shows');
+  return callTicketmasterFunction('events', undefined, {
+    classificationName: 'music',
+    size: '20',
+    sort: 'date,asc',
+    keyword: 'stadium,arena'
+  });
+};
+
+export const fetchPopularTours = async () => {
+  console.log('Fetching popular tours');
+  return callTicketmasterFunction('events', undefined, {
+    classificationName: 'music',
+    sort: 'popularity,desc',
+    size: '20'
+  });
+};
+

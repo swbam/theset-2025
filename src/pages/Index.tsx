@@ -2,8 +2,6 @@
 import { useNavigate } from "react-router-dom";
 import { Music2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { SearchBar } from "@/components/search/SearchBar";
 import { FeaturedShows } from "@/components/shows/FeaturedShows";
 
@@ -16,13 +14,13 @@ const Index = () => {
   };
 
   return (
-    <div className="h-full p-6">
+    <div className="min-h-full p-6 space-y-12">
       <div className="flex flex-col space-y-8 max-w-3xl mx-auto">
-        <div className="text-center mb-8">
+        <div className="text-center">
           <div className="p-3 rounded-full bg-white/5 w-fit mx-auto">
             <Music2 className="w-8 h-8" />
           </div>
-          <h1 className="text-4xl font-bold tracking-tighter mt-4 sm:text-5xl">
+          <h1 className="text-4xl font-bold tracking-tighter mt-4 sm:text-5xl xl:text-6xl">
             Vote for Your Concert Setlist
           </h1>
           <p className="mt-4 text-zinc-400 md:text-xl">
@@ -33,8 +31,7 @@ const Index = () => {
         <SearchBar onArtistClick={handleArtistClick} />
       </div>
 
-      <div className="mt-24 space-y-12">
-        <h2 className="text-2xl font-semibold tracking-tight">Top Stadium Tours & Arena Shows</h2>
+      <div className="max-w-7xl mx-auto">
         <FeaturedShows onArtistClick={handleArtistClick} />
       </div>
     </div>
