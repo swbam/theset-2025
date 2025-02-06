@@ -43,21 +43,22 @@ Deno.serve(async (req) => {
     // Add the API key
     queryParams.append('apikey', secretData.value);
 
-    // Always include these base parameters
-    queryParams.append('classificationName', 'music');
-    queryParams.append('size', '20');
-
     switch (endpoint) {
       case 'search':
         if (query) queryParams.append('keyword', query);
+        queryParams.append('classificationName', 'music');
+        queryParams.append('size', '20');
         queryParams.append('sort', 'date,asc');
         break;
       case 'artist':
         if (query) queryParams.append('keyword', query);
+        queryParams.append('classificationName', 'music');
         queryParams.append('size', '50');
         queryParams.append('sort', 'date,asc');
         break;
       case 'events':
+        queryParams.append('classificationName', 'music');
+        queryParams.append('size', '20');
         // Handle custom parameters for events endpoint
         if (params) {
           Object.entries(params).forEach(([key, value]) => {
@@ -77,13 +78,16 @@ Deno.serve(async (req) => {
         const now = new Date();
         const startDateTime = now.toISOString().slice(0, 19) + 'Z';
         
+        // Required parameters for featured events
+        queryParams.append('classificationName', 'music');
         queryParams.append('startDateTime', startDateTime);
         queryParams.append('sort', 'relevance,desc');
+        queryParams.append('size', '50');
+        queryParams.append('countryCode', 'US');
+        
+        // Optional parameters to filter quality of results
         queryParams.append('includeTBA', 'no');
         queryParams.append('includeTBD', 'no');
-        queryParams.append('countryCode', 'US');
-        queryParams.append('size', '50');
-        queryParams.append('segmentId', 'KZFzniwnSyZfZ7v7nJ'); // Music segment ID
         break;
       default:
         throw new Error('Invalid endpoint');
