@@ -15,6 +15,12 @@ export interface TicketmasterEvent {
       name: string;
       capacity?: number;
     }>;
+    attractions?: Array<{
+      name: string;
+      images?: Array<{
+        url: string;
+      }>;
+    }>;
   };
   images?: Array<{
     url: string;
@@ -24,56 +30,64 @@ export interface TicketmasterEvent {
 }
 
 export const searchArtists = async (query: string) => {
-  const { data, error } = await supabase
+  const { data: secretData, error: secretError } = await supabase
     .from('secrets')
     .select('value')
     .eq('key', 'TICKETMASTER_API_KEY')
     .maybeSingle();
 
-  if (error || !data?.value) {
+  if (secretError || !secretData?.value) {
     throw new Error('Ticketmaster API key not found');
   }
 
   const response = await fetch(
-    `${BASE_URL}/events.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=20&sort=date,asc&apikey=${data.value}`
+    `${BASE_URL}/events.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=20&sort=date,asc&apikey=${secretData.value}`
   );
+  
   if (!response.ok) {
     throw new Error('Failed to fetch from Ticketmaster');
   }
   
   const result = await response.json();
-  const events = result?._embedded?.events || [];
+  return result?._embedded?.events || [];
+};
 
-  // Store events in our shows table
-  const showsToInsert = events.map((event: TicketmasterEvent) => ({
-    artist_name: event.name,
-    venue: event._embedded?.venues?.[0]?.name || 'Unknown Venue',
-    event_date: event.dates.start.dateTime,
-    ticket_url: event.url,
-    image_url: event.images?.[0]?.url
-  }));
+export const fetchArtistEvents = async (artistName: string) => {
+  const { data: secretData, error: secretError } = await supabase
+    .from('secrets')
+    .select('value')
+    .eq('key', 'TICKETMASTER_API_KEY')
+    .maybeSingle();
 
-  if (showsToInsert.length > 0) {
-    await supabase.from('shows').insert(showsToInsert);
+  if (secretError || !secretData?.value) {
+    throw new Error('Ticketmaster API key not found');
   }
 
-  return events;
+  const response = await fetch(
+    `${BASE_URL}/events.json?keyword=${encodeURIComponent(artistName)}&classificationName=music&size=50&sort=date,asc&apikey=${secretData.value}`
+  );
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch from Ticketmaster');
+  }
+  
+  const result = await response.json();
+  return result?._embedded?.events || [];
 };
 
 export const fetchFeaturedShows = async () => {
-  const { data, error } = await supabase
+  const { data: secretData, error: secretError } = await supabase
     .from('secrets')
     .select('value')
     .eq('key', 'TICKETMASTER_API_KEY')
     .maybeSingle();
 
-  if (error || !data?.value) {
+  if (secretError || !secretData?.value) {
     throw new Error('Ticketmaster API key not found');
   }
 
-  // Fetch major stadium/arena shows
   const response = await fetch(
-    `${BASE_URL}/events.json?classificationName=music&size=20&sort=relevance,desc&includeTBA=no&includeTBD=no&apikey=${data.value}`
+    `${BASE_URL}/events.json?classificationName=music&size=20&sort=relevance,desc&includeTBA=no&includeTBD=no&apikey=${secretData.value}`
   );
   
   if (!response.ok) {
@@ -81,20 +95,5 @@ export const fetchFeaturedShows = async () => {
   }
 
   const result = await response.json();
-  const events = result?._embedded?.events || [];
-
-  // Store events in our shows table
-  const showsToInsert = events.map((event: TicketmasterEvent) => ({
-    artist_name: event.name,
-    venue: event._embedded?.venues?.[0]?.name || 'Unknown Venue',
-    event_date: event.dates.start.dateTime,
-    ticket_url: event.url,
-    image_url: event.images?.[0]?.url
-  }));
-
-  if (showsToInsert.length > 0) {
-    await supabase.from('shows').insert(showsToInsert);
-  }
-
-  return events;
+  return result?._embedded?.events || [];
 };

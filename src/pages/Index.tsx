@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,10 +33,18 @@ const Index = () => {
     try {
       const results = await searchArtists(searchQuery);
       setSearchResults(results);
-      toast({
-        title: "Search completed",
-        description: `Found ${results.length} upcoming shows`,
-      });
+      
+      if (results.length === 0) {
+        toast({
+          title: "No results found",
+          description: "Try searching for a different artist",
+        });
+      } else {
+        toast({
+          title: "Search completed",
+          description: `Found ${results.length} upcoming shows`,
+        });
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -49,45 +57,51 @@ const Index = () => {
   };
 
   const handleArtistClick = (artistName: string) => {
-    navigate(`/dashboard/artist/${encodeURIComponent(artistName)}`);
+    navigate(`/artist/${encodeURIComponent(artistName)}`);
   };
 
-  const ShowCard = ({ show }: { show: TicketmasterEvent }) => (
-    <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => handleArtistClick(show.name)}>
-      <CardHeader className="flex flex-row items-center gap-4">
-        <div 
-          className="w-16 h-16 rounded-full bg-cover bg-center flex-shrink-0"
-          style={{
-            backgroundImage: `url(${show.images?.[0]?.url || ''})`,
-          }}
-        />
-        <div className="flex flex-col">
-          <h3 className="text-lg font-semibold">{show.name}</h3>
+  const ShowCard = ({ show }: { show: TicketmasterEvent }) => {
+    const artistName = show._embedded?.attractions?.[0]?.name || show.name;
+    const artistImage = show._embedded?.attractions?.[0]?.images?.[0]?.url || show.images?.[0]?.url;
+
+    return (
+      <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => handleArtistClick(artistName)}>
+        <CardHeader className="flex flex-row items-center gap-4">
+          <div 
+            className="w-16 h-16 rounded-full bg-cover bg-center flex-shrink-0"
+            style={{
+              backgroundImage: `url(${artistImage || ''})`,
+              backgroundColor: !artistImage ? 'rgba(255,255,255,0.1)' : undefined,
+            }}
+          />
+          <div className="flex flex-col">
+            <h3 className="text-lg font-semibold">{artistName}</h3>
+            <p className="text-sm text-muted-foreground">
+              {show._embedded?.venues?.[0]?.name}
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent>
           <p className="text-sm text-muted-foreground">
-            {show._embedded?.venues?.[0]?.name}
+            {format(new Date(show.dates.start.dateTime), 'EEEE, MMMM d, yyyy')}
           </p>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          {format(new Date(show.dates.start.dateTime), 'EEEE, MMMM d, yyyy')}
-        </p>
-      </CardContent>
-      <CardFooter>
-        <Button 
-          variant="ghost" 
-          className="ml-auto"
-          onClick={(e) => {
-            e.stopPropagation();
-            window.open(show.url, '_blank');
-          }}
-        >
-          <Calendar className="w-4 h-4 mr-2" />
-          Get Tickets
-        </Button>
-      </CardFooter>
-    </Card>
-  );
+        </CardContent>
+        <CardFooter>
+          <Button 
+            variant="ghost" 
+            className="ml-auto"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(show.url, '_blank');
+            }}
+          >
+            <Calendar className="w-4 h-4 mr-2" />
+            Get Tickets
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  };
 
   return (
     <SidebarProvider>
@@ -95,20 +109,7 @@ const Index = () => {
         <DashboardSidebar />
         <SidebarInset>
           <div className="h-full p-6">
-            {/* Hero Section */}
             <div className="flex flex-col space-y-8 max-w-3xl mx-auto">
-              <div className="flex justify-end mb-4">
-                {!user && (
-                  <Button
-                    onClick={signInWithSpotify}
-                    className="glass-morphism hover:bg-white/20"
-                    variant="ghost"
-                  >
-                    Sign in with Spotify
-                  </Button>
-                )}
-              </div>
-
               <div className="text-center mb-8">
                 <div className="p-3 rounded-full bg-white/5 w-fit mx-auto">
                   <Music2 className="w-8 h-8" />
@@ -121,7 +122,6 @@ const Index = () => {
                 </p>
               </div>
               
-              {/* Search Section */}
               <div className="w-full max-w-2xl mx-auto">
                 <div className="relative flex items-center">
                   <Input
