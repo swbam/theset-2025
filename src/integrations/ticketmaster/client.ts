@@ -23,35 +23,37 @@ export interface TicketmasterEvent {
 }
 
 export const searchArtists = async (query: string) => {
-  const { data: { TICKETMASTER_API_KEY } } = await supabase
+  const { data, error } = await supabase
     .from('secrets')
-    .select('TICKETMASTER_API_KEY')
+    .select('value')
+    .eq('key', 'TICKETMASTER_API_KEY')
     .single();
 
-  if (!TICKETMASTER_API_KEY) {
+  if (error || !data) {
     throw new Error('Ticketmaster API key not found');
   }
 
   const response = await fetch(
-    `${BASE_URL}/events.json?keyword=${encodeURIComponent(query)}&apikey=${TICKETMASTER_API_KEY}`
+    `${BASE_URL}/events.json?keyword=${encodeURIComponent(query)}&apikey=${data.value}`
   );
-  const data = await response.json();
-  return data?._embedded?.events || [];
+  const result = await response.json();
+  return result?._embedded?.events || [];
 };
 
 export const fetchFeaturedShows = async () => {
-  const { data: { TICKETMASTER_API_KEY } } = await supabase
+  const { data, error } = await supabase
     .from('secrets')
-    .select('TICKETMASTER_API_KEY')
+    .select('value')
+    .eq('key', 'TICKETMASTER_API_KEY')
     .single();
 
-  if (!TICKETMASTER_API_KEY) {
+  if (error || !data) {
     throw new Error('Ticketmaster API key not found');
   }
 
   const response = await fetch(
-    `${BASE_URL}/events.json?classificationName=music&sort=date,asc&size=3&apikey=${TICKETMASTER_API_KEY}`
+    `${BASE_URL}/events.json?classificationName=music&sort=date,asc&size=3&apikey=${data.value}`
   );
-  const data = await response.json();
-  return data?._embedded?.events || [];
+  const result = await response.json();
+  return result?._embedded?.events || [];
 };
