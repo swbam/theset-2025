@@ -1,10 +1,9 @@
 
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { format } from "date-fns";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import type { TicketmasterEvent } from "@/integrations/ticketmaster/client";
-import { useNavigate } from "react-router-dom";
 
 interface ShowCardProps {
   show: TicketmasterEvent;
@@ -12,56 +11,51 @@ interface ShowCardProps {
 }
 
 export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
-  const navigate = useNavigate();
-  const artistName = show._embedded?.attractions?.[0]?.name || show.name;
-  const artistImage = show._embedded?.attractions?.[0]?.images?.[0]?.url || show.images?.[0]?.url;
   const venue = show._embedded?.venues?.[0];
-
-  const handleArtistClick = () => {
-    if (onArtistClick) {
-      onArtistClick(artistName);
-    } else {
-      navigate(`/artist/${encodeURIComponent(artistName)}`);
-    }
-  };
+  const showDate = new Date(show.dates.start.dateTime);
+  const cityState = venue?.city?.name && venue?.state?.name ? 
+    `${venue.city.name}, ${venue.state.name}` : 
+    venue?.city?.name || '';
 
   return (
-    <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={handleArtistClick}>
-      <CardHeader className="flex flex-row items-center gap-4">
-        <div 
-          className="w-16 h-16 rounded-full bg-cover bg-center flex-shrink-0"
-          style={{
-            backgroundImage: `url(${artistImage || ''})`,
-            backgroundColor: !artistImage ? 'rgba(255,255,255,0.1)' : undefined,
-          }}
-        />
-        <div className="flex flex-col">
-          <h3 className="text-lg font-semibold">{artistName}</h3>
-          <div className="flex items-center text-sm text-muted-foreground">
-            <MapPin className="w-4 h-4 mr-1" />
-            {venue?.name}
-            {venue?.city?.name && `, ${venue.city.name}`}
+    <Card className="bg-black/30 hover:bg-black/40 transition-colors">
+      <CardContent className="p-6">
+        <div className="flex flex-col space-y-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-xl font-semibold mb-1">{show.name}</h3>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>{venue?.name}</p>
+                {cityState && <p>{cityState}</p>}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold">
+                {format(showDate, 'MMM')}
+              </div>
+              <div className="text-3xl font-bold">
+                {format(showDate, 'd')}
+              </div>
+            </div>
           </div>
+          
+          <div className="text-sm text-muted-foreground">
+            {format(showDate, 'EEEE')} • {format(showDate, 'h:mm a')}
+          </div>
+
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(show.url, '_blank');
+            }}
+          >
+            <Calendar className="w-4 h-4 mr-2" />
+            Get Tickets
+          </Button>
         </div>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          {format(new Date(show.dates.start.dateTime), 'EEEE, MMMM d, yyyy')}
-        </p>
       </CardContent>
-      <CardFooter>
-        <Button 
-          variant="ghost" 
-          className="ml-auto"
-          onClick={(e) => {
-            e.stopPropagation();
-            window.open(show.url, '_blank');
-          }}
-        >
-          <Calendar className="w-4 h-4 mr-2" />
-          Get Tickets
-        </Button>
-      </CardFooter>
     </Card>
   );
 };

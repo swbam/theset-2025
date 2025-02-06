@@ -2,10 +2,8 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchArtistEvents } from "@/integrations/ticketmaster/client";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Calendar, Loader2 } from "lucide-react";
-import { format, isValid, parseISO } from "date-fns";
+import { Loader2 } from "lucide-react";
+import { ShowCard } from "@/components/shows/ShowCard";
 
 export default function ArtistPage() {
   const { artistName } = useParams();
@@ -24,44 +22,24 @@ export default function ArtistPage() {
     );
   }
 
+  const validShows = shows?.filter(show => show.dates?.start?.dateTime)
+    .sort((a, b) => new Date(a.dates.start.dateTime).getTime() - new Date(b.dates.start.dateTime).getTime());
+
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-8">{artistName}</h1>
+    <div className="max-w-7xl mx-auto p-6">
+      <h1 className="text-4xl font-bold mb-8">{artistName}</h1>
       
-      <div className="space-y-6">
+      <div className="space-y-8">
         <h2 className="text-2xl font-semibold">Upcoming Shows</h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {shows?.map((show) => {
-            const showDate = show.dates.start.dateTime ? parseISO(show.dates.start.dateTime) : null;
-            
-            return (
-              <Card key={show.name + show.dates.start.dateTime}>
-                <CardHeader>
-                  <h3 className="text-lg font-semibold">{show.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {show._embedded?.venues?.[0]?.name}
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    {showDate && isValid(showDate)
-                      ? format(showDate, 'EEEE, MMMM d, yyyy')
-                      : 'Date to be announced'}
-                  </p>
-                </CardContent>
-                <CardFooter>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => window.open(show.url, '_blank')}
-                  >
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Get Tickets
-                  </Button>
-                </CardFooter>
-              </Card>
-            );
-          })}
+          {validShows?.map((show) => (
+            <ShowCard key={show.id} show={show} />
+          ))}
+          {validShows?.length === 0 && (
+            <p className="text-muted-foreground col-span-full">
+              No upcoming shows found for this artist.
+            </p>
+          )}
         </div>
       </div>
     </div>

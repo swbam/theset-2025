@@ -16,7 +16,12 @@ export interface TicketmasterEvent {
         name: string;
         state?: {
           name: string;
+          stateCode?: string;
         };
+      };
+      state?: {
+        name: string;
+        stateCode?: string;
       };
     }>;
     attractions?: Array<{
