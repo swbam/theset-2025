@@ -26,25 +26,16 @@ const Index = () => {
     queryFn: fetchFeaturedShows,
   });
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
 
     setIsSearching(true);
     try {
-      const results = await searchArtists(searchQuery);
+      const results = await searchArtists(query);
       setSearchResults(results);
-      
-      if (results.length === 0) {
-        toast({
-          title: "No results found",
-          description: "Try searching for a different artist",
-        });
-      } else {
-        toast({
-          title: "Search completed",
-          description: `Found ${results.length} upcoming shows`,
-        });
-      }
     } catch (error) {
       toast({
         title: "Error",
@@ -103,6 +94,29 @@ const Index = () => {
     );
   };
 
+  // Group shows by month
+  const groupShowsByMonth = (shows: TicketmasterEvent[] = []) => {
+    const grouped = shows.reduce((acc, show) => {
+      const monthYear = format(new Date(show.dates.start.dateTime), 'MMMM yyyy');
+      if (!acc[monthYear]) {
+        acc[monthYear] = [];
+      }
+      // Check for duplicates before adding
+      const isDuplicate = acc[monthYear].some(
+        existingShow => existingShow.name === show.name && 
+        existingShow.dates.start.dateTime === show.dates.start.dateTime
+      );
+      if (!isDuplicate) {
+        acc[monthYear].push(show);
+      }
+      return acc;
+    }, {} as Record<string, TicketmasterEvent[]>);
+
+    return Object.entries(grouped).sort((a, b) => {
+      return new Date(a[0]).getTime() - new Date(b[0]).getTime();
+    });
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gradient-to-b from-black to-zinc-900">
@@ -122,51 +136,61 @@ const Index = () => {
                 </p>
               </div>
               
-              <div className="w-full max-w-2xl mx-auto">
-                <div className="relative flex items-center">
+              <div className="w-full max-w-2xl mx-auto relative">
+                <div className="relative">
                   <Input
                     type="text"
                     placeholder="Search for an artist..."
                     className="w-full h-12 pl-12 glass-morphism"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      handleSearch(e.target.value);
+                    }}
                   />
-                  <Search className="absolute left-4 w-5 h-5 text-zinc-400" />
-                  <Button 
-                    className="absolute right-0 h-12 px-6 glass-morphism hover:bg-white/20"
-                    variant="ghost"
-                    onClick={handleSearch}
-                    disabled={isSearching}
-                  >
-                    {isSearching ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      'Search'
-                    )}
-                  </Button>
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                  {isSearching && (
+                    <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin" />
+                  )}
                 </div>
+
+                {/* Instant Search Results */}
+                {searchResults.length > 0 && searchQuery && (
+                  <div className="absolute z-10 w-full mt-2 bg-background/95 backdrop-blur-sm rounded-lg border border-border shadow-xl max-h-[60vh] overflow-y-auto">
+                    <div className="p-2 space-y-2">
+                      {searchResults.map((show) => {
+                        const artistName = show._embedded?.attractions?.[0]?.name || show.name;
+                        const venueName = show._embedded?.venues?.[0]?.name;
+                        return (
+                          <div
+                            key={show.name + show.dates.start.dateTime}
+                            className="p-3 hover:bg-accent/50 rounded-md cursor-pointer transition-colors"
+                            onClick={() => handleArtistClick(artistName)}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-medium">{artistName}</h4>
+                                <p className="text-sm text-muted-foreground">{venueName}</p>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(show.dates.start.dateTime), 'MMM d, yyyy')}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Search Results */}
-            {searchResults.length > 0 && (
-              <div className="mt-12">
-                <h2 className="text-2xl font-semibold tracking-tight mb-6">Search Results</h2>
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {searchResults.map((show) => (
-                    <ShowCard key={show.name + show.dates.start.dateTime} show={show} />
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Featured Shows Section */}
-            <div className="mt-24">
+            <div className="mt-24 space-y-12">
               <h2 className="text-2xl font-semibold tracking-tight">Top Upcoming Shows</h2>
-              <div className="grid grid-cols-1 gap-6 mt-6 sm:grid-cols-2 lg:grid-cols-3">
-                {isLoading ? (
-                  Array(3).fill(0).map((_, i) => (
+              {isLoading ? (
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {Array(3).fill(0).map((_, i) => (
                     <Card key={i} className="animate-pulse">
                       <CardHeader className="flex flex-row items-center gap-4">
                         <div className="w-16 h-16 rounded-full bg-accent" />
@@ -179,11 +203,22 @@ const Index = () => {
                         <div className="h-3 w-40 bg-accent rounded" />
                       </CardContent>
                     </Card>
-                  ))
-                ) : featuredShows?.map((show) => (
-                  <ShowCard key={show.name + show.dates.start.dateTime} show={show} />
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-12">
+                  {groupShowsByMonth(featuredShows).map(([month, shows]) => (
+                    <div key={month} className="space-y-6">
+                      <h3 className="text-xl font-medium text-muted-foreground">{month}</h3>
+                      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                        {shows.map((show) => (
+                          <ShowCard key={show.name + show.dates.start.dateTime} show={show} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </SidebarInset>
