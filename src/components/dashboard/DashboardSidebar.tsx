@@ -11,7 +11,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Home, Music, User, Settings, List, Vote } from "lucide-react";
+import { Home, Music, User, Settings, Activity } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,16 +24,15 @@ export function DashboardSidebar() {
 
   const authenticatedMenuItems = [
     { title: "Home", icon: Home, path: "/" },
-    { title: "My Artists", icon: Music, path: "/dashboard/artists" },
-    { title: "My Setlists", icon: List, path: "/dashboard/setlists" },
-    { title: "My Votes", icon: Vote, path: "/dashboard/votes" },
-    { title: "Profile", icon: User, path: "/dashboard/profile" },
-    { title: "Settings", icon: Settings, path: "/dashboard/settings" },
+    { title: "My Artists", icon: Music, path: "/my-artists" },
+    { title: "My Activity", icon: Activity, path: "/my-activity" },
+    { title: "Profile", icon: User, path: "/profile" },
+    { title: "Settings", icon: Settings, path: "/settings" },
   ];
 
   const publicMenuItems = [
     { title: "Home", icon: Home, path: "/" },
-    { title: "Artists", icon: Music, path: "/dashboard/artists" },
+    { title: "Artists", icon: Music, path: "/artists" },
   ];
 
   const menuItems = user ? authenticatedMenuItems : publicMenuItems;
