@@ -5,14 +5,14 @@ import { corsHeaders } from '../_shared/cors.ts';
 const BASE_URL = "https://app.ticketmaster.com/discovery/v2";
 
 Deno.serve(async (req) => {
+  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const url = new URL(req.url);
-    const endpoint = url.searchParams.get('endpoint');
-    const searchQuery = url.searchParams.get('q');
+    const { endpoint, query } = await req.json();
+    console.log(`Processing ${endpoint} request with query:`, query);
 
     // Create Supabase client
     const supabaseClient = createClient(
@@ -29,6 +29,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (secretError || !secretData?.value) {
+      console.error('Failed to get API key:', secretError);
       throw new Error('Ticketmaster API key not found');
     }
 
@@ -36,10 +37,10 @@ Deno.serve(async (req) => {
     
     switch (endpoint) {
       case 'search':
-        apiUrl += `/events.json?keyword=${encodeURIComponent(searchQuery || '')}&classificationName=music&size=20&sort=date,asc`;
+        apiUrl += `/events.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=20&sort=date,asc`;
         break;
       case 'artist':
-        apiUrl += `/events.json?keyword=${encodeURIComponent(searchQuery || '')}&classificationName=music&size=50&sort=date,asc`;
+        apiUrl += `/events.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=50&sort=date,asc`;
         break;
       case 'featured':
         apiUrl += `/events.json?classificationName=music&size=20&sort=relevance,desc&includeTBA=no&includeTBD=no`;
@@ -49,15 +50,24 @@ Deno.serve(async (req) => {
     }
 
     apiUrl += `&apikey=${secretData.value}`;
+    console.log('Making request to:', apiUrl);
 
     const response = await fetch(apiUrl);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Ticketmaster API error:', errorText);
+      throw new Error(`Ticketmaster API error: ${response.status}`);
+    }
+    
     const data = await response.json();
+    console.log('Received response with data:', data._embedded?.events?.length || 0, 'events');
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
+    console.error('Error in ticketmaster function:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -32,18 +32,25 @@ const callTicketmasterFunction = async (endpoint: string, query?: string) => {
     body: { endpoint, query },
   });
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error calling Ticketmaster function:', error);
+    throw error;
+  }
+
   return data?._embedded?.events || [];
 };
 
 export const searchArtists = async (query: string) => {
+  console.log('Searching for artists:', query);
   return callTicketmasterFunction('search', query);
 };
 
 export const fetchArtistEvents = async (artistName: string) => {
+  console.log('Fetching events for artist:', artistName);
   return callTicketmasterFunction('artist', artistName);
 };
 
 export const fetchFeaturedShows = async () => {
+  console.log('Fetching featured shows');
   return callTicketmasterFunction('featured');
 };
