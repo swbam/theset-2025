@@ -17,8 +17,7 @@ Deno.serve(async (req) => {
     // Create Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
     // Get API key from Supabase secrets
@@ -26,11 +25,16 @@ Deno.serve(async (req) => {
       .from('secrets')
       .select('value')
       .eq('key', 'TICKETMASTER_API_KEY')
-      .maybeSingle();
+      .single();
 
-    if (secretError || !secretData?.value) {
+    if (secretError) {
       console.error('Failed to get API key:', secretError);
-      throw new Error('Ticketmaster API key not found');
+      throw new Error('Failed to retrieve Ticketmaster API key');
+    }
+
+    if (!secretData?.value) {
+      console.error('API key not found in secrets table');
+      throw new Error('Ticketmaster API key not found in secrets table');
     }
 
     let apiUrl = `${BASE_URL}`;
