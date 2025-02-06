@@ -36,6 +36,39 @@ export type Database = {
         }
         Relationships: []
       }
+      shows: {
+        Row: {
+          artist_name: string
+          created_at: string | null
+          event_date: string
+          id: string
+          image_url: string | null
+          ticket_url: string
+          updated_at: string | null
+          venue: string
+        }
+        Insert: {
+          artist_name: string
+          created_at?: string | null
+          event_date: string
+          id?: string
+          image_url?: string | null
+          ticket_url: string
+          updated_at?: string | null
+          venue: string
+        }
+        Update: {
+          artist_name?: string
+          created_at?: string | null
+          event_date?: string
+          id?: string
+          image_url?: string | null
+          ticket_url?: string
+          updated_at?: string | null
+          venue?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
