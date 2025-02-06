@@ -1,0 +1,32 @@
+
+const SPOTIFY_API_URL = "https://api.spotify.com/v1";
+
+export interface SpotifyArtist {
+  id: string;
+  name: string;
+  images?: Array<{
+    url: string;
+    height: number;
+    width: number;
+  }>;
+}
+
+export const getTopArtists = async (accessToken: string): Promise<SpotifyArtist[]> => {
+  const response = await fetch(`${SPOTIFY_API_URL}/me/top/artists?limit=10&time_range=short_term`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const data = await response.json();
+  return data.items || [];
+};
+
+export const getFollowedArtists = async (accessToken: string): Promise<SpotifyArtist[]> => {
+  const response = await fetch(`${SPOTIFY_API_URL}/me/following?type=artist&limit=10`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  const data = await response.json();
+  return data.artists?.items || [];
+};
