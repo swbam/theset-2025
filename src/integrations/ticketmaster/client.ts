@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TicketmasterEvent {
@@ -244,7 +243,7 @@ export const fetchPopularTours = async () => {
   const shows = await callTicketmasterFunction('events', undefined, {
     classificationName: 'music',
     sort: 'relevance,desc',
-    size: '20'
+    size: '100'
   });
 
   // Cache the results if possible

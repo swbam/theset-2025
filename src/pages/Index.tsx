@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Music2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SearchBar } from "@/components/search/SearchBar";
-import { FeaturedShows } from "@/components/shows/FeaturedShows";
+import { PopularTours } from "@/components/shows/PopularTours";
 
 const Index = () => {
   const { user } = useAuth();
@@ -32,7 +32,7 @@ const Index = () => {
       </div>
 
       <div className="max-w-7xl mx-auto">
-        <FeaturedShows onArtistClick={handleArtistClick} />
+        <PopularTours onArtistClick={handleArtistClick} />
       </div>
     </div>
   );
