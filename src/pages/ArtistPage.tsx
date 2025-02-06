@@ -5,7 +5,7 @@ import { fetchArtistEvents } from "@/integrations/ticketmaster/client";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Loader2 } from "lucide-react";
-import { format, isValid } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 
 export default function ArtistPage() {
   const { artistName } = useParams();
@@ -32,7 +32,7 @@ export default function ArtistPage() {
         <h2 className="text-2xl font-semibold">Upcoming Shows</h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {shows?.map((show) => {
-            const showDate = new Date(show.dates.start.dateTime);
+            const showDate = show.dates.start.dateTime ? parseISO(show.dates.start.dateTime) : null;
             
             return (
               <Card key={show.name + show.dates.start.dateTime}>
@@ -44,7 +44,7 @@ export default function ArtistPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
-                    {isValid(showDate) 
+                    {showDate && isValid(showDate)
                       ? format(showDate, 'EEEE, MMMM d, yyyy')
                       : 'Date to be announced'}
                   </p>
