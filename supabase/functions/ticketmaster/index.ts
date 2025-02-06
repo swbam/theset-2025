@@ -4,6 +4,26 @@ import { corsHeaders } from '../_shared/cors.ts';
 
 const BASE_URL = "https://app.ticketmaster.com/discovery/v2";
 
+// Rate limiting setup
+const RATE_LIMIT = 5; // requests per second
+const QUEUE: Array<() => Promise<Response>> = [];
+let processingQueue = false;
+
+async function processQueue() {
+  if (processingQueue || QUEUE.length === 0) return;
+  
+  processingQueue = true;
+  while (QUEUE.length > 0) {
+    const request = QUEUE.shift();
+    if (request) {
+      await request();
+      // Wait 200ms between requests (5 requests per second)
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+  processingQueue = false;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -89,25 +109,44 @@ Deno.serve(async (req) => {
     const apiUrl = `${BASE_URL}/events.json?${queryParams.toString()}`;
     console.log('Making request to:', apiUrl);
 
-    const response = await fetch(apiUrl);
-    const responseText = await response.text();
-    
-    if (!response.ok) {
-      console.error('Ticketmaster API error:', responseText);
-      throw new Error(`Ticketmaster API error: ${response.status} - ${responseText}`);
-    }
-    
-    try {
-      const data = JSON.parse(responseText);
-      console.log('Received response with data:', data._embedded?.events?.length || 0, 'events');
+    // Create the request function
+    const makeRequest = async () => {
+      const response = await fetch(apiUrl);
+      const responseText = await response.text();
       
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      if (!response.ok) {
+        console.error('Ticketmaster API error:', responseText);
+        throw new Error(`Ticketmaster API error: ${response.status} - ${responseText}`);
+      }
+      
+      try {
+        const data = JSON.parse(responseText);
+        console.log('Received response with data:', data._embedded?.events?.length || 0, 'events');
+        
+        return new Response(JSON.stringify(data), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (parseError) {
+        console.error('Error parsing JSON response:', parseError);
+        throw new Error('Invalid JSON response from Ticketmaster API');
+      }
+    };
+
+    // Add request to queue
+    return new Promise((resolve) => {
+      QUEUE.push(async () => {
+        try {
+          const response = await makeRequest();
+          resolve(response);
+        } catch (error) {
+          resolve(new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }));
+        }
       });
-    } catch (parseError) {
-      console.error('Error parsing JSON response:', parseError);
-      throw new Error('Invalid JSON response from Ticketmaster API');
-    }
+      processQueue();
+    });
 
   } catch (error) {
     console.error('Error in ticketmaster function:', error);
