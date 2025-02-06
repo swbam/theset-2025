@@ -4,19 +4,29 @@ import { Calendar, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import type { TicketmasterEvent } from "@/integrations/ticketmaster/client";
+import { useNavigate } from "react-router-dom";
 
 interface ShowCardProps {
   show: TicketmasterEvent;
-  onArtistClick: (artistName: string) => void;
+  onArtistClick?: (artistName: string) => void;
 }
 
 export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
+  const navigate = useNavigate();
   const artistName = show._embedded?.attractions?.[0]?.name || show.name;
   const artistImage = show._embedded?.attractions?.[0]?.images?.[0]?.url || show.images?.[0]?.url;
   const venue = show._embedded?.venues?.[0];
 
+  const handleArtistClick = () => {
+    if (onArtistClick) {
+      onArtistClick(artistName);
+    } else {
+      navigate(`/artist/${encodeURIComponent(artistName)}`);
+    }
+  };
+
   return (
-    <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => onArtistClick(artistName)}>
+    <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={handleArtistClick}>
       <CardHeader className="flex flex-row items-center gap-4">
         <div 
           className="w-16 h-16 rounded-full bg-cover bg-center flex-shrink-0"

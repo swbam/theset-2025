@@ -21,9 +21,14 @@ const App = () => (
             <Toaster />
             <Sonner />
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/dashboard/*" element={<Dashboard />} />
-              <Route path="/artist/:artistName" element={<ArtistPage />} />
+              <Route path="/" element={<Dashboard />}>
+                <Route index element={<Index />} />
+                <Route path="/artist/:artistName" element={<ArtistPage />} />
+                <Route path="/my-artists" element={<Index />} />
+                <Route path="/my-activity" element={<Index />} />
+                <Route path="/profile" element={<Index />} />
+                <Route path="/settings" element={<Index />} />
+              </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
