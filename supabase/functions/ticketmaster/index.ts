@@ -43,16 +43,17 @@ Deno.serve(async (req) => {
     // Add the API key
     queryParams.append('apikey', secretData.value);
 
+    // Always include these base parameters
+    queryParams.append('classificationName', 'music');
+    queryParams.append('size', '20');
+
     switch (endpoint) {
       case 'search':
-        queryParams.append('keyword', query || '');
-        queryParams.append('classificationName', 'music');
-        queryParams.append('size', '20');
+        if (query) queryParams.append('keyword', query);
         queryParams.append('sort', 'date,asc');
         break;
       case 'artist':
-        queryParams.append('keyword', query || '');
-        queryParams.append('classificationName', 'music');
+        if (query) queryParams.append('keyword', query);
         queryParams.append('size', '50');
         queryParams.append('sort', 'date,asc');
         break;
@@ -60,13 +61,18 @@ Deno.serve(async (req) => {
         // Handle custom parameters for events endpoint
         if (params) {
           Object.entries(params).forEach(([key, value]) => {
-            queryParams.append(key, value.toString());
+            // Don't override apikey if it's in params
+            if (key !== 'apikey') {
+              queryParams.append(key, value.toString());
+            }
           });
+        }
+        // Ensure we have a sort parameter
+        if (!params?.sort) {
+          queryParams.append('sort', 'date,asc');
         }
         break;
       case 'featured':
-        queryParams.append('classificationName', 'music');
-        queryParams.append('size', '20');
         queryParams.append('sort', 'relevance,desc');
         queryParams.append('includeTBA', 'no');
         queryParams.append('includeTBD', 'no');
