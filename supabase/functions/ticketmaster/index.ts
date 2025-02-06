@@ -73,9 +73,11 @@ Deno.serve(async (req) => {
         }
         break;
       case 'featured':
-        queryParams.append('sort', 'relevance,desc');
+        queryParams.append('sort', 'popularity,desc');
         queryParams.append('includeTBA', 'no');
         queryParams.append('includeTBD', 'no');
+        queryParams.append('countryCode', 'US'); // Focus on US shows
+        queryParams.append('size', '50'); // Get more results to ensure good coverage
         break;
       default:
         throw new Error('Invalid endpoint');
