@@ -73,11 +73,17 @@ Deno.serve(async (req) => {
         }
         break;
       case 'featured':
-        queryParams.append('sort', 'popularity,desc');
+        // Get current date for startDateTime parameter
+        const now = new Date();
+        const startDateTime = now.toISOString().slice(0, 19) + 'Z';
+        
+        queryParams.append('startDateTime', startDateTime);
+        queryParams.append('sort', 'relevance,desc');
         queryParams.append('includeTBA', 'no');
         queryParams.append('includeTBD', 'no');
-        queryParams.append('countryCode', 'US'); // Focus on US shows
-        queryParams.append('size', '50'); // Get more results to ensure good coverage
+        queryParams.append('countryCode', 'US');
+        queryParams.append('size', '50');
+        queryParams.append('segmentId', 'KZFzniwnSyZfZ7v7nJ'); // Music segment ID
         break;
       default:
         throw new Error('Invalid endpoint');
@@ -87,13 +93,15 @@ Deno.serve(async (req) => {
     console.log('Making request to:', apiUrl);
 
     const response = await fetch(apiUrl);
+    const responseText = await response.text();
+    console.log('Raw API response:', responseText);
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Ticketmaster API error:', errorText);
+      console.error('Ticketmaster API error:', responseText);
       throw new Error(`Ticketmaster API error: ${response.status}`);
     }
     
-    const data = await response.json();
+    const data = JSON.parse(responseText);
     console.log('Received response with data:', data._embedded?.events?.length || 0, 'events');
 
     return new Response(JSON.stringify(data), {
