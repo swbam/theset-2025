@@ -131,29 +131,38 @@ export const fetchArtistEvents = async (artistName: string) => {
   // If not in cache or cache expired, fetch from API
   const shows = await callTicketmasterFunction('artist', artistName);
   
-  // If we have an artist ID, update the cache
+  // If we have an artist ID and shows, update the cache
   if (artist && shows.length > 0) {
     console.log('Updating show cache for artist:', artistName);
-    const showsToCache = shows.map((show: TicketmasterEvent) => ({
-      ticketmaster_id: show.id,
-      artist_id: artist.id,
-      name: show.name,
-      date: show.dates.start.dateTime,
-      venue_name: show._embedded?.venues?.[0]?.name,
-      venue_location: show._embedded?.venues?.[0],
-      ticket_url: show.url,
-      last_synced_at: new Date().toISOString()
-    }));
+    const showsToCache = shows.map((show: TicketmasterEvent) => {
+      // Only include shows with valid dates
+      if (!show.dates?.start?.dateTime) {
+        return null;
+      }
 
-    const { error: upsertError } = await supabase
-      .from('cached_shows')
-      .upsert(showsToCache, { 
-        onConflict: 'ticketmaster_id',
-        ignoreDuplicates: false 
-      });
+      return {
+        ticketmaster_id: show.id,
+        artist_id: artist.id,
+        name: show.name,
+        date: show.dates.start.dateTime,
+        venue_name: show._embedded?.venues?.[0]?.name,
+        venue_location: show._embedded?.venues?.[0],
+        ticket_url: show.url,
+        last_synced_at: new Date().toISOString()
+      };
+    }).filter(Boolean); // Remove null entries
 
-    if (upsertError) {
-      console.error('Error updating show cache:', upsertError);
+    if (showsToCache.length > 0) {
+      const { error: upsertError } = await supabase
+        .from('cached_shows')
+        .upsert(showsToCache, { 
+          onConflict: 'ticketmaster_id',
+          ignoreDuplicates: false 
+        });
+
+      if (upsertError) {
+        console.error('Error updating show cache:', upsertError);
+      }
     }
   }
 
