@@ -37,27 +37,31 @@ Deno.serve(async (req) => {
       throw new Error('Ticketmaster API key not found in secrets table');
     }
 
-    const queryParams = new URLSearchParams();
-    queryParams.append('apikey', secretData.value);
-    queryParams.append('classificationName', 'music');
+    // Base query parameters
+    const queryParams = new URLSearchParams({
+      apikey: secretData.value,
+      classificationName: 'music',
+    });
 
+    // Endpoint-specific parameters
     switch (endpoint) {
       case 'search':
-        if (query) queryParams.append('keyword', query);
-        queryParams.append('size', '20');
+        if (query) {
+          queryParams.append('keyword', query);
+        }
         queryParams.append('sort', 'date,asc');
         break;
       case 'artist':
-        if (query) queryParams.append('keyword', query);
-        queryParams.append('size', '50');
+        if (query) {
+          queryParams.append('keyword', query);
+        }
         queryParams.append('sort', 'date,asc');
+        queryParams.append('size', '50');
         break;
       case 'events':
-        queryParams.append('size', '20');
-        // Handle custom parameters for events endpoint
         if (params) {
           Object.entries(params).forEach(([key, value]) => {
-            if (key !== 'apikey') {
+            if (key !== 'apikey' && value) {
               queryParams.append(key, value.toString());
             }
           });
@@ -71,11 +75,15 @@ Deno.serve(async (req) => {
         const startDateTime = now.toISOString().slice(0, 19) + 'Z';
         queryParams.append('startDateTime', startDateTime);
         queryParams.append('sort', 'relevance,desc');
-        queryParams.append('size', '20');
         queryParams.append('countryCode', 'US');
         break;
       default:
         throw new Error('Invalid endpoint');
+    }
+
+    // Set size parameter if not already set
+    if (!queryParams.has('size')) {
+      queryParams.append('size', '20');
     }
 
     const apiUrl = `${BASE_URL}/events.json?${queryParams.toString()}`;
