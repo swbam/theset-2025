@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Music2, Calendar, Loader2 } from "lucide-react";
+import { Search, Music2, Calendar, Loader2, MapPin } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { searchArtists, fetchFeaturedShows, type TicketmasterEvent } from "@/integrations/ticketmaster/client";
@@ -16,12 +16,12 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<TicketmasterEvent[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const { user, signInWithSpotify } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const { data: featuredShows, isLoading } = useQuery({
+  const { data: featuredShows = [], isLoading } = useQuery({
     queryKey: ['featuredShows'],
     queryFn: fetchFeaturedShows,
   });
@@ -39,7 +39,7 @@ const Index = () => {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to search for shows",
+        description: "Failed to search for artists",
         variant: "destructive",
       });
     } finally {
@@ -54,6 +54,7 @@ const Index = () => {
   const ShowCard = ({ show }: { show: TicketmasterEvent }) => {
     const artistName = show._embedded?.attractions?.[0]?.name || show.name;
     const artistImage = show._embedded?.attractions?.[0]?.images?.[0]?.url || show.images?.[0]?.url;
+    const venue = show._embedded?.venues?.[0];
 
     return (
       <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => handleArtistClick(artistName)}>
@@ -67,9 +68,11 @@ const Index = () => {
           />
           <div className="flex flex-col">
             <h3 className="text-lg font-semibold">{artistName}</h3>
-            <p className="text-sm text-muted-foreground">
-              {show._embedded?.venues?.[0]?.name}
-            </p>
+            <div className="flex items-center text-sm text-muted-foreground">
+              <MapPin className="w-4 h-4 mr-1" />
+              {venue?.name}
+              {venue?.city?.name && `, ${venue.city.name}`}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -94,23 +97,25 @@ const Index = () => {
     );
   };
 
-  // Group shows by month
+  // Group shows by month and sort by venue capacity
   const groupShowsByMonth = (shows: TicketmasterEvent[] = []) => {
     const grouped = shows.reduce((acc, show) => {
       const monthYear = format(new Date(show.dates.start.dateTime), 'MMMM yyyy');
       if (!acc[monthYear]) {
         acc[monthYear] = [];
       }
-      // Check for duplicates before adding
-      const isDuplicate = acc[monthYear].some(
-        existingShow => existingShow.name === show.name && 
-        existingShow.dates.start.dateTime === show.dates.start.dateTime
-      );
-      if (!isDuplicate) {
-        acc[monthYear].push(show);
-      }
+      acc[monthYear].push(show);
       return acc;
     }, {} as Record<string, TicketmasterEvent[]>);
+
+    // Sort each month's shows by venue capacity
+    Object.keys(grouped).forEach(month => {
+      grouped[month].sort((a, b) => {
+        const capacityA = a._embedded?.venues?.[0]?.capacity || 0;
+        const capacityB = b._embedded?.venues?.[0]?.capacity || 0;
+        return capacityB - capacityA;
+      });
+    });
 
     return Object.entries(grouped).sort((a, b) => {
       return new Date(a[0]).getTime() - new Date(b[0]).getTime();
@@ -158,27 +163,30 @@ const Index = () => {
                 {searchResults.length > 0 && searchQuery && (
                   <div className="absolute z-10 w-full mt-2 bg-background/95 backdrop-blur-sm rounded-lg border border-border shadow-xl max-h-[60vh] overflow-y-auto">
                     <div className="p-2 space-y-2">
-                      {searchResults.map((show) => {
-                        const artistName = show._embedded?.attractions?.[0]?.name || show.name;
-                        const venueName = show._embedded?.venues?.[0]?.name;
-                        return (
-                          <div
-                            key={show.name + show.dates.start.dateTime}
-                            className="p-3 hover:bg-accent/50 rounded-md cursor-pointer transition-colors"
-                            onClick={() => handleArtistClick(artistName)}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-medium">{artistName}</h4>
-                                <p className="text-sm text-muted-foreground">{venueName}</p>
-                              </div>
+                      {searchResults.map((result) => (
+                        <div
+                          key={result.name}
+                          className="p-3 hover:bg-accent/50 rounded-md cursor-pointer transition-colors"
+                          onClick={() => handleArtistClick(result.name)}
+                        >
+                          <div className="flex items-center gap-3">
+                            {result.image && (
+                              <div 
+                                className="w-12 h-12 rounded-full bg-cover bg-center"
+                                style={{ backgroundImage: `url(${result.image})` }}
+                              />
+                            )}
+                            <div>
+                              <h4 className="font-medium">{result.name}</h4>
                               <p className="text-sm text-muted-foreground">
-                                {format(new Date(show.dates.start.dateTime), 'MMM d, yyyy')}
+                                {result.venue && (
+                                  <span>Next show: {result.venue}</span>
+                                )}
                               </p>
                             </div>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -187,7 +195,7 @@ const Index = () => {
 
             {/* Featured Shows Section */}
             <div className="mt-24 space-y-12">
-              <h2 className="text-2xl font-semibold tracking-tight">Top Upcoming Shows</h2>
+              <h2 className="text-2xl font-semibold tracking-tight">Top Stadium Tours & Arena Shows</h2>
               {isLoading ? (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {Array(3).fill(0).map((_, i) => (
@@ -212,7 +220,10 @@ const Index = () => {
                       <h3 className="text-xl font-medium text-muted-foreground">{month}</h3>
                       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                         {shows.map((show) => (
-                          <ShowCard key={show.name + show.dates.start.dateTime} show={show} />
+                          <ShowCard 
+                            key={`${show.name}-${show.dates.start.dateTime}-${show._embedded?.venues?.[0]?.name}`} 
+                            show={show} 
+                          />
                         ))}
                       </div>
                     </div>
