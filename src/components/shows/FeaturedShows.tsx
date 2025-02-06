@@ -10,10 +10,12 @@ interface FeaturedShowsProps {
 }
 
 export const FeaturedShows = ({ onArtistClick }: FeaturedShowsProps) => {
-  const { data: featuredShows = [], isLoading } = useQuery({
+  const { data: featuredShows = [], isLoading, error } = useQuery({
     queryKey: ['featuredShows'],
     queryFn: fetchFeaturedShows,
   });
+
+  console.log('Featured shows:', featuredShows); // Debug log
 
   const groupShowsByMonth = (shows: TicketmasterEvent[] = []) => {
     const grouped = shows.reduce((acc, show) => {
@@ -59,9 +61,24 @@ export const FeaturedShows = ({ onArtistClick }: FeaturedShowsProps) => {
     );
   }
 
+  if (error) {
+    console.error('Error loading featured shows:', error);
+    return null;
+  }
+
+  const groupedShows = groupShowsByMonth(featuredShows);
+
+  if (groupedShows.length === 0) {
+    return (
+      <div className="text-center text-muted-foreground py-12">
+        No shows available at the moment.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-12">
-      {groupShowsByMonth(featuredShows).map(([month, shows]) => (
+      {groupedShows.map(([month, shows]) => (
         <div key={month} className="space-y-6">
           <h3 className="text-xl font-medium text-muted-foreground">{month}</h3>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
