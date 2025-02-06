@@ -14,9 +14,9 @@ export interface TicketmasterEvent {
       capacity?: number;
       city?: {
         name: string;
-      };
-      state?: {
-        name: string;
+        state?: {
+          name: string;
+        };
       };
     }>;
     attractions?: Array<{
@@ -85,6 +85,38 @@ const callTicketmasterFunction = async (endpoint: string, query?: string, params
   return data?._embedded?.events || [];
 };
 
+const prepareShowForCache = (show: TicketmasterEvent, artistId?: string | null) => {
+  if (!show.dates?.start?.dateTime) {
+    return null;
+  }
+
+  return {
+    ticketmaster_id: show.id,
+    artist_id: artistId || null,
+    name: show.name,
+    date: show.dates.start.dateTime,
+    venue_name: show._embedded?.venues?.[0]?.name,
+    venue_location: show._embedded?.venues?.[0],
+    ticket_url: show.url,
+    last_synced_at: new Date().toISOString()
+  };
+};
+
+const updateShowCache = async (shows: any[]) => {
+  if (shows.length > 0) {
+    const { error: upsertError } = await supabase
+      .from('cached_shows')
+      .upsert(shows, { 
+        onConflict: 'ticketmaster_id',
+        ignoreDuplicates: false 
+      });
+
+    if (upsertError) {
+      console.error('Error updating show cache:', upsertError);
+    }
+  }
+};
+
 export const searchArtists = async (query: string) => {
   console.log('Searching for artists:', query);
   const results = await callTicketmasterFunction('search', query);
@@ -114,56 +146,27 @@ export const searchArtists = async (query: string) => {
 export const fetchArtistEvents = async (artistName: string) => {
   console.log('Fetching events for artist:', artistName);
   
-  // First try to get the artist ID from our database
   const { data: artist } = await supabase
     .from('artists')
     .select('id')
     .eq('name', artistName)
     .maybeSingle();
     
-  // Try to get from cache first
   const cachedShows = artist ? await fetchFromCache(artist.id) : null;
   if (cachedShows) {
     console.log('Returning cached shows for artist:', artistName);
     return cachedShows;
   }
 
-  // If not in cache or cache expired, fetch from API
   const shows = await callTicketmasterFunction('artist', artistName);
   
-  // If we have an artist ID and shows, update the cache
   if (artist && shows.length > 0) {
     console.log('Updating show cache for artist:', artistName);
-    const showsToCache = shows.map((show: TicketmasterEvent) => {
-      // Only include shows with valid dates
-      if (!show.dates?.start?.dateTime) {
-        return null;
-      }
+    const showsToCache = shows
+      .map((show: TicketmasterEvent) => prepareShowForCache(show, artist.id))
+      .filter(Boolean);
 
-      return {
-        ticketmaster_id: show.id,
-        artist_id: artist.id,
-        name: show.name,
-        date: show.dates.start.dateTime,
-        venue_name: show._embedded?.venues?.[0]?.name,
-        venue_location: show._embedded?.venues?.[0],
-        ticket_url: show.url,
-        last_synced_at: new Date().toISOString()
-      };
-    }).filter(Boolean); // Remove null entries
-
-    if (showsToCache.length > 0) {
-      const { error: upsertError } = await supabase
-        .from('cached_shows')
-        .upsert(showsToCache, { 
-          onConflict: 'ticketmaster_id',
-          ignoreDuplicates: false 
-        });
-
-      if (upsertError) {
-        console.error('Error updating show cache:', upsertError);
-      }
-    }
+    await updateShowCache(showsToCache);
   }
 
   return shows;
@@ -178,31 +181,12 @@ export const fetchUpcomingStadiumShows = async () => {
     segmentId: 'KZFzniwnSyZfZ7v7nJ'
   });
 
-  // Cache the results if possible
   if (shows.length > 0) {
-    const showsToCache = shows.map((show: TicketmasterEvent) => {
-      const artist = show._embedded?.attractions?.[0];
-      return {
-        ticketmaster_id: show.id,
-        name: show.name,
-        date: show.dates.start.dateTime,
-        venue_name: show._embedded?.venues?.[0]?.name,
-        venue_location: show._embedded?.venues?.[0],
-        ticket_url: show.url,
-        last_synced_at: new Date().toISOString()
-      };
-    });
+    const showsToCache = shows
+      .map((show: TicketmasterEvent) => prepareShowForCache(show))
+      .filter(Boolean);
 
-    const { error: upsertError } = await supabase
-      .from('cached_shows')
-      .upsert(showsToCache, { 
-        onConflict: 'ticketmaster_id',
-        ignoreDuplicates: false 
-      });
-
-    if (upsertError) {
-      console.error('Error updating show cache:', upsertError);
-    }
+    await updateShowCache(showsToCache);
   }
 
   return shows;
@@ -217,31 +201,12 @@ export const fetchLargeVenueShows = async () => {
     keyword: 'stadium,arena'
   });
 
-  // Cache the results if possible
   if (shows.length > 0) {
-    const showsToCache = shows.map((show: TicketmasterEvent) => {
-      const artist = show._embedded?.attractions?.[0];
-      return {
-        ticketmaster_id: show.id,
-        name: show.name,
-        date: show.dates.start.dateTime,
-        venue_name: show._embedded?.venues?.[0]?.name,
-        venue_location: show._embedded?.venues?.[0],
-        ticket_url: show.url,
-        last_synced_at: new Date().toISOString()
-      };
-    });
+    const showsToCache = shows
+      .map((show: TicketmasterEvent) => prepareShowForCache(show))
+      .filter(Boolean);
 
-    const { error: upsertError } = await supabase
-      .from('cached_shows')
-      .upsert(showsToCache, { 
-        onConflict: 'ticketmaster_id',
-        ignoreDuplicates: false 
-      });
-
-    if (upsertError) {
-      console.error('Error updating show cache:', upsertError);
-    }
+    await updateShowCache(showsToCache);
   }
 
   return shows;
@@ -255,31 +220,12 @@ export const fetchPopularTours = async () => {
     size: '100'
   });
 
-  // Cache the results if possible
   if (shows.length > 0) {
-    const showsToCache = shows.map((show: TicketmasterEvent) => {
-      const artist = show._embedded?.attractions?.[0];
-      return {
-        ticketmaster_id: show.id,
-        name: show.name,
-        date: show.dates.start.dateTime,
-        venue_name: show._embedded?.venues?.[0]?.name,
-        venue_location: show._embedded?.venues?.[0],
-        ticket_url: show.url,
-        last_synced_at: new Date().toISOString()
-      };
-    });
+    const showsToCache = shows
+      .map((show: TicketmasterEvent) => prepareShowForCache(show))
+      .filter(Boolean);
 
-    const { error: upsertError } = await supabase
-      .from('cached_shows')
-      .upsert(showsToCache, { 
-        onConflict: 'ticketmaster_id',
-        ignoreDuplicates: false 
-      });
-
-    if (upsertError) {
-      console.error('Error updating show cache:', upsertError);
-    }
+    await updateShowCache(showsToCache);
   }
 
   return shows;
