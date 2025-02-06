@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Music2, Calendar } from "lucide-react";
+import { Search, Music2, Calendar, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { searchArtists, fetchFeaturedShows, type TicketmasterEvent } from "@/integrations/ticketmaster/client";
@@ -12,6 +12,8 @@ import { format } from "date-fns";
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<TicketmasterEvent[]>([]);
   const { user, signInWithSpotify } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -30,19 +32,22 @@ const Index = () => {
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
+    setIsSearching(true);
     try {
       const results = await searchArtists(searchQuery);
-      console.log('Search results:', results);
+      setSearchResults(results);
       toast({
         title: "Search completed",
-        description: `Found ${results.length} results`,
+        description: `Found ${results.length} upcoming shows`,
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to search for artists",
+        description: "Failed to search for shows",
         variant: "destructive",
       });
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -77,7 +82,7 @@ const Index = () => {
             <div className="relative flex items-center">
               <Input
                 type="text"
-                placeholder="Search artists..."
+                placeholder="Search artists or shows..."
                 className="w-full h-12 pl-12 glass-morphism"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -88,16 +93,59 @@ const Index = () => {
                 className="absolute right-0 h-12 px-6 glass-morphism hover:bg-white/20"
                 variant="ghost"
                 onClick={handleSearch}
+                disabled={isSearching}
               >
-                Search
+                {isSearching ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  'Search'
+                )}
               </Button>
             </div>
           </div>
         </div>
 
+        {/* Search Results */}
+        {searchResults.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-semibold tracking-tight mb-6">Search Results</h2>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {searchResults.map((show: TicketmasterEvent) => (
+                <div
+                  key={show.name + show.dates.start.dateTime}
+                  className="p-4 overflow-hidden rounded-lg hover-card glass-morphism"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div 
+                      className="w-16 h-16 rounded-full bg-cover bg-center"
+                      style={{
+                        backgroundImage: `url(${show.images?.[0]?.url || ''})`,
+                      }}
+                    />
+                    <div>
+                      <h3 className="font-semibold">{show.name}</h3>
+                      <p className="text-sm text-zinc-400">
+                        {show._embedded?.venues?.[0]?.name} • {format(new Date(show.dates.start.dateTime), 'MMM d, yyyy')}
+                      </p>
+                      <Button 
+                        variant="link" 
+                        className="mt-2 px-0 text-primary hover:text-primary/80"
+                        onClick={() => window.open(show.url, '_blank')}
+                      >
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Get Tickets
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Featured Shows Section */}
         <div className="mt-24">
-          <h2 className="text-2xl font-semibold tracking-tight">Featured Shows</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">Top Upcoming Shows</h2>
           <div className="grid grid-cols-1 gap-6 mt-6 sm:grid-cols-2 lg:grid-cols-3">
             {isLoading ? (
               Array(3).fill(0).map((_, i) => (
@@ -116,7 +164,7 @@ const Index = () => {
               ))
             ) : featuredShows?.map((show: TicketmasterEvent) => (
               <div
-                key={show.name}
+                key={show.name + show.dates.start.dateTime}
                 className="p-4 overflow-hidden rounded-lg hover-card glass-morphism"
               >
                 <div className="flex items-center space-x-4">

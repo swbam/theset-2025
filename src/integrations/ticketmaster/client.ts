@@ -13,6 +13,7 @@ export interface TicketmasterEvent {
   _embedded?: {
     venues?: Array<{
       name: string;
+      capacity?: number;
     }>;
   };
   images?: Array<{
@@ -34,10 +35,25 @@ export const searchArtists = async (query: string) => {
   }
 
   const response = await fetch(
-    `${BASE_URL}/events.json?keyword=${encodeURIComponent(query)}&apikey=${data.value}`
+    `${BASE_URL}/events.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=10&sort=date,asc&apikey=${data.value}`
   );
   const result = await response.json();
-  return result?._embedded?.events || [];
+  const events = result?._embedded?.events || [];
+
+  // Store events in our shows table
+  const showsToInsert = events.map((event: TicketmasterEvent) => ({
+    artist_name: event.name,
+    venue: event._embedded?.venues?.[0]?.name || 'Unknown Venue',
+    event_date: event.dates.start.dateTime,
+    ticket_url: event.url,
+    image_url: event.images?.[0]?.url
+  }));
+
+  if (showsToInsert.length > 0) {
+    await supabase.from('shows').insert(showsToInsert);
+  }
+
+  return events;
 };
 
 export const fetchFeaturedShows = async () => {
@@ -52,8 +68,23 @@ export const fetchFeaturedShows = async () => {
   }
 
   const response = await fetch(
-    `${BASE_URL}/events.json?classificationName=music&sort=date,asc&size=3&apikey=${data.value}`
+    `${BASE_URL}/events.json?classificationName=music&size=10&sort=relevance,desc&genreId=KnvZfZ7vAeA&apikey=${data.value}`
   );
   const result = await response.json();
-  return result?._embedded?.events || [];
+  const events = result?._embedded?.events || [];
+
+  // Store events in our shows table
+  const showsToInsert = events.map((event: TicketmasterEvent) => ({
+    artist_name: event.name,
+    venue: event._embedded?.venues?.[0]?.name || 'Unknown Venue',
+    event_date: event.dates.start.dateTime,
+    ticket_url: event.url,
+    image_url: event.images?.[0]?.url
+  }));
+
+  if (showsToInsert.length > 0) {
+    await supabase.from('shows').insert(showsToInsert);
+  }
+
+  return events;
 };
