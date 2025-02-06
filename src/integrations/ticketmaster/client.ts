@@ -35,8 +35,12 @@ export const searchArtists = async (query: string) => {
   }
 
   const response = await fetch(
-    `${BASE_URL}/events.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=10&sort=date,asc&apikey=${data.value}`
+    `${BASE_URL}/events.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=20&sort=date,asc&apikey=${data.value}`
   );
+  if (!response.ok) {
+    throw new Error('Failed to fetch from Ticketmaster');
+  }
+  
   const result = await response.json();
   const events = result?._embedded?.events || [];
 
@@ -67,9 +71,15 @@ export const fetchFeaturedShows = async () => {
     throw new Error('Ticketmaster API key not found');
   }
 
+  // Fetch major stadium/arena shows
   const response = await fetch(
-    `${BASE_URL}/events.json?classificationName=music&size=10&sort=relevance,desc&genreId=KnvZfZ7vAeA&apikey=${data.value}`
+    `${BASE_URL}/events.json?classificationName=music&size=20&sort=relevance,desc&includeTBA=no&includeTBD=no&apikey=${data.value}`
   );
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch from Ticketmaster');
+  }
+
   const result = await response.json();
   const events = result?._embedded?.events || [];
 
