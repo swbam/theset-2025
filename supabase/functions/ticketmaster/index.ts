@@ -11,8 +11,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { endpoint, query } = await req.json();
-    console.log(`Processing ${endpoint} request with query:`, query);
+    const { endpoint, query, params } = await req.json();
+    console.log(`Processing ${endpoint} request with query:`, query, 'and params:', params);
 
     // Create Supabase client
     const supabaseClient = createClient(
@@ -37,23 +37,45 @@ Deno.serve(async (req) => {
       throw new Error('Ticketmaster API key not found in secrets table');
     }
 
-    let apiUrl = `${BASE_URL}`;
+    let apiUrl = `${BASE_URL}/events.json?`;
+    const queryParams = new URLSearchParams();
     
+    // Add the API key
+    queryParams.append('apikey', secretData.value);
+
     switch (endpoint) {
       case 'search':
-        apiUrl += `/events.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=20&sort=date,asc`;
+        queryParams.append('keyword', query || '');
+        queryParams.append('classificationName', 'music');
+        queryParams.append('size', '20');
+        queryParams.append('sort', 'date,asc');
         break;
       case 'artist':
-        apiUrl += `/events.json?keyword=${encodeURIComponent(query)}&classificationName=music&size=50&sort=date,asc`;
+        queryParams.append('keyword', query || '');
+        queryParams.append('classificationName', 'music');
+        queryParams.append('size', '50');
+        queryParams.append('sort', 'date,asc');
+        break;
+      case 'events':
+        // Handle custom parameters for events endpoint
+        if (params) {
+          Object.entries(params).forEach(([key, value]) => {
+            queryParams.append(key, value.toString());
+          });
+        }
         break;
       case 'featured':
-        apiUrl += `/events.json?classificationName=music&size=20&sort=relevance,desc&includeTBA=no&includeTBD=no`;
+        queryParams.append('classificationName', 'music');
+        queryParams.append('size', '20');
+        queryParams.append('sort', 'relevance,desc');
+        queryParams.append('includeTBA', 'no');
+        queryParams.append('includeTBD', 'no');
         break;
       default:
         throw new Error('Invalid endpoint');
     }
 
-    apiUrl += `&apikey=${secretData.value}`;
+    apiUrl += queryParams.toString();
     console.log('Making request to:', apiUrl);
 
     const response = await fetch(apiUrl);
