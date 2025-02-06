@@ -3,13 +3,44 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Music2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const { user, signInWithSpotify, signOut } = useAuth();
+  const { toast } = useToast();
+
+  const handleSpotifyAuth = async () => {
+    try {
+      if (user) {
+        await signOut();
+      } else {
+        await signInWithSpotify();
+      }
+    } catch (error) {
+      toast({
+        title: "Authentication Error",
+        description: "There was an error with Spotify authentication.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black to-zinc-900">
       <div className="container px-4 py-16 mx-auto">
+        {/* Nav Section */}
+        <div className="flex justify-end mb-8">
+          <Button
+            onClick={handleSpotifyAuth}
+            className="glass-morphism hover:bg-white/20"
+            variant="ghost"
+          >
+            {user ? "Sign Out" : "Sign in with Spotify"}
+          </Button>
+        </div>
+
         {/* Hero Section */}
         <div className="flex flex-col items-center justify-center space-y-8 text-center animate-fade-in">
           <div className="p-3 rounded-full bg-white/5">
