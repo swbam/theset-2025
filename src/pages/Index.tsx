@@ -1,5 +1,6 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Music2, Calendar } from "lucide-react";
@@ -11,8 +12,15 @@ import { format } from "date-fns";
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const { user, signInWithSpotify, signOut } = useAuth();
+  const { user, signInWithSpotify } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
 
   const { data: featuredShows, isLoading } = useQuery({
     queryKey: ['featuredShows'],
@@ -25,7 +33,6 @@ const Index = () => {
     try {
       const results = await searchArtists(searchQuery);
       console.log('Search results:', results);
-      // We'll implement the search results display in the next iteration
       toast({
         title: "Search completed",
         description: `Found ${results.length} results`,
@@ -39,33 +46,17 @@ const Index = () => {
     }
   };
 
-  const handleSpotifyAuth = async () => {
-    try {
-      if (user) {
-        await signOut();
-      } else {
-        await signInWithSpotify();
-      }
-    } catch (error) {
-      toast({
-        title: "Authentication Error",
-        description: "There was an error with Spotify authentication.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-black to-zinc-900">
       <div className="container px-4 py-16 mx-auto">
         {/* Nav Section */}
         <div className="flex justify-end mb-8">
           <Button
-            onClick={handleSpotifyAuth}
+            onClick={signInWithSpotify}
             className="glass-morphism hover:bg-white/20"
             variant="ghost"
           >
-            {user ? "Sign Out" : "Sign in with Spotify"}
+            Sign in with Spotify
           </Button>
         </div>
 
