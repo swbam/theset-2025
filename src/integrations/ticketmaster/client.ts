@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TicketmasterEvent {
+  id: string; // Add missing id field
   name: string;
   dates: {
     start: {

@@ -37,80 +37,69 @@ Deno.serve(async (req) => {
       throw new Error('Ticketmaster API key not found in secrets table');
     }
 
-    let apiUrl = `${BASE_URL}/events.json?`;
     const queryParams = new URLSearchParams();
-    
-    // Add the API key
     queryParams.append('apikey', secretData.value);
+    queryParams.append('classificationName', 'music');
 
     switch (endpoint) {
       case 'search':
         if (query) queryParams.append('keyword', query);
-        queryParams.append('classificationName', 'music');
         queryParams.append('size', '20');
         queryParams.append('sort', 'date,asc');
         break;
       case 'artist':
         if (query) queryParams.append('keyword', query);
-        queryParams.append('classificationName', 'music');
         queryParams.append('size', '50');
         queryParams.append('sort', 'date,asc');
         break;
       case 'events':
-        queryParams.append('classificationName', 'music');
         queryParams.append('size', '20');
         // Handle custom parameters for events endpoint
         if (params) {
           Object.entries(params).forEach(([key, value]) => {
-            // Don't override apikey if it's in params
             if (key !== 'apikey') {
               queryParams.append(key, value.toString());
             }
           });
         }
-        // Ensure we have a sort parameter
         if (!params?.sort) {
           queryParams.append('sort', 'date,asc');
         }
         break;
       case 'featured':
-        // Get current date for startDateTime parameter
         const now = new Date();
         const startDateTime = now.toISOString().slice(0, 19) + 'Z';
-        
-        // Required parameters for featured events
-        queryParams.append('classificationName', 'music');
         queryParams.append('startDateTime', startDateTime);
         queryParams.append('sort', 'relevance,desc');
-        queryParams.append('size', '50');
+        queryParams.append('size', '20');
         queryParams.append('countryCode', 'US');
-        
-        // Optional parameters to filter quality of results
-        queryParams.append('includeTBA', 'no');
-        queryParams.append('includeTBD', 'no');
         break;
       default:
         throw new Error('Invalid endpoint');
     }
 
-    apiUrl += queryParams.toString();
+    const apiUrl = `${BASE_URL}/events.json?${queryParams.toString()}`;
     console.log('Making request to:', apiUrl);
 
     const response = await fetch(apiUrl);
     const responseText = await response.text();
-    console.log('Raw API response:', responseText);
     
     if (!response.ok) {
       console.error('Ticketmaster API error:', responseText);
-      throw new Error(`Ticketmaster API error: ${response.status}`);
+      throw new Error(`Ticketmaster API error: ${response.status} - ${responseText}`);
     }
     
-    const data = JSON.parse(responseText);
-    console.log('Received response with data:', data._embedded?.events?.length || 0, 'events');
-
-    return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    try {
+      const data = JSON.parse(responseText);
+      console.log('Received response with data:', data._embedded?.events?.length || 0, 'events');
+      
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (parseError) {
+      console.error('Error parsing JSON response:', parseError);
+      throw new Error('Invalid JSON response from Ticketmaster API');
+    }
 
   } catch (error) {
     console.error('Error in ticketmaster function:', error);
