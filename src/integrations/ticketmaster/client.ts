@@ -27,9 +27,9 @@ export const searchArtists = async (query: string) => {
     .from('secrets')
     .select('value')
     .eq('key', 'TICKETMASTER_API_KEY')
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
+  if (error || !data?.value) {
     throw new Error('Ticketmaster API key not found');
   }
 
@@ -45,9 +45,9 @@ export const fetchFeaturedShows = async () => {
     .from('secrets')
     .select('value')
     .eq('key', 'TICKETMASTER_API_KEY')
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
+  if (error || !data?.value) {
     throw new Error('Ticketmaster API key not found');
   }
 
