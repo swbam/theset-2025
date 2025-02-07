@@ -80,6 +80,9 @@ export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: str
 
 export const fetchUpcomingStadiumShows = async (artistId?: string) => {
   try {
+    const startDate = new Date().toISOString().split('.')[0] + 'Z';
+    const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+    
     const shows = await callTicketmasterFunction('events', undefined, {
       classificationName: 'music',
       size: '20',
@@ -89,7 +92,7 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
       includeTBD: 'no',
       includeTest: 'no',
       marketId: '102', // US National market
-      localStartEndDateTime: `${new Date().toISOString()},${new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}` // Next 365 days
+      localStartEndDateTime: `${startDate},${endDate}`
     });
 
     // Filter to only include music events in large venues
@@ -117,6 +120,9 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
 
 export const fetchLargeVenueShows = async (artistId?: string) => {
   try {
+    const startDate = new Date().toISOString().split('.')[0] + 'Z';
+    const endDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+    
     const shows = await callTicketmasterFunction('events', undefined, {
       classificationName: 'music',
       size: '20',
@@ -126,8 +132,8 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
       includeTBD: 'no',
       includeTest: 'no',
       marketId: '102', // US National market
-      venueId: 'KovZpZAFnIEA,KovZpZAE7vdA,KovZpaKSje,KovZpZA7AAEA', // Major US arenas
-      localStartEndDateTime: `${new Date().toISOString()},${new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString()}` // Next 6 months
+      venueId: 'KovZpZAFnIEA,KovZpZAE7vdA,KovZpaKSje,KovZpZA7AAEA',
+      localStartEndDateTime: `${startDate},${endDate}`
     });
 
     const filteredShows = shows.filter((show: TicketmasterEvent) => {
@@ -152,16 +158,19 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
 
 export const fetchPopularTours = async (artistId?: string) => {
   try {
+    const startDate = new Date().toISOString().split('.')[0] + 'Z';
+    const endDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+    
     const shows = await callTicketmasterFunction('events', undefined, {
       classificationName: 'music',
-      sort: 'popularity,desc',
+      sort: 'relevance,desc',
       size: '100',
       segmentId: 'KZFzniwnSyZfZ7v7nJ',
       includeTBA: 'no',
       includeTBD: 'no',
       includeTest: 'no',
       marketId: '102', // US National market
-      localStartEndDateTime: `${new Date().toISOString()},${new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString()}` // Next 6 months
+      localStartEndDateTime: `${startDate},${endDate}`
     });
 
     const filteredShows = shows.filter((show: TicketmasterEvent) => {
