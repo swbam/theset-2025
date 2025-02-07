@@ -1,14 +1,20 @@
 
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchArtistEvents } from "@/integrations/ticketmaster/client";
 import { Loader2 } from "lucide-react";
 import { ShowCard } from "@/components/shows/ShowCard";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function ArtistPage() {
   const { artistName } = useParams();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { data: artist } = useQuery({
     queryKey: ['artist', artistName],
@@ -23,11 +29,98 @@ export default function ArtistPage() {
     enabled: !!artistName,
   });
 
+  const { data: isFollowing } = useQuery({
+    queryKey: ['following', artist?.id],
+    queryFn: async () => {
+      if (!user || !artist) return false;
+      const { data } = await supabase
+        .from('user_artists')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('artist_id', artist.id)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user && !!artist,
+  });
+
+  const followMutation = useMutation({
+    mutationFn: async () => {
+      if (!user || !artist) throw new Error('Not authenticated or no artist');
+      const { error } = await supabase
+        .from('user_artists')
+        .insert({
+          user_id: user.id,
+          artist_id: artist.id,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['following', artist?.id] });
+      queryClient.invalidateQueries({ queryKey: ['followedArtists'] });
+      toast({
+        title: "Success",
+        description: `You are now following ${artist?.name}`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to follow artist. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Follow error:', error);
+    },
+  });
+
+  const unfollowMutation = useMutation({
+    mutationFn: async () => {
+      if (!user || !artist) throw new Error('Not authenticated or no artist');
+      const { error } = await supabase
+        .from('user_artists')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('artist_id', artist.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['following', artist?.id] });
+      queryClient.invalidateQueries({ queryKey: ['followedArtists'] });
+      toast({
+        title: "Success",
+        description: `You have unfollowed ${artist?.name}`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to unfollow artist. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Unfollow error:', error);
+    },
+  });
+
+  const handleFollowClick = () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to follow artists",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (isFollowing) {
+      unfollowMutation.mutate();
+    } else {
+      followMutation.mutate();
+    }
+  };
+
   const { data: shows, isLoading } = useQuery({
     queryKey: ['artistShows', artistName],
     queryFn: async () => {
       const response = await fetchArtistEvents(artistName || '');
-      // Filter to only include shows containing the exact artist name
       return response.filter(show => 
         show.name.toLowerCase().includes(artistName?.toLowerCase() || '') &&
         !show.name.toLowerCase().includes('tribute')
@@ -69,7 +162,19 @@ export default function ArtistPage() {
               )}
             </Avatar>
             <div>
-              <h1 className="text-5xl font-bold text-white mb-4">{artistName}</h1>
+              <div className="flex items-center gap-4 mb-4">
+                <h1 className="text-5xl font-bold text-white">{artistName}</h1>
+                <Button
+                  variant={isFollowing ? "secondary" : "default"}
+                  onClick={handleFollowClick}
+                  disabled={followMutation.isPending || unfollowMutation.isPending}
+                >
+                  {followMutation.isPending || unfollowMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : null}
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Button>
+              </div>
               {artist?.genres && Array.isArray(artist.genres) && (
                 <div className="flex gap-2">
                   {artist.genres.slice(0, 3).map((genre: string) => (
