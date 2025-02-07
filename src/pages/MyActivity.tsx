@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/shows/LoadingState";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SetlistActivity {
   id: string;
@@ -28,6 +31,7 @@ interface VoteActivity {
   setlist_songs: {
     song_name: string;
     setlist: {
+      id: string;
       name: string;
       shows: {
         artist_name: string;
@@ -37,9 +41,77 @@ interface VoteActivity {
   } | null;
 }
 
+const MobileNav = () => {
+  const navigate = useNavigate();
+  const { user, signInWithSpotify, signOut } = useAuth();
+  
+  const menuItems = [
+    { title: "Home", path: "/" },
+    { title: "My Artists", path: "/my-artists" },
+    { title: "My Activity", path: "/my-activity" },
+    { title: "Profile", path: "/profile" },
+    { title: "Settings", path: "/settings" },
+  ];
+
+  return (
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden">
+          <Menu className="h-6 w-6" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-72">
+        <SheetHeader>
+          <SheetTitle>Menu</SheetTitle>
+        </SheetHeader>
+        <div className="mt-4 space-y-4">
+          {user ? (
+            <>
+              <div className="flex items-center gap-3 px-2 py-3">
+                <div className="flex flex-col">
+                  <span className="font-medium">{user?.user_metadata?.name}</span>
+                  <span className="text-xs text-zinc-400">{user?.email}</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {menuItems.map((item) => (
+                  <Button
+                    key={item.path}
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => navigate(item.path)}
+                  >
+                    {item.title}
+                  </Button>
+                ))}
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => signOut()}
+                >
+                  Sign Out
+                </Button>
+              </div>
+            </>
+          ) : (
+            <Button
+              onClick={signInWithSpotify}
+              className="w-full"
+              variant="outline"
+            >
+              Sign in with Spotify
+            </Button>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
 const MyActivity = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const { data: setlists, isLoading: isLoadingSetlists } = useQuery({
     queryKey: ["userSetlists", user?.id],
@@ -82,6 +154,7 @@ const MyActivity = () => {
             setlist_songs (
               song_name,
               setlist (
+                id,
                 name,
                 shows (
                   artist_name,
@@ -115,14 +188,17 @@ const MyActivity = () => {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gradient-to-b from-black to-zinc-900">
-        <DashboardSidebar />
+        {!isMobile && <DashboardSidebar />}
         <SidebarInset>
           <div className="w-full max-w-7xl mx-auto px-6 py-8">
-            <div className="mb-8">
-              <h1 className="text-4xl font-bold mb-2">My Activity</h1>
-              <p className="text-lg text-muted-foreground">
-                View your saved setlists and voting history
-              </p>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-4xl font-bold mb-2">My Activity</h1>
+                <p className="text-lg text-muted-foreground">
+                  View your saved setlists and voting history
+                </p>
+              </div>
+              {isMobile && <MobileNav />}
             </div>
 
             <Tabs defaultValue="setlists" className="space-y-6">

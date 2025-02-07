@@ -245,6 +245,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_setlist"
+            columns: ["setlist_id"]
+            isOneToOne: false
+            referencedRelation: "setlists"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "setlist_songs_setlist_id_fkey"
             columns: ["setlist_id"]
             isOneToOne: false
@@ -397,6 +404,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_setlist_song"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "setlist_songs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_votes_song_id_fkey"
             columns: ["song_id"]
