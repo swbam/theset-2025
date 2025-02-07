@@ -3,31 +3,48 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import type { TicketmasterEvent } from "@/integrations/ticketmaster/types";
+import type { TicketmasterEvent, CachedShow } from "@/integrations/ticketmaster/types";
 import { useNavigate } from "react-router-dom";
 
 interface ShowCardProps {
-  show: TicketmasterEvent;
-  onArtistClick?: (artistName: string) => void;
+  show: TicketmasterEvent | CachedShow;
 }
 
-export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
+export const ShowCard = ({ show }: ShowCardProps) => {
   const navigate = useNavigate();
-  const venue = show._embedded?.venues?.[0];
-  const showDate = new Date(show.dates.start.dateTime);
-  const cityState = venue?.city?.name && venue?.state?.name ? 
-    `${venue.city.name}, ${venue.state.name}` : 
-    venue?.city?.name || '';
+  
+  // Handle both TicketmasterEvent and CachedShow types
+  const isTicketmasterEvent = 'dates' in show;
+  
+  const showDate = isTicketmasterEvent ? 
+    new Date(show.dates.start.dateTime) : 
+    new Date(show.date);
+    
+  const venue = isTicketmasterEvent ? 
+    show._embedded?.venues?.[0] : 
+    show.venue;
+    
+  const cityState = venue ? 
+    isTicketmasterEvent ?
+      (venue.city?.name && venue.state?.name ? 
+        `${venue.city.name}, ${venue.state.name}` : 
+        venue.city?.name || '') :
+      (venue.city && venue.state ? 
+        `${venue.city}, ${venue.state}` : 
+        venue.city || '');
 
   const generateSeoUrl = () => {
-    const cityPart = venue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
+    const cityPart = isTicketmasterEvent ?
+      venue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '' :
+      venue?.city?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
     const datePart = format(showDate, 'MM-dd-yyyy');
     const artistPart = show.name.toLowerCase()
-      .normalize('NFD') // Normalize accented characters
-      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-      .replace(/[^a-z0-9]+/g, '-'); // Replace non-alphanumeric with hyphens
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-');
     
-    return `/show/${artistPart}-${cityPart}-tickets-${datePart}/event/${show.id}`;
+    const eventId = isTicketmasterEvent ? show.id : show.ticketmaster_id;
+    return `/show/${artistPart}-${cityPart}-tickets-${datePart}/event/${eventId}`;
   };
 
   return (

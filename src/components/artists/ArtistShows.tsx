@@ -1,18 +1,29 @@
 
 import { ShowCard } from "@/components/shows/ShowCard";
-import type { TicketmasterEvent } from "@/integrations/ticketmaster/types";
+import type { TicketmasterEvent, CachedShow } from "@/integrations/ticketmaster/types";
 
 interface ArtistShowsProps {
-  shows?: TicketmasterEvent[];
+  shows?: (TicketmasterEvent | CachedShow)[];
 }
 
 export const ArtistShows = ({ shows }: ArtistShowsProps) => {
-  const validShows = shows?.filter(show => 
-    show.dates?.start?.dateTime && 
-    new Date(show.dates.start.dateTime) >= new Date()
-  ).sort((a, b) => 
-    new Date(a.dates.start.dateTime).getTime() - new Date(b.dates.start.dateTime).getTime()
-  );
+  const validShows = shows?.filter(show => {
+    // Handle both TicketmasterEvent and CachedShow types
+    const showDate = 'dates' in show ? 
+      new Date(show.dates.start.dateTime) : 
+      new Date(show.date);
+    
+    return showDate >= new Date();
+  }).sort((a, b) => {
+    const dateA = 'dates' in a ? 
+      new Date(a.dates.start.dateTime) : 
+      new Date(a.date);
+    const dateB = 'dates' in b ? 
+      new Date(b.dates.start.dateTime) : 
+      new Date(b.date);
+    
+    return dateA.getTime() - dateB.getTime();
+  });
 
   console.log('Valid shows for artist:', validShows?.length);
 
@@ -23,7 +34,10 @@ export const ArtistShows = ({ shows }: ArtistShowsProps) => {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {validShows && validShows.length > 0 ? (
             validShows.map((show) => (
-              <ShowCard key={show.id} show={show} />
+              <ShowCard 
+                key={'ticketmaster_id' in show ? show.ticketmaster_id : show.id} 
+                show={show} 
+              />
             ))
           ) : (
             <p className="text-muted-foreground col-span-full">

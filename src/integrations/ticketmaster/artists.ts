@@ -58,7 +58,7 @@ export const fetchArtistEvents = async (artistName: string) => {
       .order('date', { ascending: true });
       
     if (cachedShows && cachedShows.length > 0) {
-      console.log('Returning cached shows for artist:', artistName);
+      console.log('Returning cached shows for artist:', artistName, cachedShows.length);
       return cachedShows;
     }
   }
@@ -82,22 +82,29 @@ export const fetchArtistEvents = async (artistName: string) => {
   });
 
   if (filteredShows.length > 0) {
-    console.log('Found shows for artist:', decodedArtistName);
+    console.log('Found shows for artist:', decodedArtistName, filteredShows.length);
     
     // Get the Ticketmaster artist ID from the first show
-    const ticketmasterId = filteredShows[0]._embedded?.attractions?.[0]?.id;
+    const ticketmasterArtist = filteredShows[0]._embedded?.attractions?.find(
+      attraction => attraction.name.toLowerCase() === decodedArtistName.toLowerCase()
+    );
     
+    if (!ticketmasterArtist) {
+      console.error('Could not find matching artist in show data');
+      return filteredShows;
+    }
+
     // Create or update the artist record
     const { data: upsertedArtist, error: artistError } = await supabase
       .from('artists')
       .upsert({
         name: decodedArtistName,
-        ticketmaster_id: ticketmasterId,
-        ticketmaster_data: filteredShows[0]._embedded?.attractions?.[0],
-        spotify_id: artist?.spotify_id, // Preserve existing Spotify ID if any
+        ticketmaster_id: ticketmasterArtist.id,
+        ticketmaster_data: ticketmasterArtist,
+        spotify_id: artist?.spotify_id || decodedArtistName.toLowerCase().replace(/[^a-z0-9]/g, ''),
         last_synced_at: new Date().toISOString()
       }, {
-        onConflict: 'name',
+        onConflict: 'spotify_id',
         ignoreDuplicates: false
       })
       .select()
@@ -124,6 +131,7 @@ export const fetchArtistEvents = async (artistName: string) => {
         .order('date', { ascending: true });
         
       if (newCachedShows && newCachedShows.length > 0) {
+        console.log('Returning newly cached shows:', newCachedShows.length);
         return newCachedShows;
       }
     }
