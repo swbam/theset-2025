@@ -463,6 +463,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      needs_artist_refresh: {
+        Args: {
+          last_sync: string
+          ttl_hours?: number
+        }
+        Returns: boolean
+      }
       needs_refresh: {
         Args: {
           last_sync: string

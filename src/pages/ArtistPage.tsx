@@ -16,17 +16,60 @@ export default function ArtistPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const { data: artist } = useQuery({
+  // Query to fetch or create artist
+  const { data: artist, isLoading: isLoadingArtist } = useQuery({
     queryKey: ['artist', artistName],
     queryFn: async () => {
-      const { data } = await supabase
+      if (!artistName) throw new Error('Artist name is required');
+      
+      // First, try to fetch existing artist
+      const { data: existingArtist } = await supabase
         .from('artists')
         .select('*')
         .eq('name', artistName)
         .maybeSingle();
-      return data;
+
+      if (existingArtist) {
+        console.log('Found existing artist:', existingArtist);
+        
+        // Check if we need to refresh the data
+        const { data: needsRefresh } = await supabase
+          .rpc('needs_artist_refresh', {
+            last_sync: existingArtist.last_synced_at,
+            ttl_hours: 1
+          });
+
+        if (!needsRefresh) {
+          return existingArtist;
+        }
+        
+        console.log('Artist data needs refresh');
+      }
+
+      // If artist doesn't exist or needs refresh, create/update it
+      console.log('Creating/updating artist:', artistName);
+      const { data: artist, error: insertError } = await supabase
+        .from('artists')
+        .upsert({
+          name: artistName,
+          // We'll update these fields later when we integrate Spotify
+          spotify_id: artistName.toLowerCase().replace(/[^a-z0-9]/g, ''),
+          last_synced_at: new Date().toISOString()
+        }, {
+          onConflict: 'name',
+          ignoreDuplicates: false
+        })
+        .select()
+        .maybeSingle();
+
+      if (insertError) {
+        console.error('Error creating/updating artist:', insertError);
+        throw insertError;
+      }
+
+      return artist;
     },
-    enabled: !!artistName,
+    retry: false,
   });
 
   const { data: isFollowing } = useQuery({
@@ -117,7 +160,7 @@ export default function ArtistPage() {
     }
   };
 
-  const { data: shows, isLoading } = useQuery({
+  const { data: shows, isLoading: isLoadingShows } = useQuery({
     queryKey: ['artistShows', artistName],
     queryFn: async () => {
       const response = await fetchArtistEvents(artistName || '');
@@ -128,6 +171,8 @@ export default function ArtistPage() {
     },
     enabled: !!artistName,
   });
+
+  const isLoading = isLoadingArtist || isLoadingShows;
 
   if (isLoading) {
     return (
