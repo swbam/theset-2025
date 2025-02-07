@@ -1,4 +1,3 @@
-
 import { Json } from "@/integrations/supabase/types";
 
 export interface TicketmasterVenue {
@@ -102,6 +101,8 @@ export interface CachedShow {
   venue_name?: string;
   venue_location?: any;
   ticket_url: string;
+  status?: string | null;
+  price_ranges?: any;
   last_synced_at: string;
 }
 

@@ -2,21 +2,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export function useShow(eventId: string | undefined) {
+export function useShow(eventPath: string | undefined) {
   return useQuery({
-    queryKey: ['show', eventId],
+    queryKey: ['show', eventPath],
     queryFn: async () => {
-      if (!eventId) {
-        console.error('No event ID provided');
+      if (!eventPath) {
+        console.error('No event path provided');
         return null;
       }
 
-      // Extract Ticketmaster ID from the URL - it's the last part after 'event/'
-      const match = eventId.match(/event\/([^/]+)$/);
-      const ticketmasterId = match ? match[1] : null;
+      // Extract Ticketmaster ID from the URL - now it's just after 'event/'
+      const ticketmasterId = eventPath.split('/').pop();
       
       if (!ticketmasterId) {
-        console.error('Invalid event URL format:', eventId);
+        console.error('Invalid event URL format:', eventPath);
         return null;
       }
       
@@ -50,6 +49,6 @@ export function useShow(eventId: string | undefined) {
       console.log('Found show:', show);
       return show;
     },
-    enabled: !!eventId,
+    enabled: !!eventPath,
   });
 }

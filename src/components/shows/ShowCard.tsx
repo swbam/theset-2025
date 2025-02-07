@@ -42,24 +42,8 @@ export const ShowCard = ({ show }: ShowCardProps) => {
   })();
 
   const generateSeoUrl = () => {
-    const cityPart = (() => {
-      if (isTicketmasterEvent) {
-        const tmVenue = venue as NonNullable<TicketmasterEvent['_embedded']>['venues'][0];
-        return tmVenue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
-      } else {
-        const cachedVenue = venue as CachedShow['venue'];
-        return cachedVenue?.city?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
-      }
-    })();
-
-    const datePart = format(showDate, 'MM-dd-yyyy');
-    const artistPart = show.name.toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-');
-    
     const eventId = isTicketmasterEvent ? show.id : show.ticketmaster_id;
-    return `/show/${artistPart}-${cityPart}-tickets-${datePart}/event/${eventId}`;
+    return `/show/event/${eventId}`;
   };
 
   return (

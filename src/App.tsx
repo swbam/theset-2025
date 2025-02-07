@@ -27,8 +27,7 @@ const App = () => (
               <Route path="/" element={<Dashboard />}>
                 <Route index element={<Index />} />
                 <Route path="/artist/:artistName" element={<ArtistPage />} />
-                <Route path="/show/:artistSlug/:date/:city/:venue/:id" element={<ShowPage />} />
-                <Route path="/show/:id" element={<ShowPage />} /> {/* Keep old route for backwards compatibility */}
+                <Route path="/show/event/:eventId" element={<ShowPage />} />
                 <Route path="/my-artists" element={<MyArtists />} />
                 <Route path="/my-activity" element={<MyActivity />} />
                 <Route path="/profile" element={<Index />} />
