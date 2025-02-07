@@ -20,10 +20,22 @@ interface SetlistProps {
 }
 
 export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest }: SetlistProps) => (
-  <div className="space-y-4">
-    <h2 className="text-2xl font-semibold text-white">Setlist</h2>
+  <div className="space-y-6">
+    <div className="flex items-center justify-between">
+      <h2 className="text-2xl font-semibold text-white">Setlist</h2>
+      {user && (
+        <Button
+          variant="outline"
+          onClick={onSuggest}
+          className="hover:bg-white/10 hover:text-white"
+        >
+          Suggest a song
+        </Button>
+      )}
+    </div>
+    
     {setlist ? (
-      <div className="space-y-4">
+      <div className="space-y-2">
         {setlist.songs?.map((song) => (
           <SetlistSong
             key={song.id}
@@ -37,13 +49,13 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest }: Setlist
         ))}
       </div>
     ) : (
-      <div className="text-white/60">
+      <div className="text-white/60 py-8 text-center space-y-2">
         <p>The setlist for this show will be available soon.</p>
         {user && (
           <Button
             variant="outline"
-            className="mt-4"
             onClick={onSuggest}
+            className="mt-4 hover:bg-white/10 hover:text-white"
           >
             Suggest a song
           </Button>
