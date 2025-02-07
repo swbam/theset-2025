@@ -58,7 +58,8 @@ const MyActivity = () => {
             created_at,
             setlist_songs!user_votes_song_id_fkey (
               song_name,
-              setlist (
+              setlist_id,
+              setlists (
                 id,
                 name,
                 shows (

@@ -8,7 +8,7 @@ interface VoteActivity {
   created_at: string;
   setlist_songs: {
     song_name: string;
-    setlist: {
+    setlists: {
       id: string;
       name: string;
       shows: {
@@ -25,10 +25,10 @@ export const VoteCard = ({ vote }: { vote: VoteActivity }) => {
   return (
     <div className="p-6 rounded-lg bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm space-y-2">
       <h3 className="text-xl font-semibold">
-        {vote.setlist_songs?.setlist?.shows?.artist_name}
+        {vote.setlist_songs?.setlists?.shows?.artist_name}
       </h3>
       <p className="text-muted-foreground">
-        {vote.setlist_songs?.setlist?.shows?.venue}
+        {vote.setlist_songs?.setlists?.shows?.venue}
       </p>
       <p className="text-sm">
         Voted for "{vote.setlist_songs?.song_name}"
@@ -39,7 +39,7 @@ export const VoteCard = ({ vote }: { vote: VoteActivity }) => {
         </p>
         <Button
           variant="secondary"
-          onClick={() => navigate(`/setlist/${vote.setlist_songs?.setlist?.id}`)}
+          onClick={() => navigate(`/setlist/${vote.setlist_songs?.setlists?.id}`)}
         >
           View Setlist
         </Button>

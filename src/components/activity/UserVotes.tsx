@@ -7,7 +7,7 @@ interface VoteActivity {
   created_at: string;
   setlist_songs: {
     song_name: string;
-    setlist: {
+    setlists: {
       id: string;
       name: string;
       shows: {
