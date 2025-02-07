@@ -1,6 +1,6 @@
 
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,10 +13,12 @@ export default function ShowPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { data: show, isLoading: showLoading } = useQuery({
     queryKey: ['show', eventId],
     queryFn: async () => {
+      console.log('Fetching show:', eventId);
       const { data: show, error } = await supabase
         .from('cached_shows')
         .select(`
@@ -47,9 +49,47 @@ export default function ShowPage() {
     enabled: !!eventId,
   });
 
+  // Create setlist mutation
+  const createSetlistMutation = useMutation({
+    mutationFn: async () => {
+      if (!show || !user) return null;
+      
+      const { data: setlist, error } = await supabase
+        .from('setlists')
+        .insert({
+          show_id: show.id,
+          name: show.name,
+          created_by: user.id,
+          venue_id: show.venue?.id,
+          status: 'draft'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating setlist:', error);
+        throw error;
+      }
+
+      return setlist;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
+    },
+    onError: (error) => {
+      console.error('Error creating setlist:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create setlist",
+        variant: "destructive"
+      });
+    }
+  });
+
   const { data: setlist, isLoading: setlistLoading } = useQuery({
     queryKey: ['setlist', show?.id],
     queryFn: async () => {
+      console.log('Fetching setlist for show:', show?.id);
       const { data: setlist, error } = await supabase
         .from('setlists')
         .select(`
@@ -66,6 +106,13 @@ export default function ShowPage() {
       
       if (error) {
         console.error('Error fetching setlist:', error);
+        return null;
+      }
+
+      // If no setlist exists and user is authenticated, create one
+      if (!setlist && user && show) {
+        console.log('No setlist found, creating new one');
+        createSetlistMutation.mutate();
         return null;
       }
 
@@ -144,8 +191,9 @@ export default function ShowPage() {
       return;
     }
 
+    queryClient.invalidateQueries({ queryKey: ['user-votes', setlist?.id] });
     toast({
-      title: "Vote Submitted",
+      title: "Success",
       description: "Your vote has been recorded"
     });
   };
