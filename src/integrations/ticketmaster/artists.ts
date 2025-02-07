@@ -36,7 +36,7 @@ export const fetchArtistEvents = async (artistName: string) => {
   const { data: artist } = await supabase
     .from('artists')
     .select('id')
-    .eq('name', artistName)
+    .ilike('name', artistName)
     .maybeSingle();
     
   if (artist) {
@@ -63,20 +63,6 @@ export const fetchArtistEvents = async (artistName: string) => {
   if (artist && shows.length > 0) {
     console.log('Updating show cache for artist:', artistName);
     await updateShowCache(shows, artist.id);
-  }
-
-  return shows;
-};
-
-export const fetchPopularTours = async () => {
-  const shows = await callTicketmasterFunction('events', undefined, {
-    classificationName: 'music',
-    sort: 'relevance,desc',
-    size: '100'
-  });
-
-  if (shows.length > 0) {
-    await updateShowCache(shows);
   }
 
   return shows;

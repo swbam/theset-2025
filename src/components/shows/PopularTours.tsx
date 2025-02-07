@@ -97,7 +97,15 @@ export const PopularTours = ({ onArtistClick }: PopularToursProps) => {
           <Card 
             key={artist.name}
             className="hover:bg-accent/50 transition-colors cursor-pointer"
-            onClick={() => onArtistClick(artist.name)}
+            onClick={() => {
+              // Use the sanitized artist name for the URL
+              const encodedName = artist.name
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '-');
+              onArtistClick(artist.name);
+            }}
           >
             <div className="p-6 flex flex-row items-center gap-4">
               <div 

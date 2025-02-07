@@ -11,22 +11,28 @@ import { ArtistShows } from "@/components/artists/ArtistShows";
 
 export default function ArtistPage() {
   const { artistName } = useParams();
-  const decodedArtistName = artistName ? decodeURIComponent(artistName).replace(/-/g, ' ') : '';
+  const normalizedArtistName = artistName ? 
+    artistName
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ') : '';
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   // Query to fetch or create artist
   const { data: artist, isLoading: isLoadingArtist } = useQuery({
-    queryKey: ['artist', decodedArtistName],
+    queryKey: ['artist', normalizedArtistName],
     queryFn: async () => {
-      if (!decodedArtistName) throw new Error('Artist name is required');
+      if (!normalizedArtistName) throw new Error('Artist name is required');
+      
+      console.log('Fetching artist:', normalizedArtistName);
       
       // First, try to fetch existing artist with case-insensitive search
       const { data: existingArtist } = await supabase
         .from('artists')
         .select('*')
-        .ilike('name', decodedArtistName)
+        .ilike('name', normalizedArtistName)
         .maybeSingle();
 
       if (existingArtist) {
@@ -47,15 +53,15 @@ export default function ArtistPage() {
       }
 
       // If artist doesn't exist or needs refresh, create/update it
-      console.log('Creating/updating artist:', decodedArtistName);
+      console.log('Creating/updating artist:', normalizedArtistName);
       const { data: artist, error: insertError } = await supabase
         .from('artists')
         .upsert({
-          name: decodedArtistName, // Keep original case
-          spotify_id: decodedArtistName.toLowerCase().replace(/[^a-z0-9]/g, ''),
+          name: normalizedArtistName,
+          spotify_id: normalizedArtistName.toLowerCase().replace(/[^a-z0-9]/g, ''),
           last_synced_at: new Date().toISOString()
         }, {
-          onConflict: 'spotify_id', // Use spotify_id for conflict resolution
+          onConflict: 'spotify_id',
           ignoreDuplicates: false
         })
         .select()
@@ -161,15 +167,16 @@ export default function ArtistPage() {
 
   // Query to fetch shows
   const { data: shows, isLoading: isLoadingShows } = useQuery({
-    queryKey: ['artistShows', decodedArtistName],
+    queryKey: ['artistShows', normalizedArtistName, artist?.id],
     queryFn: async () => {
-      const response = await fetchArtistEvents(decodedArtistName || '');
+      console.log('Fetching shows for artist:', normalizedArtistName, 'with ID:', artist?.id);
+      const response = await fetchArtistEvents(normalizedArtistName);
       return response.filter(show => 
-        show.name.toLowerCase().includes(decodedArtistName?.toLowerCase() || '') &&
+        show.name.toLowerCase().includes(normalizedArtistName.toLowerCase()) &&
         !show.name.toLowerCase().includes('tribute')
       );
     },
-    enabled: !!decodedArtistName,
+    enabled: !!normalizedArtistName && !!artist?.id,
   });
 
   const isLoading = isLoadingArtist || isLoadingShows;
@@ -186,7 +193,7 @@ export default function ArtistPage() {
     <div className="min-h-screen bg-black">
       <ArtistHero 
         artist={artist}
-        artistName={decodedArtistName}
+        artistName={normalizedArtistName}
         isFollowing={isFollowing}
         isFollowActionPending={followMutation.isPending || unfollowMutation.isPending}
         onFollowClick={handleFollowClick}

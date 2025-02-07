@@ -10,7 +10,12 @@ const Index = () => {
   const navigate = useNavigate();
 
   const handleArtistClick = (artistName: string) => {
-    navigate(`/artist/${encodeURIComponent(artistName)}`);
+    const encodedName = artistName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-');
+    navigate(`/artist/${encodedName}`);
   };
 
   return (
