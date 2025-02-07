@@ -41,7 +41,7 @@ export const fetchArtistEvents = async (artistName: string) => {
   // First try to find the artist by name (case-insensitive)
   const { data: artist } = await supabase
     .from('artists')
-    .select('id, ticketmaster_id')
+    .select('id, name, spotify_id, ticketmaster_id')
     .ilike('name', artistName.replace(/-/g, ' '))
     .maybeSingle();
     
@@ -94,7 +94,7 @@ export const fetchArtistEvents = async (artistName: string) => {
       return filteredShows;
     }
 
-    // Create or update the artist record
+    // Create or update the artist record with a generated spotify_id if none exists
     const { data: upsertedArtist, error: artistError } = await supabase
       .from('artists')
       .upsert({
@@ -107,7 +107,7 @@ export const fetchArtistEvents = async (artistName: string) => {
         onConflict: 'spotify_id',
         ignoreDuplicates: false
       })
-      .select()
+      .select('*')
       .maybeSingle();
 
     if (artistError) {
@@ -139,4 +139,3 @@ export const fetchArtistEvents = async (artistName: string) => {
 
   return filteredShows;
 };
-
