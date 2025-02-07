@@ -1,22 +1,38 @@
-
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useParams } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 
 export function Breadcrumbs() {
   const location = useLocation();
+  const { artistName } = useParams();
   const paths = location.pathname.split('/').filter(Boolean);
   
   if (paths.length === 0) return null;
 
   const breadcrumbs = paths.map((path, index) => {
     const url = `/${paths.slice(0, index + 1).join('/')}`;
-    const formattedPath = path
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    
+    // Format the path text
+    let displayText = path;
+    
+    // Special handling for artist names and show paths
+    if (path === 'artist' && paths[index + 1]) {
+      displayText = 'Artist';
+    } else if (path === artistName) {
+      displayText = decodeURIComponent(path).replace(/-/g, ' ');
+    } else if (path === 'show') {
+      displayText = 'Show';
+    } else if (index === paths.length - 1 && paths[index - 1] === 'show') {
+      // This is the show title, keep it as is
+      displayText = 'Details';
+    } else {
+      displayText = path
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    }
 
     return {
-      name: formattedPath,
+      name: displayText,
       url,
     };
   });

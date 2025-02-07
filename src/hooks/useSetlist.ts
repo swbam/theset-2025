@@ -16,7 +16,7 @@ export function useSetlist(showId: string | undefined, user: User | null) {
       const { data: setlist, error } = await supabase
         .from('setlists')
         .insert({
-          cached_show_id: showId, // Use cached_show_id instead of show_id
+          show_id: showId,
           name: showName,
           created_by: user.id,
           venue_id: venueId,
@@ -99,7 +99,7 @@ export function useSetlist(showId: string | undefined, user: User | null) {
             is_top_track
           )
         `)
-        .eq('cached_show_id', showId) // Use cached_show_id instead of show_id
+        .eq('show_id', showId)
         .maybeSingle();
         
       if (error) {

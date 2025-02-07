@@ -11,7 +11,7 @@ import { useSetlist } from "@/hooks/useSetlist";
 import { useVotes } from "@/hooks/useVotes";
 
 export default function ShowPage() {
-  const { eventId } = useParams<{ eventId: string }>();
+  const { eventId, artistName } = useParams<{ eventId: string; artistName: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -64,10 +64,10 @@ export default function ShowPage() {
             user={user}
             onVote={handleVote}
             onSuggest={handleSuggest}
-            artistName={show.artist_name}
+            artistName={show.artist?.name || artistName?.replace(/-/g, ' ')}
           />
         </div>
       </div>
     </div>
   );
-};
+}

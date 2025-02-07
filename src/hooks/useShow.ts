@@ -2,38 +2,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export function useShow(eventPath: string | undefined) {
+export function useShow(eventId: string | undefined) {
   return useQuery({
-    queryKey: ['show', eventPath],
+    queryKey: ['show', eventId],
     queryFn: async () => {
-      if (!eventPath) {
-        console.error('No event path provided');
-        return null;
-      }
-
-      // Extract Ticketmaster ID from the URL - now it's just after 'event/'
-      const ticketmasterId = eventPath.split('/').pop();
-      
-      if (!ticketmasterId) {
-        console.error('Invalid event URL format:', eventPath);
+      if (!eventId) {
+        console.error('No event ID provided');
         return null;
       }
       
-      console.log('Fetching show with Ticketmaster ID:', ticketmasterId);
+      console.log('Fetching show with Ticketmaster ID:', eventId);
       
       const { data: show, error } = await supabase
         .from('cached_shows')
         .select(`
           *,
-          venue:venues(
-            id,
-            name,
-            city,
-            state,
-            country
-          )
+          venue:venues(*),
+          artist:artists(name)
         `)
-        .eq('ticketmaster_id', ticketmasterId)
+        .eq('ticketmaster_id', eventId)
         .maybeSingle();
       
       if (error) {
@@ -42,13 +29,13 @@ export function useShow(eventPath: string | undefined) {
       }
 
       if (!show) {
-        console.error('Show not found for ID:', ticketmasterId);
+        console.error('Show not found for ID:', eventId);
         return null;
       }
 
       console.log('Found show:', show);
       return show;
     },
-    enabled: !!eventPath,
+    enabled: !!eventId,
   });
 }
