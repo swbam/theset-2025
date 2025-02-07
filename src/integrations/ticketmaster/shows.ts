@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import { updateVenuesCache } from "./venues";
@@ -17,7 +16,7 @@ export const prepareShowForCache = (show: TicketmasterEvent, artistId?: string |
     name: show.name,
     date: show.dates.start.dateTime,
     venue_name: venue?.name,
-    venue_location: venue,
+    venue_location: venue ? JSON.stringify(venue) : null,
     ticket_url: show.url,
     last_synced_at: new Date().toISOString()
   };
@@ -25,6 +24,8 @@ export const prepareShowForCache = (show: TicketmasterEvent, artistId?: string |
 
 export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: string | null) => {
   if (shows.length === 0) return;
+
+  console.log('Caching shows:', shows.length);
 
   // First, extract and upsert all venues
   const venues = shows
@@ -49,15 +50,19 @@ export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: str
     .filter((s): s is CachedShow => s !== null);
 
   if (showsToCache.length > 0) {
-    const { error: upsertError } = await supabase
-      .from('cached_shows')
-      .upsert(showsToCache, {
-        onConflict: 'ticketmaster_id',
-        ignoreDuplicates: false
-      });
+    console.log('Upserting shows to cache:', showsToCache.length);
+    
+    for (const show of showsToCache) {
+      const { error: upsertError } = await supabase
+        .from('cached_shows')
+        .upsert(show, {
+          onConflict: 'ticketmaster_id',
+          ignoreDuplicates: false
+        });
 
-    if (upsertError) {
-      console.error('Error updating show cache:', upsertError);
+      if (upsertError) {
+        console.error('Error updating show cache:', upsertError, show);
+      }
     }
   }
 };

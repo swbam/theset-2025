@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import type { TicketmasterEvent, TicketmasterVenue, CachedShow } from "./types";
 
@@ -83,6 +82,8 @@ export const updateArtistCache = async (
   spotifyData: any,
   shows: TicketmasterEvent[]
 ) => {
+  console.log('Updating artist cache with shows:', shows.length);
+  
   // First, upsert the artist
   const { data: artist, error: artistError } = await supabase
     .from('artists')
@@ -111,7 +112,10 @@ export const updateArtistCache = async (
   // Process and cache shows
   for (const show of shows) {
     const venueData = show._embedded?.venues?.[0];
-    if (!venueData) continue;
+    if (!venueData) {
+      console.log('Skipping show, no venue data:', show.id);
+      continue;
+    }
 
     const showData = {
       ticketmaster_id: show.id,
@@ -124,6 +128,8 @@ export const updateArtistCache = async (
       last_synced_at: new Date().toISOString()
     };
 
+    console.log('Upserting show:', showData.ticketmaster_id);
+    
     const { error: showError } = await supabase
       .from('cached_shows')
       .upsert(showData, {
