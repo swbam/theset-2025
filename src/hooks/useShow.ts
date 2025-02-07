@@ -11,10 +11,11 @@ export function useShow(eventId: string | undefined) {
         return null;
       }
 
-      // Extract the actual Ticketmaster ID from the URL format
-      const ticketmasterId = eventId.split('/').pop() || eventId;
+      // Extract the Ticketmaster ID from the last segment of the URL path
+      const segments = eventId.split('/');
+      const ticketmasterId = segments[segments.length - 1];
       
-      console.log('Fetching show:', ticketmasterId);
+      console.log('Fetching show with Ticketmaster ID:', ticketmasterId);
       
       const { data: show, error } = await supabase
         .from('cached_shows')
