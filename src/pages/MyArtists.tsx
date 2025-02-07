@@ -8,6 +8,8 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingState } from "@/components/shows/LoadingState";
 import { ArtistFollowCard } from "@/components/artists/ArtistFollowCard";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileNav } from "@/components/mobile/MobileNav";
 
 interface FollowedArtist {
   artists: {
@@ -22,6 +24,7 @@ interface FollowedArtist {
 const MyArtists = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const { data: followedArtists, isLoading } = useQuery({
     queryKey: ["followedArtists", user?.id],
@@ -56,13 +59,26 @@ const MyArtists = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-black">
-        <DashboardSidebar />
-        <SidebarInset>
-          <div className="w-full max-w-7xl mx-auto px-6 py-8">
-            <h1 className="text-2xl font-bold mb-8">My Artists</h1>
+      <div className="min-h-screen flex w-full bg-gradient-to-b from-black to-zinc-900">
+        {!isMobile && <DashboardSidebar />}
+        <SidebarInset className="flex-1">
+          {isMobile && (
+            <div className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div className="flex h-14 items-center px-4">
+                <div className="flex flex-1 items-center justify-between">
+                  <h2 className="text-lg font-semibold">My Artists</h2>
+                  <MobileNav />
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+            {!isMobile && (
+              <h1 className="text-3xl font-bold mb-8">My Artists</h1>
+            )}
             
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {isLoading ? (
                 Array(6).fill(0).map((_, i) => (
                   <div key={i} className="h-48 bg-accent/20 rounded-lg animate-pulse" />

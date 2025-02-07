@@ -58,8 +58,7 @@ const MyActivity = () => {
             created_at,
             setlist_songs!user_votes_song_id_fkey (
               song_name,
-              setlist_id,
-              setlists (
+              setlists!setlist_songs_setlist_id_fkey (
                 id,
                 name,
                 shows (
@@ -95,29 +94,41 @@ const MyActivity = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gradient-to-b from-black to-zinc-900">
         {!isMobile && <DashboardSidebar />}
-        <SidebarInset>
-          <div className="w-full max-w-7xl mx-auto px-6 py-8">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h1 className="text-4xl font-bold mb-2">My Activity</h1>
-                <p className="text-lg text-muted-foreground">
-                  View your saved setlists and voting history
-                </p>
+        <SidebarInset className="flex-1">
+          {isMobile && (
+            <div className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div className="flex h-14 items-center px-4">
+                <div className="flex flex-1 items-center justify-between">
+                  <h2 className="text-lg font-semibold">My Activity</h2>
+                  <MobileNav />
+                </div>
               </div>
-              {isMobile && <MobileNav />}
             </div>
+          )}
+          
+          <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+            {!isMobile && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold mb-2">My Activity</h1>
+                  <p className="text-lg text-muted-foreground">
+                    View your saved setlists and voting history
+                  </p>
+                </div>
+              </div>
+            )}
 
-            <Tabs defaultValue="setlists" className="space-y-6">
+            <Tabs defaultValue="setlists" className="space-y-4">
               <TabsList className="bg-background/10 backdrop-blur-sm">
                 <TabsTrigger value="setlists">Saved Setlists</TabsTrigger>
                 <TabsTrigger value="votes">My Votes</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="setlists">
+              <TabsContent value="setlists" className="space-y-4">
                 <SavedSetlists isLoading={isLoadingSetlists} setlists={setlists} />
               </TabsContent>
 
-              <TabsContent value="votes">
+              <TabsContent value="votes" className="space-y-4">
                 <UserVotes isLoading={isLoadingVotes} votes={votes} />
               </TabsContent>
             </Tabs>
