@@ -28,7 +28,7 @@ export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
       .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
       .replace(/[^a-z0-9]+/g, '-'); // Replace non-alphanumeric with hyphens
     
-    return `/show/${artistPart}/${datePart}/${cityPart}/${venuePart}/${show.id}`;
+    return `/show/${show.id}`;  // Use simple ID-based route for reliability
   };
 
   return (

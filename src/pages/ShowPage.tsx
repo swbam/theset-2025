@@ -10,7 +10,7 @@ import { ShowDetails } from "@/components/shows/ShowDetails";
 import { Setlist } from "@/components/shows/Setlist";
 
 export default function ShowPage() {
-  const { id } = useParams();
+  const { id, artistSlug } = useParams();
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -32,6 +32,9 @@ export default function ShowPage() {
         .eq('ticketmaster_id', id)
         .maybeSingle();
       
+      if (!show) {
+        console.error('Show not found:', id);
+      }
       return show;
     },
     enabled: !!id,
@@ -116,6 +119,7 @@ export default function ShowPage() {
   }
 
   if (!show) {
+    console.error('Show not found in render');
     return <EmptyState />;
   }
 
