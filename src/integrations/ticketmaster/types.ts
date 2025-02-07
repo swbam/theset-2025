@@ -38,6 +38,9 @@ export interface TicketmasterEvent {
     start: {
       dateTime: string;
     };
+    status?: {
+      code: string;
+    };
   };
   _embedded?: {
     venues?: TicketmasterVenue[];
@@ -60,6 +63,12 @@ export interface TicketmasterEvent {
     ratio?: string;
   }>;
   url: string;
+  priceRanges?: Array<{
+    min: number;
+    max: number;
+    currency: string;
+    type: string;
+  }>;
   classifications?: Array<{
     primary: boolean;
     segment: {

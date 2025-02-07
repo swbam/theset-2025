@@ -11,11 +11,12 @@ export function useShow(eventId: string | undefined) {
         return null;
       }
 
-      // Get the Ticketmaster ID from the last segment after 'event/'
-      const ticketmasterId = eventId.split('event/').pop();
+      // Extract Ticketmaster ID from the URL - it's the last part after 'event/'
+      const match = eventId.match(/event\/([^/]+)$/);
+      const ticketmasterId = match ? match[1] : null;
       
       if (!ticketmasterId) {
-        console.error('Invalid event URL format');
+        console.error('Invalid event URL format:', eventId);
         return null;
       }
       
@@ -42,10 +43,11 @@ export function useShow(eventId: string | undefined) {
       }
 
       if (!show) {
-        console.error('Show not found:', ticketmasterId);
+        console.error('Show not found for ID:', ticketmasterId);
         return null;
       }
 
+      console.log('Found show:', show);
       return show;
     },
     enabled: !!eventId,
