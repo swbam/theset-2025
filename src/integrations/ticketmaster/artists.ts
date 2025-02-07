@@ -1,6 +1,6 @@
 
+import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
-import { fetchFromCache } from "./api";
 import { updateShowCache } from "./shows";
 import type { TicketmasterEvent } from "./types";
 
@@ -39,17 +39,44 @@ export const fetchArtistEvents = async (artistName: string) => {
     .eq('name', artistName)
     .maybeSingle();
     
-  const cachedShows = artist ? await fetchFromCache(artist.id) : null;
-  if (cachedShows) {
-    console.log('Returning cached shows for artist:', artistName);
-    return cachedShows;
+  if (artist) {
+    console.log('Found artist in database:', artist);
+    const { data: cachedShows } = await supabase
+      .from('cached_shows')
+      .select(`
+        *,
+        venue:venues(*)
+      `)
+      .eq('artist_id', artist.id)
+      .gte('date', new Date().toISOString())
+      .order('date', { ascending: true });
+      
+    if (cachedShows && cachedShows.length > 0) {
+      console.log('Returning cached shows for artist:', artistName);
+      return cachedShows;
+    }
   }
 
+  console.log('Fetching fresh shows from Ticketmaster for artist:', artistName);
   const shows = await callTicketmasterFunction('artist', artistName);
   
   if (artist && shows.length > 0) {
     console.log('Updating show cache for artist:', artistName);
     await updateShowCache(shows, artist.id);
+  }
+
+  return shows;
+};
+
+export const fetchPopularTours = async () => {
+  const shows = await callTicketmasterFunction('events', undefined, {
+    classificationName: 'music',
+    sort: 'relevance,desc',
+    size: '100'
+  });
+
+  if (shows.length > 0) {
+    await updateShowCache(shows);
   }
 
   return shows;
