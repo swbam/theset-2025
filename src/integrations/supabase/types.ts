@@ -9,6 +9,35 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      anonymous_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          ip_address: string
+          song_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ip_address: string
+          song_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ip_address?: string
+          song_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anonymous_votes_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "setlist_songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artists: {
         Row: {
           cover_image_url: string | null
