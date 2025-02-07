@@ -10,6 +10,7 @@ export interface TicketmasterEvent {
   };
   _embedded?: {
     venues?: Array<{
+      id: string;
       name: string;
       capacity?: number;
       city?: {
@@ -22,6 +23,13 @@ export interface TicketmasterEvent {
       state?: {
         name: string;
         stateCode?: string;
+      };
+      country?: {
+        name: string;
+        countryCode?: string;
+      };
+      address?: {
+        line1: string;
       };
     }>;
     attractions?: Array<{
@@ -90,30 +98,102 @@ const callTicketmasterFunction = async (endpoint: string, query?: string, params
   return data?._embedded?.events || [];
 };
 
+const prepareVenueForCache = (venue: any) => {
+  if (!venue?.name) {
+    return null;
+  }
+
+  return {
+    ticketmaster_id: venue.id,
+    name: venue.name,
+    city: venue.city?.name,
+    state: venue.state?.name,
+    country: venue.country?.name,
+    address: venue.address?.line1,
+    location: venue,
+    capacity: venue.capacity,
+    last_synced_at: new Date().toISOString()
+  };
+};
+
 const prepareShowForCache = (show: TicketmasterEvent, artistId?: string | null) => {
   if (!show.dates?.start?.dateTime) {
     return null;
   }
 
+  const venue = show._embedded?.venues?.[0];
+  
   return {
     ticketmaster_id: show.id,
     artist_id: artistId || null,
     name: show.name,
     date: show.dates.start.dateTime,
-    venue_name: show._embedded?.venues?.[0]?.name,
-    venue_location: show._embedded?.venues?.[0],
+    venue_name: venue?.name,
+    venue_location: venue,
     ticket_url: show.url,
     last_synced_at: new Date().toISOString()
   };
 };
 
 const updateShowCache = async (shows: any[]) => {
-  if (shows.length > 0) {
+  if (shows.length === 0) return;
+
+  // First, extract and upsert all venues
+  const venues = shows
+    .map(show => show._embedded?.venues?.[0])
+    .filter(Boolean)
+    .map(prepareVenueForCache)
+    .filter(Boolean);
+
+  if (venues.length > 0) {
+    const { error: venueError } = await supabase
+      .from('venues')
+      .upsert(venues, {
+        onConflict: 'ticketmaster_id',
+        ignoreDuplicates: false
+      });
+
+    if (venueError) {
+      console.error('Error updating venue cache:', venueError);
+      return;
+    }
+  }
+
+  // Then get the venue IDs for the shows
+  const venueIds = new Map<string, string>();
+  for (const venue of venues) {
+    const { data: venueData } = await supabase
+      .from('venues')
+      .select('id, ticketmaster_id')
+      .eq('ticketmaster_id', venue.ticketmaster_id)
+      .single();
+    
+    if (venueData) {
+      venueIds.set(venue.ticketmaster_id, venueData.id);
+    }
+  }
+
+  // Prepare and upsert shows with venue IDs
+  const showsToCache = shows
+    .map(show => {
+      const prepared = prepareShowForCache(show);
+      if (!prepared) return null;
+
+      const venueId = show._embedded?.venues?.[0]?.id;
+      if (venueId) {
+        prepared.venue_id = venueIds.get(venueId);
+      }
+
+      return prepared;
+    })
+    .filter(Boolean);
+
+  if (showsToCache.length > 0) {
     const { error: upsertError } = await supabase
       .from('cached_shows')
-      .upsert(shows, { 
+      .upsert(showsToCache, {
         onConflict: 'ticketmaster_id',
-        ignoreDuplicates: false 
+        ignoreDuplicates: false
       });
 
     if (upsertError) {

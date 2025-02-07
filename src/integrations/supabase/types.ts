@@ -64,6 +64,7 @@ export type Database = {
           ticket_url: string | null
           ticketmaster_id: string
           updated_at: string | null
+          venue_id: string | null
           venue_location: Json | null
           venue_name: string | null
         }
@@ -79,6 +80,7 @@ export type Database = {
           ticket_url?: string | null
           ticketmaster_id: string
           updated_at?: string | null
+          venue_id?: string | null
           venue_location?: Json | null
           venue_name?: string | null
         }
@@ -94,6 +96,7 @@ export type Database = {
           ticket_url?: string | null
           ticketmaster_id?: string
           updated_at?: string | null
+          venue_id?: string | null
           venue_location?: Json | null
           venue_name?: string | null
         }
@@ -103,6 +106,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cached_shows_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -383,6 +393,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      venues: {
+        Row: {
+          address: string | null
+          capacity: number | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          id: string
+          last_synced_at: string | null
+          location: Json | null
+          name: string
+          state: string | null
+          ticketmaster_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          capacity?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          location?: Json | null
+          name: string
+          state?: string | null
+          ticketmaster_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          capacity?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          location?: Json | null
+          name?: string
+          state?: string | null
+          ticketmaster_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {

@@ -12,7 +12,17 @@ export default function ShowPage() {
     queryFn: async () => {
       const { data: show } = await supabase
         .from('cached_shows')
-        .select('*')
+        .select(`
+          *,
+          venue:venues(
+            id,
+            name,
+            city,
+            state,
+            country,
+            address
+          )
+        `)
         .eq('ticketmaster_id', id)
         .maybeSingle();
       
@@ -45,9 +55,16 @@ export default function ShowPage() {
           <div>
             <h1 className="text-4xl font-bold text-white mb-4">{show.name}</h1>
             <div className="space-y-2 text-white/60">
-              <p>{show.venue_name}</p>
-              {show.venue_location?.city?.name && show.venue_location?.state?.name && (
-                <p>{show.venue_location.city.name}, {show.venue_location.state.name}</p>
+              {show.venue && (
+                <>
+                  <p>{show.venue.name}</p>
+                  {show.venue.city && show.venue.state && (
+                    <p>{show.venue.city}, {show.venue.state}</p>
+                  )}
+                  {show.venue.address && (
+                    <p>{show.venue.address}</p>
+                  )}
+                </>
               )}
               <p>{new Date(show.date).toLocaleDateString('en-US', {
                 weekday: 'long',
