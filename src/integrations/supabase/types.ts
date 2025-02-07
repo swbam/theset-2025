@@ -150,13 +150,6 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "fk_artist"
-            columns: ["artist_id"]
-            isOneToOne: false
-            referencedRelation: "artists"
-            referencedColumns: ["id"]
-          },
         ]
       }
       cached_songs: {
