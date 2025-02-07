@@ -32,6 +32,22 @@ async function processQueue() {
   processingQueue = false;
 }
 
+function formatDateRange(dateRange: string): string {
+  if (!dateRange) return '';
+  
+  const [startDate, endDate] = dateRange.split(',');
+  if (!startDate || !endDate) {
+    console.error('Invalid date range format:', dateRange);
+    throw new Error('Invalid date range format');
+  }
+
+  // Ensure both dates are in ISO format with Z suffix
+  const formattedStart = new Date(startDate).toISOString();
+  const formattedEnd = new Date(endDate).toISOString();
+  
+  return `${formattedStart},${formattedEnd}`;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -73,12 +89,14 @@ Deno.serve(async (req) => {
 
     // Handle date parameters properly
     if (params?.localStartEndDateTime) {
-      const [startDate, endDate] = params.localStartEndDateTime.split(',');
-      // Format dates in ISO 8601 with Z suffix if they're not already
-      const formattedStartDate = startDate.endsWith('Z') ? startDate : `${startDate}Z`;
-      const formattedEndDate = endDate.endsWith('Z') ? endDate : `${endDate}Z`;
-      queryParams.set('localStartEndDateTime', `${formattedStartDate},${formattedEndDate}`);
-      console.log('Formatted date range:', queryParams.get('localStartEndDateTime'));
+      try {
+        const formattedDateRange = formatDateRange(params.localStartEndDateTime);
+        queryParams.set('localStartEndDateTime', formattedDateRange);
+        console.log('Using formatted date range:', formattedDateRange);
+      } catch (error) {
+        console.error('Error formatting date range:', error);
+        throw error;
+      }
     }
 
     // Endpoint-specific parameters
@@ -150,7 +168,7 @@ Deno.serve(async (req) => {
         const data = await response.json();
         console.log('Received response with data:', data._embedded?.events?.length || 0, 'events');
         
-        return new Response(JSON.stringify(data), {
+        return new Response(JSON.stringify(data._embedded?.events || []), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch (error) {
