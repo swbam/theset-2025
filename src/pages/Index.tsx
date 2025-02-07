@@ -5,20 +5,32 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SearchBar } from "@/components/search/SearchBar";
 import { PopularTours } from "@/components/shows/PopularTours";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { ShowCard } from "@/components/shows/ShowCard";
+import { fetchUpcomingStadiumShows, fetchLargeVenueShows } from "@/integrations/ticketmaster/client";
 
 const Index = () => {
   const { user, signInWithSpotify } = useAuth();
   const navigate = useNavigate();
 
+  const { data: stadiumShows, isLoading: loadingStadium } = useQuery({
+    queryKey: ['stadiumShows'],
+    queryFn: () => fetchUpcomingStadiumShows(),
+  });
+
+  const { data: arenaShows, isLoading: loadingArena } = useQuery({
+    queryKey: ['arenaShows'],
+    queryFn: () => fetchLargeVenueShows(),
+  });
+
   const handleArtistClick = (artistName: string) => {
-    // Remove special characters and normalize spaces
     const encodedName = artistName
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
     
     console.log('Navigating to artist:', encodedName);
     navigate(`/artist/${encodedName}`);
@@ -50,7 +62,44 @@ const Index = () => {
         <SearchBar onArtistClick={handleArtistClick} />
       </div>
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-12">
+        {/* Stadium Shows Section */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-semibold tracking-tight">Major Stadium Shows</h2>
+          {loadingStadium ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-64 bg-black/30 animate-pulse rounded-lg" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {stadiumShows?.slice(0, 6).map((show) => (
+                <ShowCard key={show.id} show={show} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Arena Shows Section */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-semibold tracking-tight">Arena Concerts</h2>
+          {loadingArena ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-64 bg-black/30 animate-pulse rounded-lg" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {arenaShows?.slice(0, 6).map((show) => (
+                <ShowCard key={show.id} show={show} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Popular Tours Section */}
         <PopularTours onArtistClick={handleArtistClick} />
       </div>
     </div>

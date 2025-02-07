@@ -22,6 +22,11 @@ export const ShowCard = ({ show }: ShowCardProps) => {
   const venue = isTicketmasterEvent ? 
     show._embedded?.venues?.[0] : 
     show.venue;
+
+  // Get artist name from the show data
+  const artistName = isTicketmasterEvent
+    ? show._embedded?.attractions?.[0]?.name
+    : show.artist?.name;
     
   const cityState = (() => {
     if (!venue) return '';
@@ -42,8 +47,18 @@ export const ShowCard = ({ show }: ShowCardProps) => {
   })();
 
   const generateSeoUrl = () => {
+    if (!artistName) return '/';
+    
+    const encodedName = artistName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+      
     const eventId = isTicketmasterEvent ? show.id : show.ticketmaster_id;
-    return `/show/event/${eventId}`;
+    return `/artist/${encodedName}/show/${eventId}`;
   };
 
   return (
