@@ -25,13 +25,14 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     show.venue;
     
   const cityState = venue ? 
-    isTicketmasterEvent ?
+    (isTicketmasterEvent ?
       (venue.city?.name && venue.state?.name ? 
         `${venue.city.name}, ${venue.state.name}` : 
         venue.city?.name || '') :
       (venue.city && venue.state ? 
         `${venue.city}, ${venue.state}` : 
-        venue.city || '');
+        venue.city || '')
+    ) : '';
 
   const generateSeoUrl = () => {
     const cityPart = isTicketmasterEvent ?
