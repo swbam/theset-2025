@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/shows/LoadingState";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface SetlistActivity {
   id: string;
@@ -18,7 +19,7 @@ interface SetlistActivity {
   shows: {
     artist_name: string;
     venue: string;
-  };
+  } | null;
 }
 
 interface VoteActivity {
@@ -31,9 +32,9 @@ interface VoteActivity {
       shows: {
         artist_name: string;
         venue: string;
-      };
-    };
-  };
+      } | null;
+    } | null;
+  } | null;
 }
 
 const MyActivity = () => {
@@ -43,22 +44,28 @@ const MyActivity = () => {
   const { data: setlists, isLoading: isLoadingSetlists } = useQuery({
     queryKey: ["userSetlists", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("setlists")
-        .select(`
-          id,
-          created_at,
-          name,
-          shows (
-            artist_name,
-            venue
-          )
-        `)
-        .eq("created_by", user?.id)
-        .order("created_at", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("setlists")
+          .select(`
+            id,
+            created_at,
+            name,
+            shows (
+              artist_name,
+              venue
+            )
+          `)
+          .eq("created_by", user?.id)
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return data as SetlistActivity[];
+        if (error) throw error;
+        return data as SetlistActivity[];
+      } catch (error) {
+        console.error("Error fetching setlists:", error);
+        toast.error("Failed to load your setlists");
+        return [];
+      }
     },
     enabled: !!user,
   });
@@ -66,27 +73,33 @@ const MyActivity = () => {
   const { data: votes, isLoading: isLoadingVotes } = useQuery({
     queryKey: ["userVotes", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_votes")
-        .select(`
-          id,
-          created_at,
-          setlist_songs (
-            song_name,
-            setlist (
-              name,
-              shows (
-                artist_name,
-                venue
+      try {
+        const { data, error } = await supabase
+          .from("user_votes")
+          .select(`
+            id,
+            created_at,
+            setlist_songs (
+              song_name,
+              setlist (
+                name,
+                shows (
+                  artist_name,
+                  venue
+                )
               )
             )
-          )
-        `)
-        .eq("user_id", user?.id)
-        .order("created_at", { ascending: false });
+          `)
+          .eq("user_id", user?.id)
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      return data as VoteActivity[];
+        if (error) throw error;
+        return data as VoteActivity[];
+      } catch (error) {
+        console.error("Error fetching votes:", error);
+        toast.error("Failed to load your votes");
+        return [];
+      }
     },
     enabled: !!user,
   });
@@ -121,7 +134,7 @@ const MyActivity = () => {
               <TabsContent value="setlists" className="space-y-4">
                 {isLoadingSetlists ? (
                   <LoadingState />
-                ) : setlists?.length === 0 ? (
+                ) : !setlists?.length ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <p>No setlists saved yet</p>
                     <p className="text-sm mt-1">
@@ -134,9 +147,9 @@ const MyActivity = () => {
                       key={setlist.id}
                       className="p-6 rounded-lg bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm space-y-2"
                     >
-                      <h3 className="text-xl font-semibold">{setlist.shows.artist_name}</h3>
+                      <h3 className="text-xl font-semibold">{setlist.shows?.artist_name}</h3>
                       <p className="text-muted-foreground">
-                        {setlist.shows.venue}
+                        {setlist.shows?.venue}
                       </p>
                       <div className="flex items-center justify-between mt-4">
                         <p className="text-sm text-muted-foreground">
@@ -157,7 +170,7 @@ const MyActivity = () => {
               <TabsContent value="votes" className="space-y-4">
                 {isLoadingVotes ? (
                   <LoadingState />
-                ) : votes?.length === 0 ? (
+                ) : !votes?.length ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <p>No votes yet</p>
                     <p className="text-sm mt-1">
@@ -171,13 +184,13 @@ const MyActivity = () => {
                       className="p-6 rounded-lg bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm space-y-2"
                     >
                       <h3 className="text-xl font-semibold">
-                        {vote.setlist_songs.setlist.shows.artist_name}
+                        {vote.setlist_songs?.setlist?.shows?.artist_name}
                       </h3>
                       <p className="text-muted-foreground">
-                        {vote.setlist_songs.setlist.shows.venue}
+                        {vote.setlist_songs?.setlist?.shows?.venue}
                       </p>
                       <p className="text-sm">
-                        Voted for "{vote.setlist_songs.song_name}"
+                        Voted for "{vote.setlist_songs?.song_name}"
                       </p>
                       <div className="flex items-center justify-between mt-4">
                         <p className="text-sm text-muted-foreground">
@@ -185,7 +198,7 @@ const MyActivity = () => {
                         </p>
                         <Button
                           variant="secondary"
-                          onClick={() => navigate(`/setlist/${vote.setlist_songs.setlist.id}`)}
+                          onClick={() => navigate(`/setlist/${vote.setlist_songs?.setlist?.id}`)}
                         >
                           View Setlist
                         </Button>
