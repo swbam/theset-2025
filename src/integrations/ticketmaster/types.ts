@@ -21,6 +21,12 @@ export interface TicketmasterVenue {
   address?: {
     line1: string;
   };
+  images?: Array<{
+    url: string;
+    ratio?: string;
+    width?: number;
+    height?: number;
+  }>;
 }
 
 export interface TicketmasterEvent {
@@ -80,6 +86,7 @@ export interface CachedVenue {
   address?: string;
   location?: any;
   capacity?: number;
+  venue_image_url?: string | null;
   last_synced_at: string;
 }
 

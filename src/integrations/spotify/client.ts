@@ -30,3 +30,17 @@ export const getFollowedArtists = async (accessToken: string): Promise<SpotifyAr
   const data = await response.json();
   return data.artists?.items || [];
 };
+
+export const searchArtist = async (accessToken: string, artistName: string): Promise<SpotifyArtist | null> => {
+  const response = await fetch(
+    `${SPOTIFY_API_URL}/search?q=${encodeURIComponent(artistName)}&type=artist&limit=1`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  const data = await response.json();
+  return data.artists?.items?.[0] || null;
+};
+

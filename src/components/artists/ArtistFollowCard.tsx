@@ -24,12 +24,20 @@ export const ArtistFollowCard = ({
   onClick
 }: ArtistFollowCardProps) => (
   <Card 
-    className="hover:bg-accent/50 transition-colors cursor-pointer"
+    className="hover:bg-accent/50 transition-colors cursor-pointer overflow-hidden"
     onClick={onClick}
   >
+    {imageUrl && (
+      <div 
+        className="w-full h-32 bg-cover bg-center"
+        style={{
+          backgroundImage: `url(${imageUrl})`,
+        }}
+      />
+    )}
     <div className="p-6 flex flex-row items-center gap-4">
       <div 
-        className="w-16 h-16 rounded-full bg-cover bg-center flex-shrink-0"
+        className="w-16 h-16 rounded-full bg-cover bg-center flex-shrink-0 border border-border"
         style={{
           backgroundImage: imageUrl ? `url(${imageUrl})` : undefined,
           backgroundColor: !imageUrl ? 'rgba(255,255,255,0.1)' : undefined,

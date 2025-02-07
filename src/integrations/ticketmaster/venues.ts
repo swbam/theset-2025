@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import type { TicketmasterVenue, CachedVenue } from "./types";
@@ -7,6 +6,11 @@ export const prepareVenueForCache = (venue: TicketmasterVenue): CachedVenue | nu
   if (!venue?.name) {
     return null;
   }
+
+  // Get the best venue image if available
+  const venueImage = venue.images?.find(img => 
+    img.ratio === "16_9" || img.ratio === "4_3"
+  )?.url;
 
   return {
     ticketmaster_id: venue.id,
@@ -17,6 +21,7 @@ export const prepareVenueForCache = (venue: TicketmasterVenue): CachedVenue | nu
     address: venue.address?.line1,
     location: venue,
     capacity: venue.capacity,
+    venue_image_url: venueImage || null,
     last_synced_at: new Date().toISOString()
   };
 };

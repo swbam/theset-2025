@@ -427,6 +427,7 @@ export type Database = {
           state: string | null
           ticketmaster_id: string | null
           updated_at: string | null
+          venue_image_url: string | null
         }
         Insert: {
           address?: string | null
@@ -441,6 +442,7 @@ export type Database = {
           state?: string | null
           ticketmaster_id?: string | null
           updated_at?: string | null
+          venue_image_url?: string | null
         }
         Update: {
           address?: string | null
@@ -455,6 +457,7 @@ export type Database = {
           state?: string | null
           ticketmaster_id?: string | null
           updated_at?: string | null
+          venue_image_url?: string | null
         }
         Relationships: []
       }
