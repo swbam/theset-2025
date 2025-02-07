@@ -6,16 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingState } from "@/components/shows/LoadingState";
+import { ArtistFollowCard } from "@/components/artists/ArtistFollowCard";
 
 interface FollowedArtist {
   artists: {
@@ -70,79 +62,29 @@ const MyArtists = () => {
           <div className="w-full max-w-7xl mx-auto px-6 py-8">
             <h1 className="text-2xl font-bold mb-8">My Artists</h1>
             
-            {!followedArtists?.length && (
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">Recommended Artists</h2>
-              </div>
-            )}
-
-            <div className="bg-black/50 rounded-lg border border-zinc-800 backdrop-blur-sm">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Artist</TableHead>
-                    <TableHead>Genres</TableHead>
-                    <TableHead>Following Since</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={4}>
-                        <LoadingState />
-                      </TableCell>
-                    </TableRow>
-                  ) : followedArtists?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8">
-                        <p className="text-muted-foreground">No artists followed yet</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Follow artists to get updates about their shows and setlists
-                        </p>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    followedArtists?.map((item) => (
-                      <TableRow 
-                        key={item.artists.id}
-                        className="cursor-pointer hover:bg-white/5 transition-colors"
-                        onClick={() => navigate(`/artist/${item.artists.name.replace(/\s+/g, '-').toLowerCase()}`)}
-                      >
-                        <TableCell className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={item.artists.image_url || ''} />
-                            <AvatarFallback>
-                              {item.artists.name[0].toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{item.artists.name}</span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2 flex-wrap">
-                            {item.artists.genres?.slice(0, 2).map((genre: string) => (
-                              <span 
-                                key={genre}
-                                className="px-2 py-1 rounded-full text-xs bg-white/10"
-                              >
-                                {genre}
-                              </span>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(item.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <span className="px-2 py-1 rounded-full text-xs bg-green-500/10 text-green-500">
-                            Following
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {isLoading ? (
+                Array(6).fill(0).map((_, i) => (
+                  <div key={i} className="h-48 bg-accent/20 rounded-lg animate-pulse" />
+                ))
+              ) : followedArtists?.length === 0 ? (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-muted-foreground">No artists followed yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Follow artists to get updates about their shows and setlists
+                  </p>
+                </div>
+              ) : (
+                followedArtists?.map((item) => (
+                  <ArtistFollowCard
+                    key={item.artists.id}
+                    name={item.artists.name}
+                    imageUrl={item.artists.image_url}
+                    followingSince={item.created_at}
+                    onClick={() => navigate(`/artist/${item.artists.name.replace(/\s+/g, '-').toLowerCase()}`)}
+                  />
+                ))
+              )}
             </div>
           </div>
         </SidebarInset>
