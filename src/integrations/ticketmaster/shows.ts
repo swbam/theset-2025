@@ -12,6 +12,7 @@ export const prepareShowForCache = (show: TicketmasterEvent, artistId?: string |
   const venue = show._embedded?.venues?.[0];
   
   return {
+    id: show.id,
     ticketmaster_id: show.id,
     artist_id: artistId,
     name: show.name,
@@ -82,14 +83,31 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
       classificationName: 'music',
       size: '20',
       sort: 'date,asc',
-      segmentId: 'KZFzniwnSyZfZ7v7nJ'
+      segmentId: 'KZFzniwnSyZfZ7v7nJ',
+      includeTBA: 'no',
+      includeTBD: 'no',
+      includeTest: 'no',
+      marketId: '102', // US National market
+      localStartEndDateTime: `${new Date().toISOString()},${new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}` // Next 365 days
     });
 
-    if (shows.length > 0) {
-      await updateShowCache(shows, artistId);
+    // Filter to only include music events in large venues
+    const filteredShows = shows.filter((show: TicketmasterEvent) => {
+      const venue = show._embedded?.venues?.[0];
+      const isMusic = show._embedded?.attractions?.some(attr => 
+        attr.classifications?.some(c => c.segment?.name.toLowerCase() === 'music')
+      );
+      const hasValidArtist = show._embedded?.attractions?.some(attr => attr.name && attr.id);
+      const capacity = parseInt(venue?.capacity || '0');
+      
+      return isMusic && hasValidArtist && capacity > 15000;
+    });
+
+    if (filteredShows.length > 0) {
+      await updateShowCache(filteredShows, artistId);
     }
 
-    return shows;
+    return filteredShows;
   } catch (error) {
     console.error('Error fetching stadium shows:', error);
     return [];
@@ -102,14 +120,29 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
       classificationName: 'music',
       size: '20',
       sort: 'date,asc',
-      keyword: 'stadium,arena'
+      segmentId: 'KZFzniwnSyZfZ7v7nJ',
+      includeTBA: 'no',
+      includeTBD: 'no',
+      includeTest: 'no',
+      marketId: '102', // US National market
+      venueId: ['KovZpZAFnIEA', 'KovZpZAE7vdA', 'KovZpaKSje', 'KovZpZA7AAEA'], // Major US arenas
+      localStartEndDateTime: `${new Date().toISOString()},${new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString()}` // Next 6 months
     });
 
-    if (shows.length > 0) {
-      await updateShowCache(shows, artistId);
+    const filteredShows = shows.filter((show: TicketmasterEvent) => {
+      const isMusic = show._embedded?.attractions?.some(attr => 
+        attr.classifications?.some(c => c.segment?.name.toLowerCase() === 'music')
+      );
+      const hasValidArtist = show._embedded?.attractions?.some(attr => attr.name && attr.id);
+      
+      return isMusic && hasValidArtist;
+    });
+
+    if (filteredShows.length > 0) {
+      await updateShowCache(filteredShows, artistId);
     }
 
-    return shows;
+    return filteredShows;
   } catch (error) {
     console.error('Error fetching venue shows:', error);
     return [];
@@ -120,15 +153,30 @@ export const fetchPopularTours = async (artistId?: string) => {
   try {
     const shows = await callTicketmasterFunction('events', undefined, {
       classificationName: 'music',
-      sort: 'relevance,desc',
-      size: '100'
+      sort: 'popularity,desc',
+      size: '100',
+      segmentId: 'KZFzniwnSyZfZ7v7nJ',
+      includeTBA: 'no',
+      includeTBD: 'no',
+      includeTest: 'no',
+      marketId: '102', // US National market
+      localStartEndDateTime: `${new Date().toISOString()},${new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString()}` // Next 6 months
     });
 
-    if (shows.length > 0) {
-      await updateShowCache(shows, artistId);
+    const filteredShows = shows.filter((show: TicketmasterEvent) => {
+      const isMusic = show._embedded?.attractions?.some(attr => 
+        attr.classifications?.some(c => c.segment?.name.toLowerCase() === 'music')
+      );
+      const hasValidArtist = show._embedded?.attractions?.some(attr => attr.name && attr.id);
+      
+      return isMusic && hasValidArtist;
+    });
+
+    if (filteredShows.length > 0) {
+      await updateShowCache(filteredShows, artistId);
     }
 
-    return shows;
+    return filteredShows;
   } catch (error) {
     console.error('Error fetching popular tours:', error);
     return [];

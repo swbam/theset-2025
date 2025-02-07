@@ -26,7 +26,7 @@ export const ShowCard = ({ show }: ShowCardProps) => {
   // Get artist name from the show data
   const artistName = isTicketmasterEvent
     ? show._embedded?.attractions?.[0]?.name
-    : show.artist?.name;
+    : show.name?.split(' at ')?.[0];
     
   const cityState = (() => {
     if (!venue) return '';
@@ -38,11 +38,7 @@ export const ShowCard = ({ show }: ShowCardProps) => {
       }
       return tmVenue.city?.name || '';
     } else {
-      const cachedVenue = venue as CachedShow['venue'];
-      if (cachedVenue?.city && cachedVenue?.state) {
-        return `${cachedVenue.city}, ${cachedVenue.state}`;
-      }
-      return cachedVenue?.city || '';
+      return venue.city && venue.state ? `${venue.city}, ${venue.state}` : venue.city || '';
     }
   })();
 
