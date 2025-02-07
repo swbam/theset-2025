@@ -1,3 +1,4 @@
+
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchArtistEvents } from "@/integrations/ticketmaster/client";
@@ -21,11 +22,11 @@ export default function ArtistPage() {
     queryFn: async () => {
       if (!decodedArtistName) throw new Error('Artist name is required');
       
-      // First, try to fetch existing artist
+      // First, try to fetch existing artist with case-insensitive search
       const { data: existingArtist } = await supabase
         .from('artists')
         .select('*')
-        .eq('name', decodedArtistName)
+        .ilike('name', decodedArtistName)
         .maybeSingle();
 
       if (existingArtist) {
@@ -50,12 +51,11 @@ export default function ArtistPage() {
       const { data: artist, error: insertError } = await supabase
         .from('artists')
         .upsert({
-          name: decodedArtistName,
-          // We'll update these fields later when we integrate Spotify
+          name: decodedArtistName, // Keep original case
           spotify_id: decodedArtistName.toLowerCase().replace(/[^a-z0-9]/g, ''),
           last_synced_at: new Date().toISOString()
         }, {
-          onConflict: 'name',
+          onConflict: 'spotify_id', // Use spotify_id for conflict resolution
           ignoreDuplicates: false
         })
         .select()
@@ -159,6 +159,7 @@ export default function ArtistPage() {
     }
   };
 
+  // Query to fetch shows
   const { data: shows, isLoading: isLoadingShows } = useQuery({
     queryKey: ['artistShows', decodedArtistName],
     queryFn: async () => {
