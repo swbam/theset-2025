@@ -6,7 +6,11 @@ import type { TicketmasterEvent } from "./types";
 
 export const searchArtists = async (query: string) => {
   console.log('Searching for artists:', query);
-  const results = await callTicketmasterFunction('search', query);
+  const results = await callTicketmasterFunction('events', query, {
+    keyword: query,
+    classificationName: 'music',
+    size: '20'
+  });
   
   // Filter for music events and remove duplicates
   const uniqueArtists = new Map();
@@ -36,7 +40,7 @@ export const fetchArtistEvents = async (artistName: string) => {
   const { data: artist } = await supabase
     .from('artists')
     .select('id')
-    .ilike('name', artistName)
+    .ilike('name', artistName.replace(/-/g, ' '))
     .maybeSingle();
     
   if (artist) {
@@ -57,13 +61,28 @@ export const fetchArtistEvents = async (artistName: string) => {
     }
   }
 
-  console.log('Fetching fresh shows from Ticketmaster for artist:', artistName);
-  const shows = await callTicketmasterFunction('artist', artistName);
+  // If we're here, either we didn't find the artist or their shows need refreshing
+  const decodedArtistName = artistName.replace(/-/g, ' ');
+  console.log('Fetching fresh shows from Ticketmaster for artist:', decodedArtistName);
   
-  if (artist && shows.length > 0) {
-    console.log('Updating show cache for artist:', artistName);
-    await updateShowCache(shows, artist.id);
+  const shows = await callTicketmasterFunction('events', undefined, {
+    keyword: decodedArtistName,
+    classificationName: 'music',
+    size: '100'
+  });
+  
+  // Filter to ensure we only get shows for this artist
+  const filteredShows = shows.filter(show => {
+    const attractions = show._embedded?.attractions || [];
+    return attractions.some(attraction => 
+      attraction.name.toLowerCase() === decodedArtistName.toLowerCase()
+    );
+  });
+
+  if (artist && filteredShows.length > 0) {
+    console.log('Updating show cache for artist:', decodedArtistName);
+    await updateShowCache(filteredShows, artist.id);
   }
 
-  return shows;
+  return filteredShows;
 };

@@ -10,11 +10,16 @@ const Index = () => {
   const navigate = useNavigate();
 
   const handleArtistClick = (artistName: string) => {
+    // Remove special characters and normalize spaces
     const encodedName = artistName
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-');
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+    
+    console.log('Navigating to artist:', encodedName);
     navigate(`/artist/${encodedName}`);
   };
 
