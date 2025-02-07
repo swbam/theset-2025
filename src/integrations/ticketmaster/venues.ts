@@ -14,7 +14,6 @@ export const prepareVenueForCache = (venue: TicketmasterVenue): CachedVenue | nu
   )?.url;
 
   return {
-    id: venue.id,
     ticketmaster_id: venue.id,
     name: venue.name,
     city: venue.city?.name || '',
@@ -72,34 +71,27 @@ export const updateVenuesCache = async (venues: TicketmasterVenue[]) => {
 
   if (venuesToCache.length > 0) {
     console.log(`Upserting ${venuesToCache.length} unique venues`);
-    const { error: venueError } = await supabase
+    const { data: upsertedVenues, error: venueError } = await supabase
       .from('venues')
-      .upsert(venuesToCache, {
-        onConflict: 'ticketmaster_id',
-        ignoreDuplicates: false
-      });
+      .upsert(venuesToCache)
+      .select('id, ticketmaster_id');
 
     if (venueError) {
       console.error('Error updating venue cache:', venueError);
       return new Map<string, string>();
     }
-  }
 
-  // Get venue IDs map
-  const venueIds = new Map<string, string>();
-  for (const venue of venuesToCache) {
-    const { data: venueData } = await supabase
-      .from('venues')
-      .select('id, ticketmaster_id')
-      .eq('ticketmaster_id', venue.ticketmaster_id)
-      .single();
-    
-    if (venueData) {
-      venueIds.set(venue.ticketmaster_id, venueData.id);
+    // Create venue IDs map from upserted venues
+    const venueIds = new Map<string, string>();
+    if (upsertedVenues) {
+      upsertedVenues.forEach(venue => {
+        venueIds.set(venue.ticketmaster_id, venue.id);
+      });
     }
+    return venueIds;
   }
 
-  return venueIds;
+  return new Map<string, string>();
 };
 
 export const fetchVenueEvents = async (venueId: string) => {
@@ -139,7 +131,7 @@ export const fetchVenueEvents = async (venueId: string) => {
       ticketmaster_id: show.id,
       name: show.name,
       date: show.dates.start.dateTime,
-      venue_id: venueIds.get(show._embedded?.venues?.[0]?.id || ''),
+      venue_id: show._embedded?.venues?.[0]?.id ? venueIds.get(show._embedded.venues[0].id) : null,
       venue_name: show._embedded?.venues?.[0]?.name,
       venue_location: show._embedded?.venues?.[0],
       ticket_url: show.url,
@@ -150,8 +142,7 @@ export const fetchVenueEvents = async (venueId: string) => {
       const { error: showsError } = await supabase
         .from('cached_shows')
         .upsert(showsToCache, {
-          onConflict: 'ticketmaster_id',
-          ignoreDuplicates: false
+          onConflict: 'ticketmaster_id'
         });
 
       if (showsError) {
