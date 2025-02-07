@@ -71,6 +71,16 @@ Deno.serve(async (req) => {
       classificationName: 'music',
     });
 
+    // Handle date parameters properly
+    if (params?.localStartEndDateTime) {
+      const [startDate, endDate] = params.localStartEndDateTime.split(',');
+      // Format dates in ISO 8601 with Z suffix if they're not already
+      const formattedStartDate = startDate.endsWith('Z') ? startDate : `${startDate}Z`;
+      const formattedEndDate = endDate.endsWith('Z') ? endDate : `${endDate}Z`;
+      queryParams.set('localStartEndDateTime', `${formattedStartDate},${formattedEndDate}`);
+      console.log('Formatted date range:', queryParams.get('localStartEndDateTime'));
+    }
+
     // Endpoint-specific parameters
     switch (endpoint) {
       case 'search':
@@ -89,7 +99,7 @@ Deno.serve(async (req) => {
       case 'events':
         if (params) {
           Object.entries(params).forEach(([key, value]) => {
-            if (key !== 'apikey' && value) {
+            if (key !== 'apikey' && key !== 'localStartEndDateTime' && value) {
               queryParams.append(key, value.toString());
             }
           });
@@ -99,9 +109,6 @@ Deno.serve(async (req) => {
         }
         break;
       case 'featured':
-        const now = new Date();
-        const startDateTime = now.toISOString().slice(0, 19) + 'Z';
-        queryParams.append('startDateTime', startDateTime);
         queryParams.append('sort', 'relevance,desc');
         queryParams.append('countryCode', 'US');
         break;
@@ -177,3 +184,4 @@ Deno.serve(async (req) => {
     });
   }
 });
+

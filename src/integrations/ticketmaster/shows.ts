@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import { updateVenuesCache } from "./venues";
@@ -80,8 +79,8 @@ export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: str
 
 export const fetchUpcomingStadiumShows = async (artistId?: string) => {
   try {
-    const startDate = new Date().toISOString().split('.')[0] + 'Z';
-    const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+    const startDate = new Date().toISOString();
+    const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
     
     const shows = await callTicketmasterFunction('events', undefined, {
       classificationName: 'music',
@@ -120,8 +119,8 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
 
 export const fetchLargeVenueShows = async (artistId?: string) => {
   try {
-    const startDate = new Date().toISOString().split('.')[0] + 'Z';
-    const endDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+    const startDate = new Date().toISOString();
+    const endDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
     
     const shows = await callTicketmasterFunction('events', undefined, {
       classificationName: 'music',
@@ -158,8 +157,8 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
 
 export const fetchPopularTours = async (artistId?: string) => {
   try {
-    const startDate = new Date().toISOString().split('.')[0] + 'Z';
-    const endDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+    const startDate = new Date().toISOString();
+    const endDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
     
     const shows = await callTicketmasterFunction('events', undefined, {
       classificationName: 'music',
@@ -192,4 +191,3 @@ export const fetchPopularTours = async (artistId?: string) => {
     return [];
   }
 };
-
