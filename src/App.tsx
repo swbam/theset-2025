@@ -11,6 +11,7 @@ import ArtistPage from "./pages/ArtistPage";
 import ShowPage from "./pages/ShowPage";
 import NotFound from "./pages/NotFound";
 import MyArtists from "./pages/MyArtists";
+import MyActivity from "./pages/MyActivity";
 
 const queryClient = new QueryClient();
 
@@ -29,7 +30,7 @@ const App = () => (
                 <Route path="/show/:artistSlug/:date/:city/:venue/:id" element={<ShowPage />} />
                 <Route path="/show/:id" element={<ShowPage />} /> {/* Keep old route for backwards compatibility */}
                 <Route path="/my-artists" element={<MyArtists />} />
-                <Route path="/my-activity" element={<Index />} />
+                <Route path="/my-activity" element={<MyActivity />} />
                 <Route path="/profile" element={<Index />} />
                 <Route path="/settings" element={<Index />} />
               </Route>
