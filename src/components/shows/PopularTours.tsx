@@ -2,7 +2,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Calendar, MapPin } from "lucide-react";
-import { fetchPopularTours, type TicketmasterEvent } from "@/integrations/ticketmaster/client";
+import { fetchPopularTours } from "@/integrations/ticketmaster/shows";
+import type { TicketmasterEvent } from "@/integrations/ticketmaster/types";
 
 interface PopularToursProps {
   onArtistClick: (artistName: string) => void;

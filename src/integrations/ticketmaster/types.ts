@@ -67,7 +67,7 @@ export interface TicketmasterEvent {
 
 export interface CachedShow {
   ticketmaster_id: string;
-  artist_id?: string | null;
+  artist_id: string;  // Changed from optional to required to match DB schema
   name: string;
   date: string;
   venue_id?: string;
