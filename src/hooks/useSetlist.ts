@@ -90,7 +90,7 @@ export function useSetlist(showId: string | undefined, user: User | null) {
         .from('setlists')
         .select(`
           *,
-          songs:setlist_songs(
+          songs:setlist_songs!fk_setlist(
             id,
             song_name,
             total_votes,

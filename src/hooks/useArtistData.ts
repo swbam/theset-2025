@@ -41,12 +41,9 @@ export const useArtistData = (normalizedArtistName: string) => {
           spotify_id: normalizedArtistName.toLowerCase().replace(/[^a-z0-9]/g, ''),
           last_synced_at: new Date().toISOString(),
           genres: []
-        }, {
-          onConflict: 'spotify_id',
-          ignoreDuplicates: false
         })
         .select()
-        .maybeSingle();
+        .single();
 
       if (insertError) {
         console.error('Error creating/updating artist:', insertError);
