@@ -57,6 +57,8 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     return `/artist/${encodedName}/show/${eventId}`;
   };
 
+  const venueName = isTicketmasterEvent ? venue?.name || '' : venue?.name || '';
+
   return (
     <Card className="bg-black/30 hover:bg-black/40 transition-colors border-white/10">
       <CardContent className="p-6">
@@ -65,7 +67,7 @@ export const ShowCard = ({ show }: ShowCardProps) => {
             <div className="flex-1">
               <h3 className="text-xl font-semibold mb-2 text-white">{show.name}</h3>
               <div className="space-y-1">
-                <p className="text-white/60">{isTicketmasterEvent ? venue?.name : venue?.name}</p>
+                <p className="text-white/60">{venueName}</p>
                 {cityState && <p className="text-white/60">{cityState}</p>}
               </div>
             </div>

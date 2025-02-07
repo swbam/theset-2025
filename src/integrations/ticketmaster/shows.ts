@@ -99,9 +99,9 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
         attr.classifications?.some(c => c.segment?.name.toLowerCase() === 'music')
       );
       const hasValidArtist = show._embedded?.attractions?.some(attr => attr.name && attr.id);
-      const capacity = venue?.capacity ? parseInt(venue.capacity) : 0;
+      const capacity = venue?.capacity ? String(parseInt(venue.capacity)) : '0';
       
-      return isMusic && hasValidArtist && capacity > 15000;
+      return isMusic && hasValidArtist && parseInt(capacity) > 15000;
     });
 
     if (filteredShows.length > 0) {
