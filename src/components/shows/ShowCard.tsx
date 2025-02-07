@@ -23,20 +23,35 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     show._embedded?.venues?.[0] : 
     show.venue;
     
-  const cityState = venue ? 
-    (isTicketmasterEvent ?
-      (venue.city?.name && venue.state?.name ? 
-        `${venue.city.name}, ${venue.state.name}` : 
-        venue.city?.name || '') :
-      (venue.city && venue.state ? 
-        `${venue.city}, ${venue.state}` : 
-        venue.city || '')
-    ) : '';
+  const cityState = (() => {
+    if (!venue) return '';
+
+    if (isTicketmasterEvent) {
+      const tmVenue = venue as NonNullable<TicketmasterEvent['_embedded']>['venues'][0];
+      if (tmVenue.city?.name && tmVenue.state?.name) {
+        return `${tmVenue.city.name}, ${tmVenue.state.name}`;
+      }
+      return tmVenue.city?.name || '';
+    } else {
+      const cachedVenue = venue as CachedShow['venue'];
+      if (cachedVenue?.city && cachedVenue?.state) {
+        return `${cachedVenue.city}, ${cachedVenue.state}`;
+      }
+      return cachedVenue?.city || '';
+    }
+  })();
 
   const generateSeoUrl = () => {
-    const cityPart = isTicketmasterEvent ?
-      venue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '' :
-      venue?.city?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
+    const cityPart = (() => {
+      if (isTicketmasterEvent) {
+        const tmVenue = venue as NonNullable<TicketmasterEvent['_embedded']>['venues'][0];
+        return tmVenue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
+      } else {
+        const cachedVenue = venue as CachedShow['venue'];
+        return cachedVenue?.city?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
+      }
+    })();
+
     const datePart = format(showDate, 'MM-dd-yyyy');
     const artistPart = show.name.toLowerCase()
       .normalize('NFD')

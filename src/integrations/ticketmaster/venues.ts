@@ -13,9 +13,9 @@ export const prepareVenueForCache = (venue: TicketmasterVenue): CachedVenue | nu
   )?.url;
 
   return {
-    ticketmaster_id: venue.id,
+    id: venue.id,
     name: venue.name,
-    city: venue.city?.name,
+    city: venue.city?.name || '',
     state: venue.state?.name,
     country: venue.country?.name,
     address: venue.address?.line1,
