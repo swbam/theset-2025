@@ -35,17 +35,32 @@ async function processQueue() {
 function formatDateRange(dateRange: string): string {
   if (!dateRange) return '';
   
-  const [startDate, endDate] = dateRange.split(',');
-  if (!startDate || !endDate) {
+  const [startStr, endStr] = dateRange.split(',');
+  if (!startStr || !endStr) {
     console.error('Invalid date range format:', dateRange);
     throw new Error('Invalid date range format');
   }
 
-  // Ensure both dates are in ISO format with Z suffix
-  const formattedStart = new Date(startDate).toISOString();
-  const formattedEnd = new Date(endDate).toISOString();
-  
-  return `${formattedStart},${formattedEnd}`;
+  try {
+    // Parse dates and ensure they're valid
+    const startDate = new Date(startStr);
+    const endDate = new Date(endStr);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new Error('Invalid date values');
+    }
+
+    // Format to exact ISO string format required by Ticketmaster
+    const formattedStart = startDate.toISOString().split('.')[0] + 'Z';
+    const formattedEnd = endDate.toISOString().split('.')[0] + 'Z';
+    
+    const formattedRange = `${formattedStart},${formattedEnd}`;
+    console.log('Formatted date range:', formattedRange);
+    return formattedRange;
+  } catch (error) {
+    console.error('Error formatting dates:', error);
+    throw new Error(`Invalid date format. Expected ISO 8601 format (${error.message})`);
+  }
 }
 
 Deno.serve(async (req) => {
