@@ -327,6 +327,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_cached_show_id"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "cached_shows"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_show_id"
             columns: ["show_id"]
             isOneToOne: false
@@ -338,13 +345,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "setlists_show_id_fkey"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "shows"
             referencedColumns: ["id"]
           },
           {
