@@ -1,6 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Artist } from "@/integrations/ticketmaster/types";
 
 export const useArtistData = (normalizedArtistName: string) => {
   return useQuery({
@@ -26,7 +27,7 @@ export const useArtistData = (normalizedArtistName: string) => {
           });
 
         if (!needsRefresh) {
-          return existingArtist;
+          return existingArtist as Artist;
         }
         
         console.log('Artist data needs refresh');
@@ -38,7 +39,8 @@ export const useArtistData = (normalizedArtistName: string) => {
         .upsert({
           name: normalizedArtistName,
           spotify_id: normalizedArtistName.toLowerCase().replace(/[^a-z0-9]/g, ''),
-          last_synced_at: new Date().toISOString()
+          last_synced_at: new Date().toISOString(),
+          genres: []
         }, {
           onConflict: 'spotify_id',
           ignoreDuplicates: false
@@ -51,7 +53,7 @@ export const useArtistData = (normalizedArtistName: string) => {
         throw insertError;
       }
 
-      return artist;
+      return artist as Artist;
     },
     retry: false,
   });

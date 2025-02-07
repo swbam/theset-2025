@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { User } from "@supabase/supabase-js";
+import type { Artist } from "@/integrations/ticketmaster/types";
 
-export const useArtistFollow = (artist: any, user: User | null) => {
+export const useArtistFollow = (artist: Artist | null, user: User | null) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 

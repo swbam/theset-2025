@@ -1,4 +1,6 @@
 
+import { Json } from "@/integrations/supabase/types";
+
 export interface TicketmasterVenue {
   id: string;
   name: string;
@@ -77,9 +79,11 @@ export interface CachedVenue {
   capacity?: number;
   venue_image_url?: string | null;
   last_synced_at: string;
+  ticketmaster_id: string;
 }
 
 export interface CachedShow {
+  id: string;
   ticketmaster_id: string;
   artist_id: string;
   name: string;
@@ -96,13 +100,13 @@ export interface Artist {
   id: string;
   name: string;
   spotify_id: string;
-  ticketmaster_id?: string;
-  ticketmaster_data?: any;
+  ticketmaster_id?: string | null;
+  ticketmaster_data?: Json | null;
   image_url?: string | null;
   cover_image_url?: string | null;
   genres?: string[] | null;
   popularity?: number | null;
-  spotify_data?: any;
+  spotify_data?: Json | null;
   last_synced_at: string;
 }
 

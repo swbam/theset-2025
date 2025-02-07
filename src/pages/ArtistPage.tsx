@@ -7,6 +7,7 @@ import { ArtistShows } from "@/components/artists/ArtistShows";
 import { useArtistData } from "@/hooks/useArtistData";
 import { useArtistFollow } from "@/hooks/useArtistFollow";
 import { useArtistShows } from "@/hooks/useArtistShows";
+import type { Artist } from "@/integrations/ticketmaster/types";
 
 export default function ArtistPage() {
   const { artistName } = useParams();
@@ -23,7 +24,7 @@ export default function ArtistPage() {
     isFollowing, 
     isFollowActionPending, 
     handleFollowClick 
-  } = useArtistFollow(artist, user);
+  } = useArtistFollow(artist as Artist | null, user);
 
   const { data: shows, isLoading: isLoadingShows } = useArtistShows(normalizedArtistName, artist?.id);
 
@@ -40,7 +41,7 @@ export default function ArtistPage() {
   return (
     <div className="min-h-screen bg-black">
       <ArtistHero 
-        artist={artist}
+        artist={artist as Artist}
         artistName={normalizedArtistName}
         isFollowing={isFollowing}
         isFollowActionPending={isFollowActionPending}
