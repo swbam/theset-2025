@@ -44,41 +44,80 @@ export function useSetlist(showId: string | undefined, user: User | null) {
     }
   });
 
-  return useQuery({
-    queryKey: ['setlist', showId],
-    queryFn: async () => {
-      console.log('Fetching setlist for show:', showId);
-      const { data: setlist, error } = await supabase
-        .from('setlists')
-        .select(`
-          *,
-          songs:setlist_songs(
-            id,
-            song_name,
-            total_votes,
-            suggested
-          )
-        `)
-        .eq('show_id', showId)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error fetching setlist:', error);
-        return null;
+  const addSongMutation = useMutation({
+    mutationFn: async ({ songName, setlistId }: { songName: string; setlistId: string }) => {
+      if (!user) {
+        throw new Error('Must be logged in to suggest songs');
       }
 
-      // If no setlist exists and user is authenticated, create one
-      if (!setlist && user && showId) {
-        console.log('No setlist found, creating new one');
-        createSetlistMutation.mutate({
-          showName: '', // This will be set in the component
-          venueId: undefined
-        });
-        return null;
-      }
+      const { data: song, error } = await supabase
+        .from('setlist_songs')
+        .insert({
+          setlist_id: setlistId,
+          song_name: songName,
+          suggested: true
+        })
+        .select()
+        .single();
 
-      return setlist;
+      if (error) throw error;
+      return song;
     },
-    enabled: !!showId,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['setlist', showId] });
+      toast({
+        title: "Success",
+        description: "Song suggestion added successfully"
+      });
+    },
+    onError: (error) => {
+      console.error('Error adding song:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add song suggestion",
+        variant: "destructive"
+      });
+    }
   });
+
+  return {
+    ...useQuery({
+      queryKey: ['setlist', showId],
+      queryFn: async () => {
+        console.log('Fetching setlist for show:', showId);
+        const { data: setlist, error } = await supabase
+          .from('setlists')
+          .select(`
+            *,
+            songs:setlist_songs(
+              id,
+              song_name,
+              total_votes,
+              suggested
+            )
+          `)
+          .eq('show_id', showId)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Error fetching setlist:', error);
+          return null;
+        }
+
+        // If no setlist exists and user is authenticated, create one
+        if (!setlist && user && showId) {
+          console.log('No setlist found, creating new one');
+          createSetlistMutation.mutate({
+            showName: '', // This will be set in the component
+            venueId: undefined
+          });
+          return null;
+        }
+
+        return setlist;
+      },
+      enabled: !!showId,
+    }),
+    addSong: addSongMutation.mutate
+  };
 }

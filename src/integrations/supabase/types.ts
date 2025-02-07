@@ -293,13 +293,6 @@ export type Database = {
             referencedRelation: "setlists"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "setlist_songs_setlist_id_fkey"
-            columns: ["setlist_id"]
-            isOneToOne: false
-            referencedRelation: "setlists"
-            referencedColumns: ["id"]
-          },
         ]
       }
       setlists: {

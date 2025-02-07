@@ -16,14 +16,29 @@ export default function ShowPage() {
   const { toast } = useToast();
   
   const { data: show, isLoading: showLoading } = useShow(eventId);
-  const { data: setlist, isLoading: setlistLoading } = useSetlist(show?.id, user);
+  const { data: setlist, isLoading: setlistLoading, addSong } = useSetlist(show?.id, user);
   const { userVotes, handleVote } = useVotes(setlist?.id, user);
 
-  const handleSuggest = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Song suggestions will be available soon!"
-    });
+  const handleSuggest = async (songName: string) => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to suggest songs",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!setlist) {
+      toast({
+        title: "Error",
+        description: "Setlist not available",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    await addSong({ songName, setlistId: setlist.id });
   };
 
   if (showLoading || setlistLoading) {

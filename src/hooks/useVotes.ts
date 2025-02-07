@@ -9,76 +9,100 @@ export function useVotes(setlistId: string | undefined, user: User | null) {
   const queryClient = useQueryClient();
 
   const { data: userVotes } = useQuery({
-    queryKey: ['user-votes', setlistId],
+    queryKey: ['user-votes', setlistId, user?.id],
     queryFn: async () => {
-      const { data: votes, error } = await supabase
-        .from('user_votes')
-        .select('song_id')
-        .eq('user_id', user?.id);
-      
-      if (error) {
-        console.error('Error fetching user votes:', error);
-        return [];
+      if (user) {
+        // Get authenticated user votes
+        const { data: votes, error } = await supabase
+          .from('user_votes')
+          .select('song_id')
+          .eq('user_id', user.id);
+        
+        if (error) {
+          console.error('Error fetching user votes:', error);
+          return [];
+        }
+        return votes?.map(v => v.song_id) || [];
+      } else {
+        // Get anonymous votes based on IP
+        const { data: votes, error } = await supabase
+          .from('anonymous_votes')
+          .select('song_id, ip_address');
+        
+        if (error) {
+          console.error('Error fetching anonymous votes:', error);
+          return [];
+        }
+        return votes?.map(v => v.song_id) || [];
       }
-
-      return votes?.map(v => v.song_id) || [];
     },
-    enabled: !!setlistId && !!user?.id,
+    enabled: !!setlistId,
   });
 
   const handleVote = async (songId: string) => {
-    if (!user) {
-      toast({
-        title: "Login Required",
-        description: "Please log in to vote for songs",
-        variant: "destructive"
-      });
-      return;
-    }
+    if (user) {
+      // Handle authenticated user vote
+      const { error } = await supabase
+        .from('user_votes')
+        .insert({
+          user_id: user.id,
+          song_id: songId
+        });
 
-    // Check rate limiting (60 votes per hour)
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const { data: recentVotes, error: countError } = await supabase
-      .from('user_votes')
-      .select('id', { count: 'exact' })
-      .eq('user_id', user.id)
-      .gte('created_at', oneHourAgo.toISOString());
+      if (error) {
+        if (error.code === '23505') { // Unique violation
+          toast({
+            title: "Already Voted",
+            description: "You've already voted for this song",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to submit vote",
+            variant: "destructive"
+          });
+        }
+        return;
+      }
+    } else {
+      // Handle anonymous vote
+      if (userVotes && userVotes.length > 0) {
+        toast({
+          title: "Sign in required",
+          description: "Please sign in to vote for more songs",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    if (countError) {
-      toast({
-        title: "Error",
-        description: "Failed to check vote limit",
-        variant: "destructive"
-      });
-      return;
-    }
+      const { error } = await supabase
+        .from('anonymous_votes')
+        .insert({
+          song_id: songId,
+          ip_address: 'anonymous' // This will be replaced by the actual IP in RLS
+        });
 
-    if ((recentVotes?.length || 0) >= 60) {
-      toast({
-        title: "Rate Limited",
-        description: "You've reached the maximum votes allowed per hour",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const { error } = await supabase
-      .from('user_votes')
-      .insert({
-        user_id: user.id,
-        song_id: songId
-      });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to submit vote",
-        variant: "destructive"
-      });
-      return;
+      if (error) {
+        if (error.code === '23505') { // Unique violation
+          toast({
+            title: "Already Voted",
+            description: "You've already voted for this song from this device",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to submit vote",
+            variant: "destructive"
+          });
+        }
+        return;
+      }
     }
 
     queryClient.invalidateQueries({ queryKey: ['user-votes', setlistId] });
+    queryClient.invalidateQueries({ queryKey: ['setlist', setlistId] });
     toast({
       title: "Success",
       description: "Your vote has been recorded"
