@@ -83,3 +83,25 @@ export interface CachedVenue {
   last_synced_at: string;
 }
 
+export interface CachedArtist {
+  id: string;
+  name: string;
+  spotify_id: string;
+  image_url?: string | null;
+  cover_image_url?: string | null;
+  genres?: string[] | null;
+  popularity?: number | null;
+  spotify_data?: any;
+  last_synced_at: string;
+}
+
+export interface CachedSong {
+  id: string;
+  spotify_id: string;
+  artist_id: string;
+  name: string;
+  album?: string;
+  preview_url?: string;
+  popularity?: number;
+  last_synced_at: string;
+}
