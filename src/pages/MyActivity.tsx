@@ -6,45 +6,78 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/shows/LoadingState";
 import { format } from "date-fns";
 
-interface UserActivity {
+interface SetlistActivity {
   id: string;
   created_at: string;
-  type: 'vote' | 'setlist';
-  song_name?: string;
-  setlist_name?: string;
-  artist_name?: string;
+  name: string;
+  shows: {
+    artist_name: string;
+    venue: string;
+  };
+}
+
+interface VoteActivity {
+  id: string;
+  created_at: string;
+  setlist_songs: {
+    song_name: string;
+    setlist: {
+      name: string;
+      shows: {
+        artist_name: string;
+        venue: string;
+      };
+    };
+  };
 }
 
 const MyActivity = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const { data: activityData, isLoading } = useQuery({
-    queryKey: ["userActivity", user?.id],
+  const { data: setlists, isLoading: isLoadingSetlists } = useQuery({
+    queryKey: ["userSetlists", user?.id],
     queryFn: async () => {
-      // Fetch votes
-      const { data: votes, error: votesError } = await supabase
+      const { data, error } = await supabase
+        .from("setlists")
+        .select(`
+          id,
+          created_at,
+          name,
+          shows (
+            artist_name,
+            venue
+          )
+        `)
+        .eq("created_by", user?.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as SetlistActivity[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: votes, isLoading: isLoadingVotes } = useQuery({
+    queryKey: ["userVotes", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("user_votes")
         .select(`
           id,
           created_at,
           setlist_songs (
             song_name,
-            setlist:setlists (
+            setlist (
               name,
               shows (
-                artist_name
+                artist_name,
+                venue
               )
             )
           )
@@ -52,45 +85,8 @@ const MyActivity = () => {
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
 
-      if (votesError) throw votesError;
-
-      // Fetch setlists
-      const { data: setlists, error: setlistsError } = await supabase
-        .from("setlists")
-        .select(`
-          id,
-          created_at,
-          name,
-          shows (
-            artist_name
-          )
-        `)
-        .eq("created_by", user?.id)
-        .order("created_at", { ascending: false });
-
-      if (setlistsError) throw setlistsError;
-
-      // Combine and format the activities
-      const formattedVotes = votes.map((vote: any) => ({
-        id: vote.id,
-        created_at: vote.created_at,
-        type: 'vote' as const,
-        song_name: vote.setlist_songs.song_name,
-        setlist_name: vote.setlist_songs.setlist.name,
-        artist_name: vote.setlist_songs.setlist.shows.artist_name,
-      }));
-
-      const formattedSetlists = setlists.map((setlist: any) => ({
-        id: setlist.id,
-        created_at: setlist.created_at,
-        type: 'setlist' as const,
-        setlist_name: setlist.name,
-        artist_name: setlist.shows.artist_name,
-      }));
-
-      return [...formattedVotes, ...formattedSetlists].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+      if (error) throw error;
+      return data as VoteActivity[];
     },
     enabled: !!user,
   });
@@ -108,64 +104,97 @@ const MyActivity = () => {
       <div className="min-h-screen flex w-full bg-gradient-to-b from-black to-zinc-900">
         <DashboardSidebar />
         <SidebarInset>
-          <div className="h-full p-6">
-            <h1 className="text-2xl font-bold mb-6">My Activity</h1>
-            
-            <div className="bg-black/50 rounded-lg border border-zinc-800">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Activity</TableHead>
-                    <TableHead>Artist</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center">
-                        Loading...
-                      </TableCell>
-                    </TableRow>
-                  ) : activityData?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center">
-                        No activity yet
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    activityData?.map((activity) => (
-                      <TableRow key={activity.id}>
-                        <TableCell>
-                          {activity.type === 'vote' ? (
-                            <>Voted for "{activity.song_name}" in {activity.setlist_name}</>
-                          ) : (
-                            <>Created setlist "{activity.setlist_name}"</>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span 
-                            className="cursor-pointer hover:underline"
-                            onClick={() => navigate(`/artist/${encodeURIComponent(activity.artist_name || '')}`)}
-                          >
-                            {activity.artist_name}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(activity.created_at), 'MMM d, yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={activity.type === 'vote' ? 'default' : 'secondary'}>
-                            {activity.type === 'vote' ? 'Vote' : 'Setlist'}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+          <div className="w-full max-w-7xl mx-auto px-6 py-8">
+            <div className="mb-8">
+              <h1 className="text-4xl font-bold mb-2">My Activity</h1>
+              <p className="text-lg text-muted-foreground">
+                View your saved setlists and voting history
+              </p>
             </div>
+
+            <Tabs defaultValue="setlists" className="space-y-6">
+              <TabsList className="bg-background/10 backdrop-blur-sm">
+                <TabsTrigger value="setlists">Saved Setlists</TabsTrigger>
+                <TabsTrigger value="votes">My Votes</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="setlists" className="space-y-4">
+                {isLoadingSetlists ? (
+                  <LoadingState />
+                ) : setlists?.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No setlists saved yet</p>
+                    <p className="text-sm mt-1">
+                      Create a setlist for your favorite artists' shows
+                    </p>
+                  </div>
+                ) : (
+                  setlists?.map((setlist) => (
+                    <div
+                      key={setlist.id}
+                      className="p-6 rounded-lg bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm space-y-2"
+                    >
+                      <h3 className="text-xl font-semibold">{setlist.shows.artist_name}</h3>
+                      <p className="text-muted-foreground">
+                        {setlist.shows.venue}
+                      </p>
+                      <div className="flex items-center justify-between mt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Saved on {format(new Date(setlist.created_at), 'M/d/yyyy')}
+                        </p>
+                        <Button
+                          variant="secondary"
+                          onClick={() => navigate(`/setlist/${setlist.id}`)}
+                        >
+                          View Setlist
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+
+              <TabsContent value="votes" className="space-y-4">
+                {isLoadingVotes ? (
+                  <LoadingState />
+                ) : votes?.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No votes yet</p>
+                    <p className="text-sm mt-1">
+                      Vote on songs in setlists to help predict show setlists
+                    </p>
+                  </div>
+                ) : (
+                  votes?.map((vote) => (
+                    <div
+                      key={vote.id}
+                      className="p-6 rounded-lg bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm space-y-2"
+                    >
+                      <h3 className="text-xl font-semibold">
+                        {vote.setlist_songs.setlist.shows.artist_name}
+                      </h3>
+                      <p className="text-muted-foreground">
+                        {vote.setlist_songs.setlist.shows.venue}
+                      </p>
+                      <p className="text-sm">
+                        Voted for "{vote.setlist_songs.song_name}"
+                      </p>
+                      <div className="flex items-center justify-between mt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Voted on {format(new Date(vote.created_at), 'M/d/yyyy')}
+                        </p>
+                        <Button
+                          variant="secondary"
+                          onClick={() => navigate(`/setlist/${vote.setlist_songs.setlist.id}`)}
+                        >
+                          View Setlist
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
         </SidebarInset>
       </div>
