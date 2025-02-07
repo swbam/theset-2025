@@ -19,6 +19,15 @@ export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
     `${venue.city.name}, ${venue.state.name}` : 
     venue?.city?.name || '';
 
+  const generateSeoUrl = () => {
+    const datePart = format(showDate, 'yyyy-MM-dd');
+    const venuePart = venue?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
+    const cityPart = venue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
+    const artistPart = show.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    
+    return `/show/${artistPart}/${datePart}/${cityPart}/${venuePart}/${show.id}`;
+  };
+
   return (
     <Card className="bg-black/30 hover:bg-black/40 transition-colors border-white/10">
       <CardContent className="p-6">
@@ -50,7 +59,7 @@ export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
             className="w-full"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/show/${show.id}`);
+              navigate(generateSeoUrl());
             }}
           >
             <Calendar className="w-4 h-4 mr-2" />
