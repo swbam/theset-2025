@@ -19,7 +19,7 @@ export default function ShowPage() {
   const { data: setlist, isLoading: setlistLoading, addSong } = useSetlist(show?.id, user);
   const { userVotes, handleVote } = useVotes(setlist?.id, user);
 
-  const handleSuggest = async (songName: string) => {
+  const handleSuggest = async (songName: string, spotifyId?: string) => {
     if (!user) {
       toast({
         title: "Sign in required",
@@ -38,7 +38,7 @@ export default function ShowPage() {
       return;
     }
 
-    await addSong({ songName, setlistId: setlist.id });
+    await addSong({ songName, setlistId: setlist.id, spotifyId });
   };
 
   if (showLoading || setlistLoading) {
@@ -64,9 +64,10 @@ export default function ShowPage() {
             user={user}
             onVote={handleVote}
             onSuggest={handleSuggest}
+            artistName={show.artist_name}
           />
         </div>
       </div>
     </div>
   );
-}
+};

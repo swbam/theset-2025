@@ -1,8 +1,9 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SetlistSong } from "./SetlistSong";
+import { useSpotifyTracks } from "@/hooks/useSpotifyTracks";
 import type { User } from "@supabase/supabase-js";
 
 interface SetlistProps {
@@ -13,17 +14,23 @@ interface SetlistProps {
       song_name: string;
       total_votes: number;
       suggested?: boolean;
+      spotify_id?: string;
+      is_top_track?: boolean;
     }>;
   } | null;
   userVotes?: string[];
   user: User | null;
   onVote: (songId: string) => Promise<void>;
-  onSuggest: (songName: string) => Promise<void>;
+  onSuggest: (songName: string, spotifyId?: string) => Promise<void>;
+  artistName?: string;
 }
 
-export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest }: SetlistProps) => {
+export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistName }: SetlistProps) => {
   const [newSong, setNewSong] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+
+  // Auto-populate with top tracks if empty
+  useSpotifyTracks(artistName, setlist?.id);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +93,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest }: Setlist
               songName={song.song_name}
               totalVotes={song.total_votes}
               suggested={song.suggested}
+              isTopTrack={song.is_top_track}
               onVote={onVote}
               hasVoted={userVotes?.includes(song.id)}
             />

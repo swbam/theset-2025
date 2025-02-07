@@ -258,8 +258,10 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_top_track: boolean | null
           setlist_id: string
           song_name: string
+          spotify_id: string | null
           suggested: boolean | null
           total_votes: number | null
           updated_at: string | null
@@ -268,8 +270,10 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          is_top_track?: boolean | null
           setlist_id: string
           song_name: string
+          spotify_id?: string | null
           suggested?: boolean | null
           total_votes?: number | null
           updated_at?: string | null
@@ -278,8 +282,10 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          is_top_track?: boolean | null
           setlist_id?: string
           song_name?: string
+          spotify_id?: string | null
           suggested?: boolean | null
           total_votes?: number | null
           updated_at?: string | null

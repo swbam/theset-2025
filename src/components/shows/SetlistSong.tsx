@@ -1,12 +1,14 @@
 
-import { ThumbsUp } from "lucide-react";
+import { ThumbsUp, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface SetlistSongProps {
   id: string;
   songName: string;
   totalVotes: number;
   suggested?: boolean;
+  isTopTrack?: boolean;
   onVote: (songId: string) => Promise<void>;
   hasVoted?: boolean;
 }
@@ -15,13 +17,19 @@ export const SetlistSong = ({
   id, 
   songName, 
   totalVotes, 
-  suggested, 
+  suggested,
+  isTopTrack,
   onVote, 
   hasVoted 
 }: SetlistSongProps) => (
   <div className="flex items-center justify-between bg-white/5 p-4 rounded-lg hover:bg-white/10 transition-colors">
     <div className="space-y-1">
-      <p className="text-white font-medium">{songName}</p>
+      <div className="flex items-center gap-2">
+        <p className="text-white font-medium">{songName}</p>
+        {isTopTrack && (
+          <Star className="w-4 h-4 text-yellow-500" />
+        )}
+      </div>
       {suggested && (
         <span className="text-sm text-white/60 bg-white/10 px-2 py-0.5 rounded-full">
           Fan suggestion
@@ -29,7 +37,12 @@ export const SetlistSong = ({
       )}
     </div>
     <div className="flex items-center gap-3">
-      <span className="text-white/60 min-w-[2rem] text-right">{totalVotes || 0}</span>
+      <span className={cn(
+        "text-white/60 min-w-[2rem] text-right",
+        hasVoted && "text-white"
+      )}>
+        {totalVotes || 0}
+      </span>
       <Button
         variant="outline"
         size="icon"
