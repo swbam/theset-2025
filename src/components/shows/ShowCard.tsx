@@ -33,10 +33,9 @@ export const ShowCard = ({ show }: ShowCardProps) => {
 
     if (isTicketmasterEvent) {
       const tmVenue = venue as NonNullable<TicketmasterEvent['_embedded']>['venues'][0];
-      if (tmVenue.city?.name && tmVenue.state?.name) {
-        return `${tmVenue.city.name}, ${tmVenue.state.name}`;
-      }
-      return tmVenue.city?.name || '';
+      return tmVenue.city?.name && tmVenue.state?.name 
+        ? `${tmVenue.city.name}, ${tmVenue.state.name}` 
+        : tmVenue.city?.name || '';
     } else {
       return venue.city && venue.state ? `${venue.city}, ${venue.state}` : venue.city || '';
     }
@@ -57,7 +56,9 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     return `/artist/${encodedName}/show/${eventId}`;
   };
 
-  const venueName = isTicketmasterEvent ? venue?.name || '' : venue?.name || '';
+  const venueName = isTicketmasterEvent 
+    ? (typeof venue?.name === 'string' ? venue.name : '') 
+    : (venue?.name || '');
 
   return (
     <Card className="bg-black/30 hover:bg-black/40 transition-colors border-white/10">
@@ -101,3 +102,4 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     </Card>
   );
 };
+
