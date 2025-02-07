@@ -40,6 +40,7 @@ export interface TicketmasterEvent {
   _embedded?: {
     venues?: TicketmasterVenue[];
     attractions?: Array<{
+      id?: string;
       name: string;
       images?: Array<{
         url: string;
@@ -94,6 +95,8 @@ export interface CachedArtist {
   id: string;
   name: string;
   spotify_id: string;
+  ticketmaster_id?: string;
+  ticketmaster_data?: any;
   image_url?: string | null;
   cover_image_url?: string | null;
   genres?: string[] | null;

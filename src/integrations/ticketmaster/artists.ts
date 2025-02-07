@@ -25,7 +25,8 @@ export const searchArtists = async (query: string) => {
           venue: event._embedded?.venues?.[0]?.name,
           date: event.dates.start.dateTime,
           url: event.url,
-          capacity: event._embedded?.venues?.[0]?.capacity || 0
+          capacity: event._embedded?.venues?.[0]?.capacity || 0,
+          ticketmaster_id: artist.id
         });
       }
     }
@@ -37,9 +38,10 @@ export const searchArtists = async (query: string) => {
 export const fetchArtistEvents = async (artistName: string) => {
   console.log('Fetching events for artist:', artistName);
   
+  // First try to find the artist by name (case-insensitive)
   const { data: artist } = await supabase
     .from('artists')
-    .select('id')
+    .select('id, ticketmaster_id')
     .ilike('name', artistName.replace(/-/g, ' '))
     .maybeSingle();
     
@@ -79,10 +81,54 @@ export const fetchArtistEvents = async (artistName: string) => {
     );
   });
 
-  if (artist && filteredShows.length > 0) {
-    console.log('Updating show cache for artist:', decodedArtistName);
-    await updateShowCache(filteredShows, artist.id);
+  if (filteredShows.length > 0) {
+    console.log('Found shows for artist:', decodedArtistName);
+    
+    // Get the Ticketmaster artist ID from the first show
+    const ticketmasterId = filteredShows[0]._embedded?.attractions?.[0]?.id;
+    
+    // Create or update the artist record
+    const { data: upsertedArtist, error: artistError } = await supabase
+      .from('artists')
+      .upsert({
+        name: decodedArtistName,
+        ticketmaster_id: ticketmasterId,
+        ticketmaster_data: filteredShows[0]._embedded?.attractions?.[0],
+        spotify_id: artist?.spotify_id, // Preserve existing Spotify ID if any
+        last_synced_at: new Date().toISOString()
+      }, {
+        onConflict: 'name',
+        ignoreDuplicates: false
+      })
+      .select()
+      .maybeSingle();
+
+    if (artistError) {
+      console.error('Error upserting artist:', artistError);
+      throw artistError;
+    }
+
+    if (upsertedArtist) {
+      console.log('Updating show cache for artist:', decodedArtistName);
+      await updateShowCache(filteredShows, upsertedArtist.id);
+      
+      // Fetch the cached shows after updating
+      const { data: newCachedShows } = await supabase
+        .from('cached_shows')
+        .select(`
+          *,
+          venue:venues(*)
+        `)
+        .eq('artist_id', upsertedArtist.id)
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true });
+        
+      if (newCachedShows && newCachedShows.length > 0) {
+        return newCachedShows;
+      }
+    }
   }
 
   return filteredShows;
 };
+

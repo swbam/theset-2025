@@ -21,6 +21,8 @@ export type Database = {
           popularity: number | null
           spotify_data: Json | null
           spotify_id: string
+          ticketmaster_data: Json | null
+          ticketmaster_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -34,6 +36,8 @@ export type Database = {
           popularity?: number | null
           spotify_data?: Json | null
           spotify_id: string
+          ticketmaster_data?: Json | null
+          ticketmaster_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -47,6 +51,8 @@ export type Database = {
           popularity?: number | null
           spotify_data?: Json | null
           spotify_id?: string
+          ticketmaster_data?: Json | null
+          ticketmaster_id?: string | null
           updated_at?: string | null
         }
         Relationships: []
