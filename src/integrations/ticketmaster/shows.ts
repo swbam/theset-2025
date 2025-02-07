@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import { updateVenuesCache } from "./venues";
@@ -90,7 +91,7 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
       includeTBA: 'no',
       includeTBD: 'no',
       includeTest: 'no',
-      marketId: '102', // US National market
+      marketId: '102',
       localStartEndDateTime: `${startDate},${endDate}`
     });
 
@@ -130,8 +131,7 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
       includeTBA: 'no',
       includeTBD: 'no',
       includeTest: 'no',
-      marketId: '102', // US National market
-      venueId: 'KovZpZAFnIEA,KovZpZAE7vdA,KovZpaKSje,KovZpZA7AAEA',
+      marketId: '102',
       localStartEndDateTime: `${startDate},${endDate}`
     });
 
@@ -168,7 +168,7 @@ export const fetchPopularTours = async (artistId?: string) => {
       includeTBA: 'no',
       includeTBD: 'no',
       includeTest: 'no',
-      marketId: '102', // US National market
+      marketId: '102',
       localStartEndDateTime: `${startDate},${endDate}`
     });
 

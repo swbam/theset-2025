@@ -41,6 +41,10 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     }
   })();
 
+  const venueName = isTicketmasterEvent 
+    ? (venue ? venue.name : '') 
+    : (typeof venue === 'object' && venue !== null ? venue.name : '');
+
   const generateSeoUrl = () => {
     if (!artistName) return '/';
     
@@ -55,10 +59,6 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     const eventId = isTicketmasterEvent ? show.id : show.ticketmaster_id;
     return `/artist/${encodedName}/show/${eventId}`;
   };
-
-  const venueName = isTicketmasterEvent 
-    ? (typeof venue?.name === 'string' ? venue.name : '') 
-    : (venue?.name || '');
 
   return (
     <Card className="bg-black/30 hover:bg-black/40 transition-colors border-white/10">
@@ -102,4 +102,3 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     </Card>
   );
 };
-
