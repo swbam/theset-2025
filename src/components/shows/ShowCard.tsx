@@ -20,28 +20,28 @@ export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
     venue?.city?.name || '';
 
   return (
-    <Card className="bg-black/30 hover:bg-black/40 transition-colors">
+    <Card className="bg-black/30 hover:bg-black/40 transition-colors border-white/10">
       <CardContent className="p-6">
         <div className="flex flex-col space-y-4">
           <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-xl font-semibold mb-1">{show.name}</h3>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>{venue?.name}</p>
-                {cityState && <p>{cityState}</p>}
+            <div className="flex-1">
+              <h3 className="text-xl font-semibold mb-2 text-white">{show.name}</h3>
+              <div className="space-y-1">
+                <p className="text-white/60">{venue?.name}</p>
+                {cityState && <p className="text-white/60">{cityState}</p>}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-white">
                 {format(showDate, 'MMM')}
               </div>
-              <div className="text-3xl font-bold">
+              <div className="text-4xl font-bold text-white">
                 {format(showDate, 'd')}
               </div>
             </div>
           </div>
           
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-white/60">
             {format(showDate, 'EEEE')} • {format(showDate, 'h:mm a')}
           </div>
 
