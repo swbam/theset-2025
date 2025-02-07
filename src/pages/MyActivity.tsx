@@ -151,7 +151,7 @@ const MyActivity = () => {
           .select(`
             id,
             created_at,
-            setlist_songs (
+            setlist_songs!user_votes_song_id_fkey (
               song_name,
               setlist (
                 id,
@@ -292,3 +292,4 @@ const MyActivity = () => {
 };
 
 export default MyActivity;
+
