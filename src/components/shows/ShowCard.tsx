@@ -20,15 +20,14 @@ export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
     venue?.city?.name || '';
 
   const generateSeoUrl = () => {
-    const datePart = format(showDate, 'yyyy-MM-dd');
-    const venuePart = venue?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
     const cityPart = venue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
+    const datePart = format(showDate, 'MM-dd-yyyy');
     const artistPart = show.name.toLowerCase()
       .normalize('NFD') // Normalize accented characters
       .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
       .replace(/[^a-z0-9]+/g, '-'); // Replace non-alphanumeric with hyphens
     
-    return `/show/${show.id}`;  // Use simple ID-based route for reliability
+    return `/show/${artistPart}-${cityPart}-tickets-${datePart}/event/${show.id}`;
   };
 
   return (

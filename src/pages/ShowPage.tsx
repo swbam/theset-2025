@@ -10,14 +10,15 @@ import { ShowDetails } from "@/components/shows/ShowDetails";
 import { Setlist } from "@/components/shows/Setlist";
 
 export default function ShowPage() {
-  const { id, artistSlug } = useParams();
+  // Extract the event ID from the URL
+  const { eventId } = useParams<{ eventId: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   
   const { data: show, isLoading: showLoading } = useQuery({
-    queryKey: ['show', id],
+    queryKey: ['show', eventId],
     queryFn: async () => {
-      const { data: show } = await supabase
+      const { data: show, error } = await supabase
         .from('cached_shows')
         .select(`
           *,
@@ -29,21 +30,28 @@ export default function ShowPage() {
             country
           )
         `)
-        .eq('ticketmaster_id', id)
+        .eq('ticketmaster_id', eventId)
         .maybeSingle();
       
-      if (!show) {
-        console.error('Show not found:', id);
+      if (error) {
+        console.error('Error fetching show:', error);
+        return null;
       }
+
+      if (!show) {
+        console.error('Show not found:', eventId);
+        return null;
+      }
+
       return show;
     },
-    enabled: !!id,
+    enabled: !!eventId,
   });
 
   const { data: setlist, isLoading: setlistLoading } = useQuery({
     queryKey: ['setlist', show?.id],
     queryFn: async () => {
-      const { data: setlist } = await supabase
+      const { data: setlist, error } = await supabase
         .from('setlists')
         .select(`
           *,
@@ -57,6 +65,11 @@ export default function ShowPage() {
         .eq('show_id', show?.id)
         .maybeSingle();
       
+      if (error) {
+        console.error('Error fetching setlist:', error);
+        return null;
+      }
+
       return setlist;
     },
     enabled: !!show?.id,
@@ -65,11 +78,16 @@ export default function ShowPage() {
   const { data: userVotes } = useQuery({
     queryKey: ['user-votes', setlist?.id],
     queryFn: async () => {
-      const { data: votes } = await supabase
+      const { data: votes, error } = await supabase
         .from('user_votes')
         .select('song_id')
         .eq('user_id', user?.id);
       
+      if (error) {
+        console.error('Error fetching user votes:', error);
+        return [];
+      }
+
       return votes?.map(v => v.song_id) || [];
     },
     enabled: !!setlist?.id && !!user?.id,
@@ -119,7 +137,6 @@ export default function ShowPage() {
   }
 
   if (!show) {
-    console.error('Show not found in render');
     return <EmptyState />;
   }
 
