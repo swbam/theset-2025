@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import { updateVenuesCache } from "./venues";
@@ -8,11 +9,17 @@ export const prepareShowForCache = (show: TicketmasterEvent, artistId?: string |
     return null;
   }
 
+  // Only prepare for caching if we have an artist ID
+  if (!artistId) {
+    console.log('Skipping show cache - no artist ID:', show.id);
+    return null;
+  }
+
   const venue = show._embedded?.venues?.[0];
   
   return {
     ticketmaster_id: show.id,
-    artist_id: artistId || null,
+    artist_id: artistId,
     name: show.name,
     date: show.dates.start.dateTime,
     venue_name: venue?.name,
@@ -25,7 +32,7 @@ export const prepareShowForCache = (show: TicketmasterEvent, artistId?: string |
 export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: string | null) => {
   if (shows.length === 0) return;
 
-  console.log('Caching shows:', shows.length);
+  console.log('Processing shows for caching:', shows.length);
 
   // First, extract and upsert all venues
   const venues = shows
@@ -34,7 +41,7 @@ export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: str
 
   const venueIds = await updateVenuesCache(venues);
 
-  // Prepare and upsert shows with venue IDs
+  // Only prepare shows that have an artist ID
   const showsToCache = shows
     .map(show => {
       const prepared = prepareShowForCache(show, artistId);
@@ -67,7 +74,7 @@ export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: str
   }
 };
 
-export const fetchUpcomingStadiumShows = async () => {
+export const fetchUpcomingStadiumShows = async (artistId?: string) => {
   const shows = await callTicketmasterFunction('events', undefined, {
     classificationName: 'music',
     size: '20',
@@ -76,13 +83,13 @@ export const fetchUpcomingStadiumShows = async () => {
   });
 
   if (shows.length > 0) {
-    await updateShowCache(shows);
+    await updateShowCache(shows, artistId);
   }
 
   return shows;
 };
 
-export const fetchLargeVenueShows = async () => {
+export const fetchLargeVenueShows = async (artistId?: string) => {
   const shows = await callTicketmasterFunction('events', undefined, {
     classificationName: 'music',
     size: '20',
@@ -91,13 +98,13 @@ export const fetchLargeVenueShows = async () => {
   });
 
   if (shows.length > 0) {
-    await updateShowCache(shows);
+    await updateShowCache(shows, artistId);
   }
 
   return shows;
 };
 
-export const fetchPopularTours = async () => {
+export const fetchPopularTours = async (artistId?: string) => {
   const shows = await callTicketmasterFunction('events', undefined, {
     classificationName: 'music',
     sort: 'relevance,desc',
@@ -105,8 +112,9 @@ export const fetchPopularTours = async () => {
   });
 
   if (shows.length > 0) {
-    await updateShowCache(shows);
+    await updateShowCache(shows, artistId);
   }
 
   return shows;
 };
+
