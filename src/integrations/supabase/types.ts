@@ -542,6 +542,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      normalize_artist_name: {
+        Args: {
+          name: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

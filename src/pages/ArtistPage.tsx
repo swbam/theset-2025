@@ -15,7 +15,9 @@ export default function ArtistPage() {
     artistName
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ') : '';
+      .join(' ')
+      .replace(/[^a-zA-Z0-9\s]/g, '') : '';
+  
   const { user } = useAuth();
   
   const { data: artist, isLoading: isLoadingArtist } = useArtistData(normalizedArtistName);

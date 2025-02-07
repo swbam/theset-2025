@@ -20,7 +20,7 @@ export const useArtistShows = (normalizedArtistName: string, artistId: string | 
         .select(`
           *,
           venue:venues(*),
-          artist:artists!cached_shows_artist_id_fkey(name)
+          artist:artists!cached_shows_artist_id_fkey(*)
         `)
         .eq('artist_id', artistId)
         .gte('date', new Date().toISOString())

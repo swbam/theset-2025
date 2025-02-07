@@ -11,10 +11,11 @@ export const useArtistData = (normalizedArtistName: string) => {
       
       console.log('Fetching artist:', normalizedArtistName);
       
+      // First try exact match
       const { data: existingArtist } = await supabase
         .from('artists')
         .select('*')
-        .ilike('name', normalizedArtistName)
+        .eq('name', normalizedArtistName)
         .maybeSingle();
 
       if (existingArtist) {
