@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LoadingState } from "@/components/shows/LoadingState";
-import { RecommendedShows } from "@/components/dashboard/RecommendedShows";
 
 interface FollowedArtist {
   artists: {
@@ -68,17 +67,16 @@ const MyArtists = () => {
       <div className="min-h-screen flex w-full bg-gradient-to-b from-black to-zinc-900">
         <DashboardSidebar />
         <SidebarInset>
-          <div className="h-full p-6">
-            <h1 className="text-2xl font-bold mb-6">My Artists</h1>
+          <div className="w-full max-w-7xl mx-auto px-6 py-8">
+            <h1 className="text-2xl font-bold mb-8">My Artists</h1>
             
-            {followedArtists?.length === 0 && (
+            {!followedArtists?.length && (
               <div className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">Recommended Artists</h2>
-                <RecommendedShows />
               </div>
             )}
 
-            <div className="bg-black/50 rounded-lg border border-zinc-800">
+            <div className="bg-black/50 rounded-lg border border-zinc-800 backdrop-blur-sm">
               <Table>
                 <TableHeader>
                   <TableRow>
