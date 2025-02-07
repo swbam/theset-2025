@@ -64,7 +64,7 @@ const MyArtists = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gradient-to-b from-black to-zinc-900">
+      <div className="min-h-screen flex w-full bg-black">
         <DashboardSidebar />
         <SidebarInset>
           <div className="w-full max-w-7xl mx-auto px-6 py-8">
@@ -107,7 +107,7 @@ const MyArtists = () => {
                       <TableRow 
                         key={item.artists.id}
                         className="cursor-pointer hover:bg-white/5 transition-colors"
-                        onClick={() => navigate(`/artist/${encodeURIComponent(item.artists.name)}`)}
+                        onClick={() => navigate(`/artist/${item.artists.name.replace(/\s+/g, '-').toLowerCase()}`)}
                       >
                         <TableCell className="flex items-center gap-3">
                           <Avatar>
