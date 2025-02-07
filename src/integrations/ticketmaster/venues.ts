@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import type { TicketmasterVenue, CachedVenue } from "./types";
@@ -14,6 +15,7 @@ export const prepareVenueForCache = (venue: TicketmasterVenue): CachedVenue | nu
 
   return {
     id: venue.id,
+    ticketmaster_id: venue.id,
     name: venue.name,
     city: venue.city?.name || '',
     state: venue.state?.name,
