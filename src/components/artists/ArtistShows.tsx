@@ -13,7 +13,8 @@ export const ArtistShows = ({ shows }: ArtistShowsProps) => {
       new Date(show.dates.start.dateTime) : 
       new Date(show.date);
     
-    return showDate >= new Date();
+    // Make sure the show is in the future and has a valid date
+    return showDate && showDate >= new Date();
   }).sort((a, b) => {
     const dateA = 'dates' in a ? 
       new Date(a.dates.start.dateTime) : 
@@ -25,7 +26,7 @@ export const ArtistShows = ({ shows }: ArtistShowsProps) => {
     return dateA.getTime() - dateB.getTime();
   });
 
-  console.log('Valid shows for artist:', validShows?.length);
+  console.log('Valid shows for artist:', validShows?.length, validShows);
 
   return (
     <div className="max-w-7xl mx-auto p-6">
