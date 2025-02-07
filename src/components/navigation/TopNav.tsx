@@ -14,16 +14,28 @@ import {
 export function TopNav() {
   const { user, signOut } = useAuth();
 
+  const handleArtistClick = (artistName: string) => {
+    const encodedName = artistName
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    
+    window.location.href = `/artist/${encodedName}`;
+  };
+
   return (
     <div className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center gap-4 px-4">
         <Link to="/" className="flex items-center gap-2 font-semibold">
-          <img src="/public/logo.svg" alt="Logo" className="h-6 w-6" />
+          <img src="/logo.svg" alt="Logo" className="h-6 w-6" />
           <span>Setlist</span>
         </Link>
         
         <div className="flex-1">
-          <SearchBar />
+          <SearchBar onArtistClick={handleArtistClick} />
         </div>
 
         <div className="flex items-center gap-4">
@@ -38,6 +50,9 @@ export function TopNav() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link to="/settings">Settings</Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => signOut()}>
                   Sign out
                 </DropdownMenuItem>

@@ -14,6 +14,7 @@ import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import MyArtists from "./pages/MyArtists";
 import MyActivity from "./pages/MyActivity";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -33,8 +34,7 @@ const App = () => (
                 <Route path="/artist/:artistName/show/:eventId" element={<ShowPage />} />
                 <Route path="/my-artists" element={<MyArtists />} />
                 <Route path="/my-activity" element={<MyActivity />} />
-                <Route path="/profile" element={<Index />} />
-                <Route path="/settings" element={<Index />} />
+                <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="*" element={<NotFound />} />
