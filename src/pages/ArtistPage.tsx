@@ -16,7 +16,7 @@ export default function ArtistPage() {
         .from('artists')
         .select('*')
         .eq('name', artistName)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!artistName,
