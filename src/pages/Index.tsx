@@ -4,9 +4,10 @@ import { Music2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SearchBar } from "@/components/search/SearchBar";
 import { PopularTours } from "@/components/shows/PopularTours";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, signInWithSpotify } = useAuth();
   const navigate = useNavigate();
 
   const handleArtistClick = (artistName: string) => {
@@ -36,6 +37,14 @@ const Index = () => {
           <p className="mt-4 text-zinc-400 md:text-xl">
             Search for your favorite artists, discover upcoming shows, and vote on the songs you want to hear live.
           </p>
+          {!user && (
+            <Button
+              onClick={signInWithSpotify}
+              className="mt-6 bg-[#1DB954] hover:bg-[#1DB954]/90 text-white"
+            >
+              Sign in with Spotify
+            </Button>
+          )}
         </div>
         
         <SearchBar onArtistClick={handleArtistClick} />

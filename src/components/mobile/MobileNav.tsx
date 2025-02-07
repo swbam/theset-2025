@@ -25,18 +25,21 @@ export const MobileNav = () => {
 
   return (
     <Sheet>
+      <div className="flex-1 text-center">
+        <h1 className="text-lg font-semibold text-white">theset</h1>
+      </div>
       <SheetTrigger asChild>
         <Button 
           variant="ghost" 
           size="icon" 
-          className="md:hidden text-white hover:bg-white/10"
+          className="text-white hover:bg-white/10"
         >
-          <Menu className="h-6 w-6" />
+          <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>
       <SheetContent 
-        side="left" 
-        className="w-72 bg-[#1A1F2C] border-r border-white/10"
+        side="right" 
+        className="w-72 bg-background border-l border-white/10"
       >
         <SheetHeader>
           <SheetTitle className="text-white">Menu</SheetTitle>
@@ -49,7 +52,7 @@ export const MobileNav = () => {
                   <span className="font-medium text-white">
                     {user?.user_metadata?.name}
                   </span>
-                  <span className="text-xs text-zinc-400">
+                  <span className="text-sm text-zinc-400">
                     {user?.email}
                   </span>
                 </div>
@@ -77,7 +80,7 @@ export const MobileNav = () => {
           ) : (
             <Button
               onClick={signInWithSpotify}
-              className="w-full bg-[#9b87f5] hover:bg-[#8b77e5] text-white"
+              className="w-full bg-[#1DB954] hover:bg-[#1DB954]/90 text-white"
             >
               Sign in with Spotify
             </Button>
