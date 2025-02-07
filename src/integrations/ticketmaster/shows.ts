@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import { updateVenuesCache } from "./venues";
@@ -78,7 +79,8 @@ export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: str
 };
 
 const formatDateRange = (startDate: Date, endDate: Date): string => {
-  return `${startDate.toISOString()},${endDate.toISOString()}`;
+  // Ensure dates have UTC timezone (Z suffix)
+  return `${startDate.toISOString().replace('.000', '')},${endDate.toISOString().replace('.000', '')}`;
 };
 
 export const fetchUpcomingStadiumShows = async (artistId?: string) => {
@@ -109,7 +111,7 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
         attr.classifications?.some(c => c.segment?.name.toLowerCase() === 'music')
       );
       const hasValidArtist = show._embedded?.attractions?.some(attr => attr.name && attr.id);
-      const capacity = venue?.capacity ? parseInt(venue.capacity) : 0;
+      const capacity = venue?.capacity ? parseInt(venue.capacity, 10) : 0;
       
       return isMusic && hasValidArtist && capacity > 15000;
     });
