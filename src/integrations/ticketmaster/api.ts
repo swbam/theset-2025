@@ -109,25 +109,29 @@ export const updateArtistCache = async (
   }
 
   // Process and cache shows
-  const showsToUpsert = shows.map(show => ({
-    ticketmaster_id: show.id,
-    artist_id: artist.id,
-    name: show.name,
-    date: show.dates.start.dateTime,
-    ticket_url: show.url,
-    venue_name: show._embedded?.venues?.[0]?.name,
-    venue_location: show._embedded?.venues?.[0] as unknown as Record<string, unknown>,
-    last_synced_at: new Date().toISOString()
-  }));
+  for (const show of shows) {
+    const venueData = show._embedded?.venues?.[0];
+    if (!venueData) continue;
 
-  if (showsToUpsert.length > 0) {
-    const { error: showsError } = await supabase
+    const showData = {
+      ticketmaster_id: show.id,
+      artist_id: artist.id,
+      name: show.name,
+      date: show.dates.start.dateTime,
+      ticket_url: show.url,
+      venue_name: venueData.name,
+      venue_location: JSON.stringify(venueData),
+      last_synced_at: new Date().toISOString()
+    };
+
+    const { error: showError } = await supabase
       .from('cached_shows')
-      .upsert(showsToUpsert);
+      .upsert(showData, {
+        onConflict: 'ticketmaster_id'
+      });
 
-    if (showsError) {
-      console.error('Error updating shows cache:', showsError);
-      throw showsError;
+    if (showError) {
+      console.error('Error updating show cache:', showError, showData);
     }
   }
 
