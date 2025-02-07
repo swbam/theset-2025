@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
-import type { TicketmasterEvent } from "@/integrations/ticketmaster/client";
+import type { TicketmasterEvent } from "@/integrations/ticketmaster/types";
 import { useNavigate } from "react-router-dom";
 
 interface ShowCardProps {
@@ -23,7 +23,10 @@ export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
     const datePart = format(showDate, 'yyyy-MM-dd');
     const venuePart = venue?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
     const cityPart = venue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
-    const artistPart = show.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const artistPart = show.name.toLowerCase()
+      .normalize('NFD') // Normalize accented characters
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .replace(/[^a-z0-9]+/g, '-'); // Replace non-alphanumeric with hyphens
     
     return `/show/${artistPart}/${datePart}/${cityPart}/${venuePart}/${show.id}`;
   };

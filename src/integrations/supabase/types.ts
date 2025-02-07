@@ -218,6 +218,8 @@ export type Database = {
           id: string
           setlist_id: string
           song_name: string
+          suggested: boolean | null
+          total_votes: number | null
           updated_at: string | null
           votes: number | null
         }
@@ -226,6 +228,8 @@ export type Database = {
           id?: string
           setlist_id: string
           song_name: string
+          suggested?: boolean | null
+          total_votes?: number | null
           updated_at?: string | null
           votes?: number | null
         }
@@ -234,6 +238,8 @@ export type Database = {
           id?: string
           setlist_id?: string
           song_name?: string
+          suggested?: boolean | null
+          total_votes?: number | null
           updated_at?: string | null
           votes?: number | null
         }
@@ -254,7 +260,9 @@ export type Database = {
           id: string
           name: string
           show_id: string
+          status: string | null
           updated_at: string | null
+          venue_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -262,7 +270,9 @@ export type Database = {
           id?: string
           name: string
           show_id: string
+          status?: string | null
           updated_at?: string | null
+          venue_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -270,7 +280,9 @@ export type Database = {
           id?: string
           name?: string
           show_id?: string
+          status?: string | null
           updated_at?: string | null
+          venue_id?: string | null
         }
         Relationships: [
           {
@@ -285,6 +297,13 @@ export type Database = {
             columns: ["show_id"]
             isOneToOne: false
             referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "setlists_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
