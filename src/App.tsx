@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { TopNav } from "./components/navigation/TopNav";
-import { Breadcrumbs } from "./components/navigation/Breadcrumbs";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import ArtistPage from "./pages/ArtistPage";
@@ -25,7 +24,6 @@ const App = () => (
         <AuthProvider>
           <div className="min-h-screen bg-background text-foreground">
             <TopNav />
-            <Breadcrumbs />
             <Toaster />
             <Sonner />
             <Routes>

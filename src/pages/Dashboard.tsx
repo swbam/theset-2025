@@ -4,6 +4,7 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileNav } from "@/components/mobile/MobileNav";
+import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 
 export default function Dashboard() {
   const isMobile = useIsMobile();
@@ -20,6 +21,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+          <Breadcrumbs />
           <Outlet />
         </main>
       </div>
