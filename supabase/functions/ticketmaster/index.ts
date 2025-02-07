@@ -4,21 +4,29 @@ import { corsHeaders } from '../_shared/cors.ts';
 
 const BASE_URL = "https://app.ticketmaster.com/discovery/v2";
 
-// Rate limiting setup
+// Rate limiting setup - 5 requests per second as per Ticketmaster's limit
 const RATE_LIMIT = 5; // requests per second
 const QUEUE: Array<() => Promise<Response>> = [];
 let processingQueue = false;
+let lastRequestTime = 0;
 
 async function processQueue() {
   if (processingQueue || QUEUE.length === 0) return;
   
   processingQueue = true;
   while (QUEUE.length > 0) {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime;
+    
+    // Ensure minimum 200ms between requests (5 requests per second)
+    if (timeSinceLastRequest < 200) {
+      await new Promise(resolve => setTimeout(resolve, 200 - timeSinceLastRequest));
+    }
+    
     const request = QUEUE.shift();
     if (request) {
+      lastRequestTime = Date.now();
       await request();
-      // Wait 200ms between requests (5 requests per second)
-      await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
   processingQueue = false;
@@ -120,6 +128,13 @@ Deno.serve(async (req) => {
         });
         
         if (!response.ok) {
+          if (response.status === 429) {
+            // If we hit the rate limit, wait and retry
+            console.log('Rate limit hit, retrying after delay...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return makeRequest();
+          }
+          
           console.error('Ticketmaster API error:', response.status, response.statusText);
           const errorText = await response.text();
           throw new Error(`Ticketmaster API error: ${response.status} - ${errorText}`);
