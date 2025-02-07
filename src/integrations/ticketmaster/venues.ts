@@ -50,11 +50,21 @@ export const fetchVenueFromCache = async (venueId: string | null, ttlHours = 24)
 export const updateVenuesCache = async (venues: TicketmasterVenue[]) => {
   if (venues.length === 0) return new Map<string, string>();
 
-  const venuesToCache = venues
+  // Deduplicate venues using a Map with ticketmaster_id as key
+  const uniqueVenues = new Map<string, TicketmasterVenue>();
+  venues.forEach(venue => {
+    if (venue && venue.id) {
+      uniqueVenues.set(venue.id, venue);
+    }
+  });
+
+  // Convert unique venues to cache format
+  const venuesToCache = Array.from(uniqueVenues.values())
     .map(prepareVenueForCache)
     .filter((v): v is CachedVenue => v !== null);
 
   if (venuesToCache.length > 0) {
+    console.log(`Upserting ${venuesToCache.length} unique venues`);
     const { error: venueError } = await supabase
       .from('venues')
       .upsert(venuesToCache, {
@@ -145,4 +155,3 @@ export const fetchVenueEvents = async (venueId: string) => {
 
   return shows;
 };
-
