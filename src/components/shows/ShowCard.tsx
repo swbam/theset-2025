@@ -65,7 +65,7 @@ export const ShowCard = ({ show }: ShowCardProps) => {
             <div className="flex-1">
               <h3 className="text-xl font-semibold mb-2 text-white">{show.name}</h3>
               <div className="space-y-1">
-                <p className="text-white/60">{venue?.name}</p>
+                <p className="text-white/60">{isTicketmasterEvent ? venue?.name : venue?.name}</p>
                 {cityState && <p className="text-white/60">{cityState}</p>}
               </div>
             </div>

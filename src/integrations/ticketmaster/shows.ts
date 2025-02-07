@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import { updateVenuesCache } from "./venues";
@@ -98,7 +99,7 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
         attr.classifications?.some(c => c.segment?.name.toLowerCase() === 'music')
       );
       const hasValidArtist = show._embedded?.attractions?.some(attr => attr.name && attr.id);
-      const capacity = parseInt(venue?.capacity || '0');
+      const capacity = venue?.capacity ? parseInt(venue.capacity) : 0;
       
       return isMusic && hasValidArtist && capacity > 15000;
     });
@@ -125,7 +126,7 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
       includeTBD: 'no',
       includeTest: 'no',
       marketId: '102', // US National market
-      venueId: ['KovZpZAFnIEA', 'KovZpZAE7vdA', 'KovZpaKSje', 'KovZpZA7AAEA'], // Major US arenas
+      venueId: 'KovZpZAFnIEA,KovZpZAE7vdA,KovZpaKSje,KovZpZA7AAEA', // Major US arenas
       localStartEndDateTime: `${new Date().toISOString()},${new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString()}` // Next 6 months
     });
 

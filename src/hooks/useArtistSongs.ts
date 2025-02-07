@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SpotifyTrack } from "@/integrations/spotify/client";
 
+const SPOTIFY_API_URL = "https://api.spotify.com/v1";
+
 export function useArtistSongs(artistId: string | undefined) {
   return useQuery({
     queryKey: ['artist-songs', artistId],

@@ -27,7 +27,7 @@ const MyActivity = () => {
             id,
             created_at,
             name,
-            shows (
+            show:shows!inner (
               artist_name,
               venue
             )
@@ -55,12 +55,12 @@ const MyActivity = () => {
           .select(`
             id,
             created_at,
-            setlist_songs!user_votes_song_id_fkey (
+            setlist_songs!inner (
               song_name,
-              setlists!setlist_songs_setlist_id_fkey (
+              setlist:setlists!inner (
                 id,
                 name,
-                shows (
+                show:shows!inner (
                   artist_name,
                   venue
                 )
