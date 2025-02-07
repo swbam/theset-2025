@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Spotify } from "lucide-react";
+import { Music } from "lucide-react";
 
 export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -39,7 +39,7 @@ export default function AuthPage() {
             className="w-full"
             onClick={() => signInWithSpotify()}
           >
-            <Spotify className="mr-2 h-4 w-4" />
+            <Music className="mr-2 h-4 w-4" />
             Continue with Spotify
           </Button>
 
