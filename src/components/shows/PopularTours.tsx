@@ -22,7 +22,7 @@ interface ArtistInfo {
 export const PopularTours = ({ onArtistClick }: PopularToursProps) => {
   const { data: shows = [], isLoading } = useQuery({
     queryKey: ['popularTours'],
-    queryFn: fetchPopularTours,
+    queryFn: () => fetchPopularTours(),
   });
 
   const processShows = (shows: TicketmasterEvent[]): ArtistInfo[] => {

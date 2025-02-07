@@ -54,7 +54,7 @@ export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: str
 
       return prepared;
     })
-    .filter((s): s is CachedShow => s !== null);
+    .filter((s): s is NonNullable<CachedShow> => s !== null);
 
   if (showsToCache.length > 0) {
     console.log('Upserting shows to cache:', showsToCache.length);
@@ -117,4 +117,3 @@ export const fetchPopularTours = async (artistId?: string) => {
 
   return shows;
 };
-
