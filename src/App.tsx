@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import ArtistPage from "./pages/ArtistPage";
 import ShowPage from "./pages/ShowPage";
 import NotFound from "./pages/NotFound";
+import MyArtists from "./pages/MyArtists";
 
 const queryClient = new QueryClient();
 
@@ -27,7 +28,7 @@ const App = () => (
                 <Route path="/artist/:artistName" element={<ArtistPage />} />
                 <Route path="/show/:artistSlug/:date/:city/:venue/:id" element={<ShowPage />} />
                 <Route path="/show/:id" element={<ShowPage />} /> {/* Keep old route for backwards compatibility */}
-                <Route path="/my-artists" element={<Index />} />
+                <Route path="/my-artists" element={<MyArtists />} />
                 <Route path="/my-activity" element={<Index />} />
                 <Route path="/profile" element={<Index />} />
                 <Route path="/settings" element={<Index />} />
