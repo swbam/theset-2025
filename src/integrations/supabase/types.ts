@@ -451,6 +451,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      needs_venue_refresh: {
+        Args: {
+          last_sync: string
+          ttl_hours?: number
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

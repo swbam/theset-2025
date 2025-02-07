@@ -82,3 +82,4 @@ export interface CachedVenue {
   capacity?: number;
   last_synced_at: string;
 }
+
