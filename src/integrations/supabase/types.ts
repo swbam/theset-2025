@@ -53,7 +53,7 @@ export type Database = {
       }
       cached_shows: {
         Row: {
-          artist_id: string | null
+          artist_id: string
           created_at: string | null
           date: string
           id: string
@@ -69,7 +69,7 @@ export type Database = {
           venue_name: string | null
         }
         Insert: {
-          artist_id?: string | null
+          artist_id: string
           created_at?: string | null
           date: string
           id?: string
@@ -85,7 +85,7 @@ export type Database = {
           venue_name?: string | null
         }
         Update: {
-          artist_id?: string | null
+          artist_id?: string
           created_at?: string | null
           date?: string
           id?: string
@@ -113,6 +113,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_artist"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
             referencedColumns: ["id"]
           },
         ]
