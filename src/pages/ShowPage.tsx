@@ -10,7 +10,6 @@ import { ShowDetails } from "@/components/shows/ShowDetails";
 import { Setlist } from "@/components/shows/Setlist";
 
 export default function ShowPage() {
-  // Extract the event ID from the URL
   const { eventId } = useParams<{ eventId: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -98,6 +97,32 @@ export default function ShowPage() {
       toast({
         title: "Login Required",
         description: "Please log in to vote for songs",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check rate limiting (60 votes per hour)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const { data: recentVotes, error: countError } = await supabase
+      .from('user_votes')
+      .select('id', { count: 'exact' })
+      .eq('user_id', user.id)
+      .gte('created_at', oneHourAgo.toISOString());
+
+    if (countError) {
+      toast({
+        title: "Error",
+        description: "Failed to check vote limit",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if ((recentVotes?.length || 0) >= 60) {
+      toast({
+        title: "Rate Limited",
+        description: "You've reached the maximum votes allowed per hour",
         variant: "destructive"
       });
       return;
