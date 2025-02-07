@@ -66,30 +66,10 @@ export interface TicketmasterEvent {
   }>;
 }
 
-export interface CachedShow {
-  ticketmaster_id: string;
-  artist_id: string;
-  name: string;
-  date: string;
-  venue_id?: string;
-  venue?: {
-    id?: string;
-    name?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-    address?: string;
-  };
-  venue_name?: string;
-  venue_location?: any;
-  ticket_url: string;
-  last_synced_at: string;
-}
-
 export interface CachedVenue {
-  ticketmaster_id: string;
+  id?: string;
   name: string;
-  city?: string;
+  city: string;
   state?: string;
   country?: string;
   address?: string;
@@ -99,7 +79,20 @@ export interface CachedVenue {
   last_synced_at: string;
 }
 
-export interface CachedArtist {
+export interface CachedShow {
+  ticketmaster_id: string;
+  artist_id: string;
+  name: string;
+  date: string;
+  venue_id?: string;
+  venue?: CachedVenue;
+  venue_name?: string;
+  venue_location?: any;
+  ticket_url: string;
+  last_synced_at: string;
+}
+
+export interface Artist {
   id: string;
   name: string;
   spotify_id: string;

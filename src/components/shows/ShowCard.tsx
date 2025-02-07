@@ -13,7 +13,6 @@ interface ShowCardProps {
 export const ShowCard = ({ show }: ShowCardProps) => {
   const navigate = useNavigate();
   
-  // Handle both TicketmasterEvent and CachedShow types
   const isTicketmasterEvent = 'dates' in show;
   
   const showDate = isTicketmasterEvent ? 
