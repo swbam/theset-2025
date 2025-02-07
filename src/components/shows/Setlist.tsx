@@ -2,8 +2,13 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { SetlistSong } from "./SetlistSong";
 import { useSpotifyTracks } from "@/hooks/useSpotifyTracks";
+import { useArtistSongs } from "@/hooks/useArtistSongs";
 import type { User } from "@supabase/supabase-js";
 
 interface SetlistProps {
@@ -23,25 +28,31 @@ interface SetlistProps {
   onVote: (songId: string) => Promise<void>;
   onSuggest: (songName: string, spotifyId?: string) => Promise<void>;
   artistName?: string;
+  artistId?: string;
 }
 
-export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistName }: SetlistProps) => {
-  const [newSong, setNewSong] = useState("");
+export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistName, artistId }: SetlistProps) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [selectedSong, setSelectedSong] = useState<string>("");
 
   // Auto-populate with top tracks if empty
   useSpotifyTracks(artistName, setlist?.id);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSong.trim()) return;
+  // Get artist's songs for the dropdown
+  const { data: songs, isLoading: isLoadingSongs } = useArtistSongs(artistId);
 
-    try {
-      await onSuggest(newSong);
-      setNewSong("");
-      setIsAdding(false);
-    } catch (error) {
-      console.error('Error suggesting song:', error);
+  const handleSongSelect = async (songId: string) => {
+    const song = songs?.find(s => s.spotify_id === songId);
+    if (song) {
+      try {
+        await onSuggest(song.name, song.spotify_id);
+        setSelectedSong("");
+        setOpen(false);
+        setIsAdding(false);
+      } catch (error) {
+        console.error('Error suggesting song:', error);
+      }
     }
   };
 
@@ -70,18 +81,52 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
       </div>
       
       {isAdding && (
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <Input
-            value={newSong}
-            onChange={(e) => setNewSong(e.target.value)}
-            placeholder="Enter song name"
-            className="bg-white/5 border-white/10 text-white"
-          />
-          <Button type="submit" variant="outline">Add</Button>
-          <Button type="button" variant="ghost" onClick={() => setIsAdding(false)}>
+        <div className="flex gap-2">
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="w-full justify-between"
+              >
+                {selectedSong
+                  ? songs?.find((song) => song.spotify_id === selectedSong)?.name
+                  : "Select a song..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <Command>
+                <CommandInput placeholder="Search songs..." />
+                <CommandEmpty>No songs found.</CommandEmpty>
+                <CommandGroup className="max-h-60 overflow-auto">
+                  {songs?.map((song) => (
+                    <CommandItem
+                      key={song.spotify_id}
+                      value={song.name}
+                      onSelect={() => handleSongSelect(song.spotify_id)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedSong === song.spotify_id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {song.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Button type="button" variant="ghost" onClick={() => {
+            setIsAdding(false);
+            setSelectedSong("");
+          }}>
             Cancel
           </Button>
-        </form>
+        </div>
       )}
       
       {setlist ? (
