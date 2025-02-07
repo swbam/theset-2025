@@ -4,6 +4,7 @@ import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TicketmasterEvent } from "@/integrations/ticketmaster/client";
+import { useNavigate } from "react-router-dom";
 
 interface ShowCardProps {
   show: TicketmasterEvent;
@@ -11,6 +12,7 @@ interface ShowCardProps {
 }
 
 export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
+  const navigate = useNavigate();
   const venue = show._embedded?.venues?.[0];
   const showDate = new Date(show.dates.start.dateTime);
   const cityState = venue?.city?.name && venue?.state?.name ? 
@@ -48,11 +50,11 @@ export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
             className="w-full"
             onClick={(e) => {
               e.stopPropagation();
-              window.open(show.url, '_blank');
+              navigate(`/show/${show.id}`);
             }}
           >
             <Calendar className="w-4 h-4 mr-2" />
-            Get Tickets
+            View Setlist
           </Button>
         </div>
       </CardContent>
