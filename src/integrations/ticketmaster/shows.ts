@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import { updateVenuesCache } from "./venues";
@@ -78,10 +77,18 @@ export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: str
   }
 };
 
+const formatDateRange = (startDate: Date, endDate: Date): string => {
+  return `${startDate.toISOString()},${endDate.toISOString()}`;
+};
+
 export const fetchUpcomingStadiumShows = async (artistId?: string) => {
   try {
-    const startDate = new Date().toISOString();
-    const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setFullYear(endDate.getFullYear() + 1);
+    
+    const dateRange = formatDateRange(startDate, endDate);
+    console.log('Fetching stadium shows with date range:', dateRange);
     
     const shows = await callTicketmasterFunction('events', undefined, {
       classificationName: 'music',
@@ -92,7 +99,7 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
       includeTBD: 'no',
       includeTest: 'no',
       marketId: '102',
-      localStartEndDateTime: `${startDate},${endDate}`
+      localStartEndDateTime: dateRange
     });
 
     // Filter to only include music events in large venues
@@ -120,8 +127,12 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
 
 export const fetchLargeVenueShows = async (artistId?: string) => {
   try {
-    const startDate = new Date().toISOString();
-    const endDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 6);
+    
+    const dateRange = formatDateRange(startDate, endDate);
+    console.log('Fetching venue shows with date range:', dateRange);
     
     const shows = await callTicketmasterFunction('events', undefined, {
       classificationName: 'music',
@@ -132,7 +143,7 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
       includeTBD: 'no',
       includeTest: 'no',
       marketId: '102',
-      localStartEndDateTime: `${startDate},${endDate}`
+      localStartEndDateTime: dateRange
     });
 
     const filteredShows = shows.filter((show: TicketmasterEvent) => {
@@ -157,8 +168,12 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
 
 export const fetchPopularTours = async (artistId?: string) => {
   try {
-    const startDate = new Date().toISOString();
-    const endDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 6);
+    
+    const dateRange = formatDateRange(startDate, endDate);
+    console.log('Fetching popular tours with date range:', dateRange);
     
     const shows = await callTicketmasterFunction('events', undefined, {
       classificationName: 'music',
@@ -169,7 +184,7 @@ export const fetchPopularTours = async (artistId?: string) => {
       includeTBD: 'no',
       includeTest: 'no',
       marketId: '102',
-      localStartEndDateTime: `${startDate},${endDate}`
+      localStartEndDateTime: dateRange
     });
 
     const filteredShows = shows.filter((show: TicketmasterEvent) => {
