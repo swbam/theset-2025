@@ -25,7 +25,7 @@ async function processQueue() {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -111,34 +111,40 @@ Deno.serve(async (req) => {
 
     // Create the request function
     const makeRequest = async () => {
-      const response = await fetch(apiUrl);
-      const responseText = await response.text();
-      
-      if (!response.ok) {
-        console.error('Ticketmaster API error:', responseText);
-        throw new Error(`Ticketmaster API error: ${response.status} - ${responseText}`);
-      }
-      
       try {
-        const data = JSON.parse(responseText);
+        const response = await fetch(apiUrl, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          console.error('Ticketmaster API error:', response.status, response.statusText);
+          const errorText = await response.text();
+          throw new Error(`Ticketmaster API error: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
         console.log('Received response with data:', data._embedded?.events?.length || 0, 'events');
         
         return new Response(JSON.stringify(data), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
-      } catch (parseError) {
-        console.error('Error parsing JSON response:', parseError);
-        throw new Error('Invalid JSON response from Ticketmaster API');
+      } catch (error) {
+        console.error('Error in makeRequest:', error);
+        throw error;
       }
     };
 
-    // Add request to queue
+    // Add request to queue and process
     return new Promise((resolve) => {
       QUEUE.push(async () => {
         try {
           const response = await makeRequest();
           resolve(response);
         } catch (error) {
+          console.error('Error processing request:', error);
           resolve(new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
