@@ -6,7 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
-import { LoadingState } from "@/components/shows/LoadingState";
 import { ArtistFollowCard } from "@/components/artists/ArtistFollowCard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileNav } from "@/components/mobile/MobileNav";
@@ -73,12 +72,12 @@ const MyArtists = () => {
             </div>
           )}
           
-          <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+          <div className="flex-1 max-w-[2000px] mx-auto px-4 md:px-8 pt-6">
             {!isMobile && (
               <h1 className="text-3xl font-bold mb-8">My Artists</h1>
             )}
             
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {isLoading ? (
                 Array(6).fill(0).map((_, i) => (
                   <div key={i} className="h-48 bg-accent/20 rounded-lg animate-pulse" />

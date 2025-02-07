@@ -106,9 +106,9 @@ const MyActivity = () => {
             </div>
           )}
           
-          <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+          <div className="flex-1 max-w-[2000px] mx-auto px-4 md:px-8 pt-6">
             {!isMobile && (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-8">
                 <div>
                   <h1 className="text-3xl font-bold mb-2">My Activity</h1>
                   <p className="text-lg text-muted-foreground">
