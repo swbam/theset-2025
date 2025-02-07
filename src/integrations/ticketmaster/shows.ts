@@ -21,6 +21,8 @@ export const prepareShowForCache = (show: TicketmasterEvent, artistId?: string |
     venue_name: venue?.name,
     venue_location: venue ? JSON.stringify(venue) : null,
     ticket_url: show.url,
+    status: show.dates?.status?.code || null,
+    price_ranges: show.priceRanges ? JSON.stringify(show.priceRanges) : null,
     last_synced_at: new Date().toISOString()
   };
 };
@@ -67,6 +69,8 @@ export const updateShowCache = async (shows: TicketmasterEvent[], artistId?: str
 
       if (upsertError) {
         console.error('Error updating show cache:', upsertError);
+      } else {
+        console.log('Successfully cached shows:', showsToCache.map(s => s.ticketmaster_id));
       }
     }
   } catch (error) {

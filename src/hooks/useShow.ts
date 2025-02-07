@@ -11,9 +11,13 @@ export function useShow(eventId: string | undefined) {
         return null;
       }
 
-      // Extract the Ticketmaster ID from the last segment of the URL path
-      const segments = eventId.split('/');
-      const ticketmasterId = segments[segments.length - 1];
+      // Get the Ticketmaster ID from the last segment after 'event/'
+      const ticketmasterId = eventId.split('event/').pop();
+      
+      if (!ticketmasterId) {
+        console.error('Invalid event URL format');
+        return null;
+      }
       
       console.log('Fetching show with Ticketmaster ID:', ticketmasterId);
       
