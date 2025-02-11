@@ -32,34 +32,19 @@ async function processQueue() {
   processingQueue = false;
 }
 
-function formatDateRange(dateRange: string): string {
-  if (!dateRange) return '';
-  
-  const [startStr, endStr] = dateRange.split(',');
-  if (!startStr || !endStr) {
-    console.error('Invalid date range format:', dateRange);
-    throw new Error('Invalid date range format');
-  }
-
+function formatDateRange(startDate: Date, endDate: Date): string {
   try {
-    // Parse dates and ensure they're valid
-    const startDate = new Date(startStr);
-    const endDate = new Date(endStr);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      throw new Error('Invalid date values');
-    }
-
-    // Format to exact ISO string format required by Ticketmaster
+    // Ensure UTC timezone and proper format with Z suffix
     const formattedStart = startDate.toISOString().split('.')[0] + 'Z';
     const formattedEnd = endDate.toISOString().split('.')[0] + 'Z';
     
+    // Format according to Ticketmaster's requirements
     const formattedRange = `${formattedStart},${formattedEnd}`;
     console.log('Formatted date range:', formattedRange);
     return formattedRange;
   } catch (error) {
     console.error('Error formatting dates:', error);
-    throw new Error(`Invalid date format. Expected ISO 8601 format (${error.message})`);
+    throw new Error(`Invalid date format: ${error.message}`);
   }
 }
 
@@ -102,10 +87,12 @@ Deno.serve(async (req) => {
       classificationName: 'music',
     });
 
-    // Handle date parameters properly
-    if (params?.localStartEndDateTime) {
+    // Handle date parameters
+    if (params?.startDate && params?.endDate) {
       try {
-        const formattedDateRange = formatDateRange(params.localStartEndDateTime);
+        const startDate = new Date(params.startDate);
+        const endDate = new Date(params.endDate);
+        const formattedDateRange = formatDateRange(startDate, endDate);
         queryParams.set('localStartEndDateTime', formattedDateRange);
         console.log('Using formatted date range:', formattedDateRange);
       } catch (error) {
@@ -132,7 +119,7 @@ Deno.serve(async (req) => {
       case 'events':
         if (params) {
           Object.entries(params).forEach(([key, value]) => {
-            if (key !== 'apikey' && key !== 'localStartEndDateTime' && value) {
+            if (key !== 'apikey' && key !== 'startDate' && key !== 'endDate' && value) {
               queryParams.append(key, value.toString());
             }
           });
@@ -175,8 +162,8 @@ Deno.serve(async (req) => {
             return makeRequest();
           }
           
-          console.error('Ticketmaster API error:', response.status, response.statusText);
           const errorText = await response.text();
+          console.error('Ticketmaster API error:', response.status, errorText);
           throw new Error(`Ticketmaster API error: ${response.status} - ${errorText}`);
         }
 
