@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import { updateVenuesCache } from "./venues";
@@ -89,38 +88,16 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
     const endDate = new Date();
     endDate.setFullYear(endDate.getFullYear() + 1);
     
-    const dateRange = formatDateRange(startDate, endDate);
-    console.log('Fetching stadium shows with date range:', dateRange);
-    
-    const shows = await callTicketmasterFunction('events', undefined, {
-      classificationName: 'music',
-      size: '20',
-      sort: 'date,asc',
-      segmentId: 'KZFzniwnSyZfZ7v7nJ',
-      includeTBA: 'no',
-      includeTBD: 'no',
-      includeTest: 'no',
-      marketId: '102',
-      localStartEndDateTime: dateRange
+    const shows = await callTicketmasterFunction('topShows', undefined, {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
     });
 
-    // Filter to only include music events in large venues
-    const filteredShows = shows.filter((show: TicketmasterEvent) => {
-      const venue = show._embedded?.venues?.[0];
-      const isMusic = show._embedded?.attractions?.some(attr => 
-        attr.classifications?.some(c => c.segment?.name.toLowerCase() === 'music')
-      );
-      const hasValidArtist = show._embedded?.attractions?.some(attr => attr.name && attr.id);
-      const capacity = venue?.capacity ? parseInt(venue.capacity, 10) : 0;
-      
-      return isMusic && hasValidArtist && capacity > 15000;
-    });
-
-    if (filteredShows.length > 0) {
-      await updateShowCache(filteredShows, artistId);
+    if (shows.length > 0) {
+      await updateShowCache(shows, artistId);
     }
 
-    return filteredShows;
+    return shows;
   } catch (error) {
     console.error('Error fetching stadium shows:', error);
     return [];
@@ -133,35 +110,16 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + 6);
     
-    const dateRange = formatDateRange(startDate, endDate);
-    console.log('Fetching venue shows with date range:', dateRange);
-    
-    const shows = await callTicketmasterFunction('events', undefined, {
-      classificationName: 'music',
-      size: '20',
-      sort: 'date,asc',
-      segmentId: 'KZFzniwnSyZfZ7v7nJ',
-      includeTBA: 'no',
-      includeTBD: 'no',
-      includeTest: 'no',
-      marketId: '102',
-      localStartEndDateTime: dateRange
+    const shows = await callTicketmasterFunction('topShows', undefined, {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
     });
 
-    const filteredShows = shows.filter((show: TicketmasterEvent) => {
-      const isMusic = show._embedded?.attractions?.some(attr => 
-        attr.classifications?.some(c => c.segment?.name.toLowerCase() === 'music')
-      );
-      const hasValidArtist = show._embedded?.attractions?.some(attr => attr.name && attr.id);
-      
-      return isMusic && hasValidArtist;
-    });
-
-    if (filteredShows.length > 0) {
-      await updateShowCache(filteredShows, artistId);
+    if (shows.length > 0) {
+      await updateShowCache(shows, artistId);
     }
 
-    return filteredShows;
+    return shows;
   } catch (error) {
     console.error('Error fetching venue shows:', error);
     return [];
@@ -174,35 +132,16 @@ export const fetchPopularTours = async (artistId?: string) => {
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + 6);
     
-    const dateRange = formatDateRange(startDate, endDate);
-    console.log('Fetching popular tours with date range:', dateRange);
-    
-    const shows = await callTicketmasterFunction('events', undefined, {
-      classificationName: 'music',
-      sort: 'relevance,desc',
-      size: '100',
-      segmentId: 'KZFzniwnSyZfZ7v7nJ',
-      includeTBA: 'no',
-      includeTBD: 'no',
-      includeTest: 'no',
-      marketId: '102',
-      localStartEndDateTime: dateRange
+    const shows = await callTicketmasterFunction('topShows', undefined, {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
     });
 
-    const filteredShows = shows.filter((show: TicketmasterEvent) => {
-      const isMusic = show._embedded?.attractions?.some(attr => 
-        attr.classifications?.some(c => c.segment?.name.toLowerCase() === 'music')
-      );
-      const hasValidArtist = show._embedded?.attractions?.some(attr => attr.name && attr.id);
-      
-      return isMusic && hasValidArtist;
-    });
-
-    if (filteredShows.length > 0) {
-      await updateShowCache(filteredShows, artistId);
+    if (shows.length > 0) {
+      await updateShowCache(shows, artistId);
     }
 
-    return filteredShows;
+    return shows;
   } catch (error) {
     console.error('Error fetching popular tours:', error);
     return [];

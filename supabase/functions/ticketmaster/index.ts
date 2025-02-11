@@ -110,6 +110,15 @@ Deno.serve(async (req) => {
 
     // Endpoint-specific parameters
     switch (endpoint) {
+      case 'topShows':
+        // Fetch top shows based on venue size and popularity
+        queryParams.append('sort', 'relevance,desc');
+        queryParams.append('size', '50'); // Get more shows to filter by venue size
+        queryParams.append('includeTest', 'no');
+        queryParams.append('includeTBA', 'no');
+        queryParams.append('includeTBD', 'no');
+        queryParams.append('segmentId', 'KZFzniwnSyZfZ7v7nJ'); // Music segment
+        break;
       case 'search':
         if (query) {
           queryParams.append('keyword', query);
@@ -134,10 +143,6 @@ Deno.serve(async (req) => {
         if (!params?.sort) {
           queryParams.append('sort', 'date,asc');
         }
-        break;
-      case 'featured':
-        queryParams.append('sort', 'relevance,desc');
-        queryParams.append('countryCode', 'US');
         break;
       default:
         throw new Error('Invalid endpoint');
@@ -175,9 +180,33 @@ Deno.serve(async (req) => {
         }
 
         const data = await response.json();
-        console.log('Received response with data:', data._embedded?.events?.length || 0, 'events');
+        let events = data._embedded?.events || [];
+
+        // For top shows, sort by venue capacity and filter
+        if (endpoint === 'topShows') {
+          events = events
+            .filter((event: any) => {
+              const venue = event._embedded?.venues?.[0];
+              return venue && (
+                // Filter for larger venues
+                (venue.capacity && parseInt(venue.capacity) > 5000) ||
+                venue.name.toLowerCase().includes('arena') ||
+                venue.name.toLowerCase().includes('stadium') ||
+                venue.name.toLowerCase().includes('amphitheatre') ||
+                venue.name.toLowerCase().includes('center')
+              );
+            })
+            .sort((a: any, b: any) => {
+              const venueA = a._embedded?.venues?.[0];
+              const venueB = b._embedded?.venues?.[0];
+              const capacityA = venueA?.capacity ? parseInt(venueA.capacity) : 0;
+              const capacityB = venueB?.capacity ? parseInt(venueB.capacity) : 0;
+              return capacityB - capacityA;
+            })
+            .slice(0, 6); // Return top 6 shows
+        }
         
-        return new Response(JSON.stringify(data._embedded?.events || []), {
+        return new Response(JSON.stringify(events), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch (error) {
