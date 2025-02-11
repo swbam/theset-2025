@@ -21,7 +21,7 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     
   const venue = isTicketmasterEvent ? 
     show._embedded?.venues?.[0] : 
-    show.venue;
+    show.venue_location ? JSON.parse(show.venue_location) : null;
 
   // Get artist name from the show data
   const artistName = isTicketmasterEvent
@@ -32,18 +32,20 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     if (!venue) return '';
 
     if (isTicketmasterEvent) {
-      const tmVenue = venue as NonNullable<TicketmasterEvent['_embedded']>['venues'][0];
-      return tmVenue.city?.name && tmVenue.state?.name 
-        ? `${tmVenue.city.name}, ${tmVenue.state.name}` 
-        : tmVenue.city?.name || '';
+      const city = venue.city?.name || '';
+      const state = venue.state?.name || '';
+      return city && state ? `${city}, ${state}` : city;
     } else {
-      return venue.city && venue.state ? `${venue.city}, ${venue.state}` : venue.city || '';
+      const parsedVenue = venue as any;
+      const city = parsedVenue.city?.name || '';
+      const state = parsedVenue.state?.name || '';
+      return city && state ? `${city}, ${state}` : city;
     }
   })();
 
   const venueName = isTicketmasterEvent 
-    ? (venue as NonNullable<TicketmasterEvent['_embedded']>['venues'][0])?.name || ''
-    : (venue && typeof venue === 'object' ? venue.name || '' : '');
+    ? venue?.name || ''
+    : venue?.name || show.venue_name || '';
 
   const generateSeoUrl = () => {
     if (!artistName) return '/';

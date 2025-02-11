@@ -46,9 +46,6 @@ function formatDateRange(startDate: string, endDate: string): string {
     const formattedStart = start.toISOString().split('.')[0] + 'Z';
     const formattedEnd = end.toISOString().split('.')[0] + 'Z';
     
-    console.log('Start date:', formattedStart);
-    console.log('End date:', formattedEnd);
-    
     return `${formattedStart},${formattedEnd}`;
   } catch (error) {
     console.error('Error formatting dates:', error);
@@ -98,10 +95,9 @@ Deno.serve(async (req) => {
     // Handle date parameters
     if (params?.startDate && params?.endDate) {
       try {
-        const formattedDateRange = formatDateRange(params.startDate, params.endDate);
-        queryParams.set('startDateTime', formattedDateRange.split(',')[0]);
-        queryParams.set('endDateTime', formattedDateRange.split(',')[1]);
-        console.log('Using date range:', queryParams.toString());
+        queryParams.set('startDateTime', new Date(params.startDate).toISOString().split('.')[0] + 'Z');
+        queryParams.set('endDateTime', new Date(params.endDate).toISOString().split('.')[0] + 'Z');
+        console.log('Using dates:', queryParams.toString());
       } catch (error) {
         console.error('Error formatting date range:', error);
         throw error;
@@ -187,13 +183,16 @@ Deno.serve(async (req) => {
           events = events
             .filter((event: any) => {
               const venue = event._embedded?.venues?.[0];
-              return venue && (
+              if (!venue) return false;
+
+              const venueName = venue.name || '';
+              return (
                 // Filter for larger venues
                 (venue.capacity && parseInt(venue.capacity) > 5000) ||
-                venue.name.toLowerCase().includes('arena') ||
-                venue.name.toLowerCase().includes('stadium') ||
-                venue.name.toLowerCase().includes('amphitheatre') ||
-                venue.name.toLowerCase().includes('center')
+                venueName.toLowerCase().includes('arena') ||
+                venueName.toLowerCase().includes('stadium') ||
+                venueName.toLowerCase().includes('amphitheatre') ||
+                venueName.toLowerCase().includes('center')
               );
             })
             .sort((a: any, b: any) => {
