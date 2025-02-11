@@ -32,25 +32,23 @@ async function processQueue() {
   processingQueue = false;
 }
 
-function formatDateRange(startDate: string, endDate: string): string {
-  try {
-    // Parse dates
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      throw new Error('Invalid date values provided');
-    }
-    
-    // Format to UTC ISO strings without milliseconds
-    const formattedStart = start.toISOString().split('.')[0] + 'Z';
-    const formattedEnd = end.toISOString().split('.')[0] + 'Z';
-    
-    return `${formattedStart},${formattedEnd}`;
-  } catch (error) {
-    console.error('Error formatting dates:', error);
-    throw new Error(`Invalid date format: ${error.message}`);
-  }
+function isLargeVenue(venue: any): boolean {
+  if (!venue) return false;
+
+  const venueName = (venue.name || '').toLowerCase();
+  const hasLargeKeyword = [
+    'arena',
+    'stadium',
+    'amphitheatre',
+    'center',
+    'theatre',
+    'park',
+    'hall',
+    'coliseum'
+  ].some(keyword => venueName.includes(keyword));
+
+  const capacity = venue.capacity ? parseInt(venue.capacity) : 0;
+  return hasLargeKeyword || capacity > 5000;
 }
 
 Deno.serve(async (req) => {
@@ -178,22 +176,12 @@ Deno.serve(async (req) => {
         const data = await response.json();
         let events = data._embedded?.events || [];
 
-        // For top shows, sort by venue capacity and filter
+        // For top shows, filter and sort by venue capacity
         if (endpoint === 'topShows') {
           events = events
             .filter((event: any) => {
               const venue = event._embedded?.venues?.[0];
-              if (!venue) return false;
-
-              const venueName = venue.name || '';
-              return (
-                // Filter for larger venues
-                (venue.capacity && parseInt(venue.capacity) > 5000) ||
-                venueName.toLowerCase().includes('arena') ||
-                venueName.toLowerCase().includes('stadium') ||
-                venueName.toLowerCase().includes('amphitheatre') ||
-                venueName.toLowerCase().includes('center')
-              );
+              return isLargeVenue(venue);
             })
             .sort((a: any, b: any) => {
               const venueA = a._embedded?.venues?.[0];
@@ -239,3 +227,4 @@ Deno.serve(async (req) => {
     });
   }
 });
+
