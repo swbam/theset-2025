@@ -13,11 +13,11 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
       endDate: endDate.toISOString()
     });
 
-    if (shows.length > 0) {
+    if (shows && shows.length > 0) {
       await updateShowCache(shows, artistId);
     }
 
-    return shows;
+    return shows || [];
   } catch (error) {
     console.error('Error fetching stadium shows:', error);
     return [];
@@ -35,11 +35,11 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
       endDate: endDate.toISOString()
     });
 
-    if (shows.length > 0) {
+    if (shows && shows.length > 0) {
       await updateShowCache(shows, artistId);
     }
 
-    return shows;
+    return shows || [];
   } catch (error) {
     console.error('Error fetching venue shows:', error);
     return [];
@@ -57,13 +57,14 @@ export const fetchPopularTours = async (artistId?: string) => {
       endDate: endDate.toISOString()
     });
 
-    if (shows.length > 0) {
+    if (shows && shows.length > 0) {
       await updateShowCache(shows, artistId);
     }
 
-    return shows;
+    return shows || [];
   } catch (error) {
     console.error('Error fetching popular tours:', error);
     return [];
   }
 };
+

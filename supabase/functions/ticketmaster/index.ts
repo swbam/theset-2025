@@ -75,20 +75,30 @@ Deno.serve(async (req) => {
         if (endpoint === 'topShows') {
           events = events
             .filter((event: any) => {
-              const venue = event._embedded?.venues?.[0];
-              return isLargeVenue(venue);
+              try {
+                const venue = event._embedded?.venues?.[0];
+                return isLargeVenue(venue);
+              } catch (error) {
+                console.error('Error filtering venue:', error);
+                return false;
+              }
             })
             .sort((a: any, b: any) => {
-              const venueA = a._embedded?.venues?.[0];
-              const venueB = b._embedded?.venues?.[0];
-              const capacityA = venueA?.capacity ? parseInt(venueA.capacity) : 0;
-              const capacityB = venueB?.capacity ? parseInt(venueB.capacity) : 0;
-              return capacityB - capacityA;
+              try {
+                const venueA = a._embedded?.venues?.[0];
+                const venueB = b._embedded?.venues?.[0];
+                const capacityA = venueA?.capacity ? parseInt(venueA.capacity) : 0;
+                const capacityB = venueB?.capacity ? parseInt(venueB.capacity) : 0;
+                return capacityB - capacityA;
+              } catch (error) {
+                console.error('Error sorting venues:', error);
+                return 0;
+              }
             })
             .slice(0, 6);
         }
         
-        return new Response(JSON.stringify(events), {
+        return new Response(JSON.stringify({ _embedded: { events } }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch (error) {
@@ -122,3 +132,4 @@ Deno.serve(async (req) => {
     });
   }
 });
+
