@@ -69,15 +69,16 @@ Deno.serve(async (req) => {
         }
 
         const data = await response.json();
-        let events = data._embedded?.events || [];
+        let events = data?._embedded?.events || [];
+        console.log(`Retrieved ${events.length} events from Ticketmaster`);
 
         // For top shows, filter and sort by venue capacity
         if (endpoint === 'topShows') {
           events = events
             .filter((event: any) => {
               try {
-                const venue = event._embedded?.venues?.[0];
-                return isLargeVenue(venue);
+                const venue = event?._embedded?.venues?.[0];
+                return venue ? isLargeVenue(venue) : false;
               } catch (error) {
                 console.error('Error filtering venue:', error);
                 return false;
@@ -85,8 +86,8 @@ Deno.serve(async (req) => {
             })
             .sort((a: any, b: any) => {
               try {
-                const venueA = a._embedded?.venues?.[0];
-                const venueB = b._embedded?.venues?.[0];
+                const venueA = a?._embedded?.venues?.[0];
+                const venueB = b?._embedded?.venues?.[0];
                 const capacityA = venueA?.capacity ? parseInt(venueA.capacity) : 0;
                 const capacityB = venueB?.capacity ? parseInt(venueB.capacity) : 0;
                 return capacityB - capacityA;
@@ -96,6 +97,8 @@ Deno.serve(async (req) => {
               }
             })
             .slice(0, 6);
+            
+          console.log(`Filtered to ${events.length} large venue events`);
         }
         
         return new Response(JSON.stringify({ _embedded: { events } }), {
@@ -132,4 +135,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-
