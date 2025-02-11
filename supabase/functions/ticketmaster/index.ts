@@ -32,16 +32,24 @@ async function processQueue() {
   processingQueue = false;
 }
 
-function formatDateRange(startDate: Date, endDate: Date): string {
+function formatDateRange(startDate: string, endDate: string): string {
   try {
-    // Ensure UTC timezone and proper format with Z suffix
-    const formattedStart = startDate.toISOString().split('.')[0] + 'Z';
-    const formattedEnd = endDate.toISOString().split('.')[0] + 'Z';
+    // Parse dates
+    const start = new Date(startDate);
+    const end = new Date(endDate);
     
-    // Format according to Ticketmaster's requirements
-    const formattedRange = `${formattedStart},${formattedEnd}`;
-    console.log('Formatted date range:', formattedRange);
-    return formattedRange;
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new Error('Invalid date values provided');
+    }
+    
+    // Format to UTC ISO strings without milliseconds
+    const formattedStart = start.toISOString().split('.')[0] + 'Z';
+    const formattedEnd = end.toISOString().split('.')[0] + 'Z';
+    
+    console.log('Start date:', formattedStart);
+    console.log('End date:', formattedEnd);
+    
+    return `${formattedStart},${formattedEnd}`;
   } catch (error) {
     console.error('Error formatting dates:', error);
     throw new Error(`Invalid date format: ${error.message}`);
@@ -90,11 +98,10 @@ Deno.serve(async (req) => {
     // Handle date parameters
     if (params?.startDate && params?.endDate) {
       try {
-        const startDate = new Date(params.startDate);
-        const endDate = new Date(params.endDate);
-        const formattedDateRange = formatDateRange(startDate, endDate);
-        queryParams.set('localStartEndDateTime', formattedDateRange);
-        console.log('Using formatted date range:', formattedDateRange);
+        const formattedDateRange = formatDateRange(params.startDate, params.endDate);
+        queryParams.set('startDateTime', formattedDateRange.split(',')[0]);
+        queryParams.set('endDateTime', formattedDateRange.split(',')[1]);
+        console.log('Using date range:', queryParams.toString());
       } catch (error) {
         console.error('Error formatting date range:', error);
         throw error;
