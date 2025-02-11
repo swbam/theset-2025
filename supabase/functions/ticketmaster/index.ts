@@ -64,12 +64,12 @@ function formatDateRange(dateRange: string): string {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
   try {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      return new Response('ok', { headers: corsHeaders });
+    }
+
     const { endpoint, query, params } = await req.json();
     console.log(`Processing ${endpoint} request with query:`, query, 'and params:', params);
 
@@ -217,4 +217,3 @@ Deno.serve(async (req) => {
     });
   }
 });
-

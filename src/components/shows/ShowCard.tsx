@@ -42,7 +42,7 @@ export const ShowCard = ({ show }: ShowCardProps) => {
   })();
 
   const venueName = isTicketmasterEvent 
-    ? (venue ? venue.name : '') 
+    ? (venue as NonNullable<TicketmasterEvent['_embedded']>['venues'][0])?.name || ''
     : (typeof venue === 'object' && venue !== null ? venue.name || '' : '');
 
   const generateSeoUrl = () => {
