@@ -49,15 +49,16 @@ export default function ShowPage() {
     return <EmptyState />;
   }
 
-  // Handle both possible artist data structures
-  const displayArtistName = show.artist?.name || artistName?.replace(/-/g, ' ');
-  const artistId = show.artist_id;
+  // Get the artist data from the properly joined query
+  const displayArtistName = show.artist?.[0]?.name || artistName?.replace(/-/g, ' ');
+  const artistId = show.artist?.[0]?.id;
 
   console.log('Show data:', {
     showId: show.id,
     artistName: displayArtistName,
     artistId,
-    setlistId: setlist?.id
+    setlistId: setlist?.id,
+    setlist: setlist
   });
 
   return (

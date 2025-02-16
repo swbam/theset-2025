@@ -14,11 +14,24 @@ export function useSetlist(showId: string | undefined, user: User | null) {
       if (!showId || !user) return null;
       
       console.log('Creating new setlist for show:', showId);
+      
+      // First check if a setlist already exists
+      const { data: existingSetlist } = await supabase
+        .from('setlists')
+        .select('*')
+        .eq('show_id', showId)
+        .maybeSingle();
+
+      if (existingSetlist) {
+        console.log('Setlist already exists:', existingSetlist.id);
+        return existingSetlist;
+      }
+
       const { data: setlist, error } = await supabase
         .from('setlists')
         .insert({
           show_id: showId,
-          name: showName,
+          name: showName || 'Untitled Setlist',
           created_by: user.id,
           venue_id: venueId,
           status: 'draft'
@@ -31,10 +44,13 @@ export function useSetlist(showId: string | undefined, user: User | null) {
         throw error;
       }
 
+      console.log('Created new setlist:', setlist.id);
       return setlist;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['setlist', showId] });
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: ['setlist', showId] });
+      }
     },
     onError: (error) => {
       console.error('Error creating setlist:', error);
@@ -113,14 +129,12 @@ export function useSetlist(showId: string | undefined, user: User | null) {
         return null;
       }
 
-      // If no setlist exists and user is authenticated, create one
-      if (!setlist && user && showId) {
+      if (!setlist && user) {
         console.log('No setlist found, creating new one');
-        createSetlistMutation.mutate({
-          showName: '', // This will be set in the component
+        return createSetlistMutation.mutateAsync({
+          showName: '',
           venueId: undefined
         });
-        return null;
       }
 
       console.log('Found setlist:', setlist);
