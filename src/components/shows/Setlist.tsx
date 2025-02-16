@@ -40,7 +40,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
   useSpotifyTracks(artistName, setlist?.id);
 
   // Get artist's songs for the dropdown
-  const { data: songs, isLoading: isLoadingSongs } = useArtistSongs(artistId);
+  const { data: songs = [], isLoading: isLoadingSongs } = useArtistSongs(artistId);
 
   const handleSongSelect = async (songId: string) => {
     const song = songs?.find(s => s.spotify_id === songId);
@@ -91,7 +91,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
                 className="w-full justify-between"
               >
                 {selectedSong
-                  ? songs?.find((song) => song.spotify_id === selectedSong)?.name
+                  ? songs?.find((song) => song.spotify_id === selectedSong)?.name ?? "Select a song..."
                   : "Select a song..."}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -101,7 +101,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
                 <CommandInput placeholder="Search songs..." />
                 <CommandEmpty>No songs found.</CommandEmpty>
                 <CommandGroup className="max-h-60 overflow-auto">
-                  {songs?.map((song) => (
+                  {(songs || []).map((song) => (
                     <CommandItem
                       key={song.spotify_id}
                       value={song.name}
@@ -131,7 +131,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
       
       {setlist ? (
         <div className="space-y-2">
-          {setlist.songs?.map((song) => (
+          {(setlist.songs || []).map((song) => (
             <SetlistSong
               key={song.id}
               id={song.id}
