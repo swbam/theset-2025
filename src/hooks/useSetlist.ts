@@ -99,23 +99,37 @@ export function useSetlist(showId: string | undefined, user: User | null) {
 
       console.log('Fetching setlist for show:', showId);
       
-      // First try to find an existing setlist with songs
+      // Fetch setlist with nested songs query
       const { data: existingSetlist, error: fetchError } = await supabase
         .from('setlists')
         .select(`
-          *,
-          songs:setlist_songs(*)
+          id,
+          show_id,
+          created_by,
+          name,
+          created_at,
+          updated_at,
+          venue_id,
+          status,
+          songs:setlist_songs(
+            id,
+            song_name,
+            total_votes,
+            suggested,
+            spotify_id,
+            is_top_track
+          )
         `)
         .eq('show_id', showId)
         .maybeSingle();
         
       if (fetchError) {
         console.error('Error fetching setlist:', fetchError);
-        return null;
+        throw fetchError;
       }
 
       if (existingSetlist) {
-        console.log('Found existing setlist:', existingSetlist);
+        console.log('Found existing setlist with songs:', existingSetlist);
         return existingSetlist;
       }
 
@@ -126,7 +140,10 @@ export function useSetlist(showId: string | undefined, user: User | null) {
           venueId: undefined
         });
         console.log('Created new setlist:', newSetlist);
-        return newSetlist;
+        return {
+          ...newSetlist,
+          songs: []
+        };
       }
 
       console.log('No setlist found and no user to create one');
@@ -135,7 +152,7 @@ export function useSetlist(showId: string | undefined, user: User | null) {
     enabled: !!showId
   });
 
-  // Set up real-time subscription
+  // Set up real-time subscription for setlist songs
   useEffect(() => {
     if (!setlist?.id) return;
 
