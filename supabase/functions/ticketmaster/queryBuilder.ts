@@ -34,7 +34,7 @@ export function buildQueryParams(endpoint: string, query?: string, params?: any)
   switch (endpoint) {
     case 'topShows':
       queryParams.append('sort', 'relevance,desc');
-      queryParams.append('size', '50');
+      queryParams.append('size', '200'); // Increased size to get more shows
       queryParams.append('includeTest', 'no');
       queryParams.append('includeTBA', 'no');
       queryParams.append('includeTBD', 'no');

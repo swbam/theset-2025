@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Music2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,19 +18,20 @@ const Index = () => {
     queryKey: ['stadiumShows'],
     queryFn: async () => {
       const shows = await fetchUpcomingStadiumShows();
+      // Get one show per artist, but ensure we have multiple artists
       const artistShows = new Map<string, TicketmasterEvent>();
       
       shows.forEach(show => {
         const artist = show._embedded?.attractions?.[0];
         if (!artist?.name) return;
         
-        const existingShow = artistShows.get(artist.name);
-        if (!existingShow || new Date(show.dates.start.dateTime) < new Date(existingShow.dates.start.dateTime)) {
+        // Only add this artist if we haven't seen them yet
+        if (!artistShows.has(artist.name)) {
           artistShows.set(artist.name, show);
         }
       });
       
-      return Array.from(artistShows.values());
+      return Array.from(artistShows.values()).slice(0, 6);
     },
   });
 
@@ -37,19 +39,20 @@ const Index = () => {
     queryKey: ['arenaShows'],
     queryFn: async () => {
       const shows = await fetchLargeVenueShows();
+      // Get one show per artist, but ensure we have multiple artists
       const artistShows = new Map<string, TicketmasterEvent>();
       
       shows.forEach(show => {
         const artist = show._embedded?.attractions?.[0];
         if (!artist?.name) return;
         
-        const existingShow = artistShows.get(artist.name);
-        if (!existingShow || new Date(show.dates.start.dateTime) < new Date(existingShow.dates.start.dateTime)) {
+        // Only add this artist if we haven't seen them yet
+        if (!artistShows.has(artist.name)) {
           artistShows.set(artist.name, show);
         }
       });
       
-      return Array.from(artistShows.values());
+      return Array.from(artistShows.values()).slice(0, 6);
     },
   });
 
@@ -104,7 +107,7 @@ const Index = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {stadiumShows?.slice(0, 6).map((show) => (
+              {stadiumShows?.map((show) => (
                 <ShowCard key={show.id} show={show} />
               ))}
             </div>
@@ -122,7 +125,7 @@ const Index = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {arenaShows?.slice(0, 6).map((show) => (
+              {arenaShows?.map((show) => (
                 <ShowCard key={show.id} show={show} />
               ))}
             </div>
