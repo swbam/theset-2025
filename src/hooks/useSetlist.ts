@@ -46,19 +46,6 @@ export function useSetlist(showId: string | undefined, user: User | null) {
 
       console.log('Created new setlist:', setlist.id);
       return setlist;
-    },
-    onSuccess: (data) => {
-      if (data) {
-        queryClient.invalidateQueries({ queryKey: ['setlist', showId] });
-      }
-    },
-    onError: (error) => {
-      console.error('Error creating setlist:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create setlist",
-        variant: "destructive"
-      });
     }
   });
 

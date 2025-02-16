@@ -18,7 +18,7 @@ export function useShow(eventId: string | undefined) {
         .select(`
           *,
           venue:venues(*),
-          artist:artists(id, name)
+          artist:artists!cached_shows_artist_id_fkey(*)
         `)
         .eq('ticketmaster_id', eventId)
         .maybeSingle();
