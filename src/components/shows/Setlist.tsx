@@ -129,9 +129,9 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
         </div>
       )}
       
-      {setlist ? (
-        <div className="space-y-2">
-          {(setlist.songs || []).map((song) => (
+      <div className="space-y-2">
+        {setlist?.songs && setlist.songs.length > 0 ? (
+          setlist.songs.map((song) => (
             <SetlistSong
               key={song.id}
               id={song.id}
@@ -142,22 +142,23 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
               onVote={onVote}
               hasVoted={userVotes?.includes(song.id)}
             />
-          ))}
-        </div>
-      ) : (
-        <div className="text-white/60 py-8 text-center space-y-2">
-          <p>The setlist for this show will be available soon.</p>
-          {!isAdding && (
-            <Button
-              variant="outline"
-              onClick={handleAddClick}
-              className="mt-4 hover:bg-white/10 hover:text-white"
-            >
-              Suggest a song
-            </Button>
-          )}
-        </div>
-      )}
+          ))
+        ) : (
+          <div className="text-white/60 py-8 text-center space-y-2">
+            <p>No songs have been added to this setlist yet.</p>
+            <p>Be the first to suggest what {artistName} might play!</p>
+            {!isAdding && (
+              <Button
+                variant="outline"
+                onClick={handleAddClick}
+                className="mt-4 hover:bg-white/10 hover:text-white"
+              >
+                Suggest a song
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
