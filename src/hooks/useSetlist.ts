@@ -99,19 +99,12 @@ export function useSetlist(showId: string | undefined, user: User | null) {
 
       console.log('Fetching setlist for show:', showId);
       
-      // First try to find an existing setlist
+      // First try to find an existing setlist with songs
       const { data: existingSetlist, error: fetchError } = await supabase
         .from('setlists')
         .select(`
           *,
-          songs:setlist_songs(
-            id,
-            song_name,
-            total_votes,
-            suggested,
-            spotify_id,
-            is_top_track
-          )
+          songs:setlist_songs(*)
         `)
         .eq('show_id', showId)
         .maybeSingle();
