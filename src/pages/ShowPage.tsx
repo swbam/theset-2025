@@ -65,6 +65,7 @@ export default function ShowPage() {
             onVote={handleVote}
             onSuggest={handleSuggest}
             artistName={show.artist?.name || artistName?.replace(/-/g, ' ')}
+            artistId={show.artist?.id}
           />
         </div>
       </div>

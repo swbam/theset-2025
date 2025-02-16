@@ -14,6 +14,8 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
     queryFn: async () => {
       if (!artistName || !setlistId) return null;
 
+      console.log('Checking for top tracks for:', artistName, 'setlist:', setlistId);
+
       // First check if we already have top tracks in the setlist
       const { data: existingTracks } = await supabase
         .from('setlist_songs')
@@ -22,17 +24,36 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
         .eq('is_top_track', true);
 
       if (existingTracks && existingTracks.length > 0) {
+        console.log('Found existing top tracks:', existingTracks.length);
         return null; // Top tracks already added
+      }
+
+      // Get the artist's ID first
+      const { data: artist } = await supabase
+        .from('artists')
+        .select('*')
+        .ilike('name', artistName)
+        .single();
+
+      if (!artist) {
+        console.log('Artist not found:', artistName);
+        return null;
       }
 
       // Get cached songs for the artist
       const { data: songs } = await supabase
         .from('cached_songs')
         .select('*')
+        .eq('artist_id', artist.id)
         .order('popularity', { ascending: false })
         .limit(10);
 
-      if (!songs || songs.length === 0) return null;
+      if (!songs || songs.length === 0) {
+        console.log('No cached songs found for artist:', artistName);
+        return null;
+      }
+
+      console.log('Found cached songs:', songs.length);
 
       // Insert top tracks into setlist
       const { data: insertedSongs, error } = await supabase
@@ -42,7 +63,8 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
             setlist_id: setlistId,
             song_name: song.name,
             spotify_id: song.spotify_id,
-            is_top_track: true
+            is_top_track: true,
+            total_votes: 0
           }))
         )
         .select();
@@ -52,6 +74,7 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
         return null;
       }
 
+      console.log('Successfully inserted top tracks:', insertedSongs?.length);
       return insertedSongs;
     },
     enabled: !!artistName && !!setlistId,
