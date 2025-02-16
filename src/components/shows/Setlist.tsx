@@ -35,6 +35,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
   const [isAdding, setIsAdding] = useState(false);
   const [open, setOpen] = useState(false);
   const [selectedSong, setSelectedSong] = useState<string>("");
+  const [value, setValue] = useState(""); // Add this for Command component
 
   // Auto-populate with top tracks if empty
   const { isLoading: isLoadingTopTracks } = useSpotifyTracks(artistName, setlist?.id);
@@ -42,11 +43,12 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
   // Get artist's songs for the dropdown
   const { data: songs = [], isLoading: isLoadingSongs } = useArtistSongs(artistId);
 
-  const handleSongSelect = async (songId: string) => {
-    const song = songs.find(s => s.spotify_id === songId);
+  const handleSongSelect = async (currentValue: string) => {
+    const song = songs.find(s => s.name.toLowerCase() === currentValue.toLowerCase());
     if (song) {
       try {
         await onSuggest(song.name, song.spotify_id);
+        setValue("");
         setSelectedSong("");
         setOpen(false);
         setIsAdding(false);
@@ -64,9 +66,6 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
     }
     setIsAdding(true);
   };
-
-  // Ensure songs array is never undefined
-  const availableSongs = songs || [];
 
   return (
     <div className="space-y-6">
@@ -93,27 +92,25 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
                 aria-expanded={open}
                 className="w-full justify-between"
               >
-                {selectedSong
-                  ? availableSongs.find((song) => song.spotify_id === selectedSong)?.name ?? "Select a song..."
-                  : "Select a song..."}
+                {value || "Select a song..."}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-full p-0">
-              <Command>
+              <Command value={value} onValueChange={setValue}>
                 <CommandInput placeholder="Search songs..." />
                 <CommandEmpty>No songs found.</CommandEmpty>
                 <CommandGroup className="max-h-60 overflow-auto">
-                  {availableSongs.map((song) => (
+                  {songs.map((song) => (
                     <CommandItem
                       key={song.spotify_id}
                       value={song.name}
-                      onSelect={() => handleSongSelect(song.spotify_id)}
+                      onSelect={handleSongSelect}
                     >
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          selectedSong === song.spotify_id ? "opacity-100" : "opacity-0"
+                          value === song.name ? "opacity-100" : "opacity-0"
                         )}
                       />
                       {song.name}
@@ -125,6 +122,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
           </Popover>
           <Button type="button" variant="ghost" onClick={() => {
             setIsAdding(false);
+            setValue("");
             setSelectedSong("");
           }}>
             Cancel
