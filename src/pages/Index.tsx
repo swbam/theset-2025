@@ -3,31 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { Music2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SearchBar } from "@/components/search/SearchBar";
-import { PopularTours } from "@/components/shows/PopularTours";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { ShowCard } from "@/components/shows/ShowCard";
-import { fetchUpcomingStadiumShows, fetchLargeVenueShows } from '@/integrations/ticketmaster/shows';
+import { fetchPopularShows } from '@/integrations/ticketmaster/shows';
 import type { TicketmasterEvent } from "@/integrations/ticketmaster/types";
 
 const Index = () => {
   const { user, signInWithSpotify } = useAuth();
   const navigate = useNavigate();
 
-  const { data: stadiumShows, isLoading: loadingStadium } = useQuery({
-    queryKey: ['stadiumShows'],
-    queryFn: async () => {
-      const shows = await fetchUpcomingStadiumShows();
-      return shows.slice(0, 6); // Only take first 6 shows after filtering
-    },
-  });
-
-  const { data: arenaShows, isLoading: loadingArena } = useQuery({
-    queryKey: ['arenaShows'],
-    queryFn: async () => {
-      const shows = await fetchLargeVenueShows();
-      return shows.slice(0, 6); // Only take first 6 shows after filtering
-    },
+  const { data: popularShows, isLoading } = useQuery({
+    queryKey: ['popularShows'],
+    queryFn: fetchPopularShows,
   });
 
   const handleArtistClick = (artistName: string) => {
@@ -69,11 +57,11 @@ const Index = () => {
         <SearchBar onArtistClick={handleArtistClick} />
       </div>
 
-      <div className="max-w-7xl mx-auto space-y-12">
-        {/* Stadium Shows Section */}
+      <div className="max-w-7xl mx-auto">
+        {/* Popular Shows Section */}
         <div className="space-y-6">
-          <h2 className="text-2xl font-semibold tracking-tight">Major Stadium Shows</h2>
-          {loadingStadium ? (
+          <h2 className="text-2xl font-semibold tracking-tight">Popular Shows</h2>
+          {isLoading ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="h-64 bg-black/30 animate-pulse rounded-lg" />
@@ -81,33 +69,12 @@ const Index = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {stadiumShows?.map((show) => (
+              {popularShows?.map((show) => (
                 <ShowCard key={show.id} show={show} />
               ))}
             </div>
           )}
         </div>
-
-        {/* Arena Shows Section */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-semibold tracking-tight">Arena Concerts</h2>
-          {loadingArena ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-64 bg-black/30 animate-pulse rounded-lg" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {arenaShows?.map((show) => (
-                <ShowCard key={show.id} show={show} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Popular Tours Section */}
-        <PopularTours onArtistClick={handleArtistClick} />
       </div>
     </div>
   );
