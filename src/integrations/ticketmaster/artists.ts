@@ -6,16 +6,24 @@ import type { TicketmasterEvent } from "./types";
 
 export const searchArtists = async (query: string) => {
   console.log('Searching for artists:', query);
-  const results = await callTicketmasterFunction('events', query, {
+  const response = await callTicketmasterFunction('events', query, {
     keyword: query,
     classificationName: 'music',
     size: '20'
   });
   
+  // Handle empty or invalid response
+  if (!response?._embedded?.events) {
+    console.log('No events found for query:', query);
+    return [];
+  }
+  
+  const events = response._embedded.events;
+  
   // Filter for music events and remove duplicates
   const uniqueArtists = new Map();
   
-  results.forEach((event: TicketmasterEvent) => {
+  events.forEach((event: TicketmasterEvent) => {
     const artist = event._embedded?.attractions?.[0];
     if (artist && artist.name) {
       if (!uniqueArtists.has(artist.name)) {
@@ -67,11 +75,18 @@ export const fetchArtistEvents = async (artistName: string) => {
   const decodedArtistName = artistName.replace(/-/g, ' ');
   console.log('Fetching fresh shows from Ticketmaster for artist:', decodedArtistName);
   
-  const shows = await callTicketmasterFunction('events', undefined, {
+  const response = await callTicketmasterFunction('events', undefined, {
     keyword: decodedArtistName,
     classificationName: 'music',
     size: '100'
   });
+  
+  if (!response?._embedded?.events) {
+    console.log('No shows found for artist:', decodedArtistName);
+    return [];
+  }
+
+  const shows = response._embedded.events;
   
   // Filter to ensure we only get shows for this artist
   const filteredShows = shows.filter(show => {
