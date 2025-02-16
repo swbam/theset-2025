@@ -1,75 +1,24 @@
 
-import { callTicketmasterFunction } from "./api";
-import { updateShowCache } from "./cache";
+import { supabase } from "@/integrations/supabase/client";
 
-export const fetchUpcomingStadiumShows = async (artistId?: string) => {
+export async function callTicketmasterFunction(
+  endpoint: string,
+  query?: string,
+  params?: Record<string, any>
+) {
   try {
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setFullYear(endDate.getFullYear() + 1);
-    
-    const response = await callTicketmasterFunction('topShows', undefined, {
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+    const { data, error } = await supabase.functions.invoke('ticketmaster', {
+      body: { endpoint, query, params }
     });
 
-    const shows = response?._embedded?.events || [];
-    
-    if (shows && shows.length > 0) {
-      await updateShowCache(shows, artistId);
+    if (error) {
+      console.error('Error calling Ticketmaster function:', error);
+      throw error;
     }
 
-    return shows || [];
+    return data;
   } catch (error) {
-    console.error('Error fetching stadium shows:', error);
-    return [];
+    console.error('Error in callTicketmasterFunction:', error);
+    throw error;
   }
-};
-
-export const fetchLargeVenueShows = async (artistId?: string) => {
-  try {
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + 6);
-    
-    const response = await callTicketmasterFunction('topShows', undefined, {
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
-    });
-
-    const shows = response?._embedded?.events || [];
-
-    if (shows && shows.length > 0) {
-      await updateShowCache(shows, artistId);
-    }
-
-    return shows || [];
-  } catch (error) {
-    console.error('Error fetching venue shows:', error);
-    return [];
-  }
-};
-
-export const fetchPopularTours = async (artistId?: string) => {
-  try {
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + 6);
-    
-    const response = await callTicketmasterFunction('topShows', undefined, {
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
-    });
-
-    const shows = response?._embedded?.events || [];
-
-    if (shows && shows.length > 0) {
-      await updateShowCache(shows, artistId);
-    }
-
-    return shows || [];
-  } catch (error) {
-    console.error('Error fetching popular tours:', error);
-    return [];
-  }
-};
+}

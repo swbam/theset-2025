@@ -1,7 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { callTicketmasterFunction } from "./api";
 import type { TicketmasterVenue, CachedVenue } from "./types";
+import { callTicketmasterFunction } from "./api";
 
 export const prepareVenueForCache = (venue: TicketmasterVenue): CachedVenue | null => {
   if (!venue?.name) {

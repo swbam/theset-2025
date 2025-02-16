@@ -8,11 +8,13 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
     const endDate = new Date();
     endDate.setFullYear(endDate.getFullYear() + 1);
     
-    const shows = await callTicketmasterFunction('topShows', undefined, {
+    const response = await callTicketmasterFunction('topShows', undefined, {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     });
 
+    const shows = response?._embedded?.events || [];
+    
     if (shows && shows.length > 0) {
       await updateShowCache(shows, artistId);
     }
@@ -30,10 +32,12 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + 6);
     
-    const shows = await callTicketmasterFunction('topShows', undefined, {
+    const response = await callTicketmasterFunction('topShows', undefined, {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     });
+
+    const shows = response?._embedded?.events || [];
 
     if (shows && shows.length > 0) {
       await updateShowCache(shows, artistId);
@@ -52,10 +56,12 @@ export const fetchPopularTours = async (artistId?: string) => {
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + 6);
     
-    const shows = await callTicketmasterFunction('topShows', undefined, {
+    const response = await callTicketmasterFunction('topShows', undefined, {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     });
+
+    const shows = response?._embedded?.events || [];
 
     if (shows && shows.length > 0) {
       await updateShowCache(shows, artistId);
@@ -67,4 +73,3 @@ export const fetchPopularTours = async (artistId?: string) => {
     return [];
   }
 };
-

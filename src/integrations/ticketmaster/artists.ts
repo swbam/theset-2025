@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
-import { updateShowCache } from "./shows";
+import { updateShowCache } from "./cache";
 import type { TicketmasterEvent } from "./types";
 
 export const searchArtists = async (query: string) => {
