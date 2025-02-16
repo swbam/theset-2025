@@ -18,20 +18,7 @@ const Index = () => {
     queryKey: ['stadiumShows'],
     queryFn: async () => {
       const shows = await fetchUpcomingStadiumShows();
-      // Get one show per artist, but ensure we have multiple artists
-      const artistShows = new Map<string, TicketmasterEvent>();
-      
-      shows.forEach(show => {
-        const artist = show._embedded?.attractions?.[0];
-        if (!artist?.name) return;
-        
-        // Only add this artist if we haven't seen them yet
-        if (!artistShows.has(artist.name)) {
-          artistShows.set(artist.name, show);
-        }
-      });
-      
-      return Array.from(artistShows.values()).slice(0, 6);
+      return shows.slice(0, 6); // Only take first 6 shows after filtering
     },
   });
 
@@ -39,20 +26,7 @@ const Index = () => {
     queryKey: ['arenaShows'],
     queryFn: async () => {
       const shows = await fetchLargeVenueShows();
-      // Get one show per artist, but ensure we have multiple artists
-      const artistShows = new Map<string, TicketmasterEvent>();
-      
-      shows.forEach(show => {
-        const artist = show._embedded?.attractions?.[0];
-        if (!artist?.name) return;
-        
-        // Only add this artist if we haven't seen them yet
-        if (!artistShows.has(artist.name)) {
-          artistShows.set(artist.name, show);
-        }
-      });
-      
-      return Array.from(artistShows.values()).slice(0, 6);
+      return shows.slice(0, 6); // Only take first 6 shows after filtering
     },
   });
 
