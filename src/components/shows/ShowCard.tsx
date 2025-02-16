@@ -62,6 +62,12 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     return `/artist/${encodedName}/show/${eventId}`;
   };
 
+  // Validate the date before formatting
+  if (isNaN(showDate.getTime())) {
+    console.error('Invalid date for show:', show.name);
+    return null;
+  }
+
   return (
     <Card className="bg-black/30 hover:bg-black/40 transition-colors border-white/10">
       <CardContent className="p-6">
