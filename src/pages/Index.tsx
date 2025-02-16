@@ -15,7 +15,7 @@ const Index = () => {
 
   const { data: popularShows, isLoading } = useQuery({
     queryKey: ['popularShows'],
-    queryFn: fetchPopularShows,
+    queryFn: () => fetchPopularShows(),
   });
 
   const handleArtistClick = (artistName: string) => {
