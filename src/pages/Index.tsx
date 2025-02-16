@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Music2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,7 +6,8 @@ import { PopularTours } from "@/components/shows/PopularTours";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { ShowCard } from "@/components/shows/ShowCard";
-import { fetchUpcomingStadiumShows, fetchLargeVenueShows } from "@/integrations/ticketmaster/client";
+import { fetchUpcomingStadiumShows, fetchLargeVenueShows } from '@/integrations/ticketmaster/shows';
+import type { TicketmasterEvent } from "@/integrations/ticketmaster/types";
 
 const Index = () => {
   const { user, signInWithSpotify } = useAuth();
@@ -15,12 +15,42 @@ const Index = () => {
 
   const { data: stadiumShows, isLoading: loadingStadium } = useQuery({
     queryKey: ['stadiumShows'],
-    queryFn: () => fetchUpcomingStadiumShows(),
+    queryFn: async () => {
+      const shows = await fetchUpcomingStadiumShows();
+      const artistShows = new Map<string, TicketmasterEvent>();
+      
+      shows.forEach(show => {
+        const artist = show._embedded?.attractions?.[0];
+        if (!artist?.name) return;
+        
+        const existingShow = artistShows.get(artist.name);
+        if (!existingShow || new Date(show.dates.start.dateTime) < new Date(existingShow.dates.start.dateTime)) {
+          artistShows.set(artist.name, show);
+        }
+      });
+      
+      return Array.from(artistShows.values());
+    },
   });
 
   const { data: arenaShows, isLoading: loadingArena } = useQuery({
     queryKey: ['arenaShows'],
-    queryFn: () => fetchLargeVenueShows(),
+    queryFn: async () => {
+      const shows = await fetchLargeVenueShows();
+      const artistShows = new Map<string, TicketmasterEvent>();
+      
+      shows.forEach(show => {
+        const artist = show._embedded?.attractions?.[0];
+        if (!artist?.name) return;
+        
+        const existingShow = artistShows.get(artist.name);
+        if (!existingShow || new Date(show.dates.start.dateTime) < new Date(existingShow.dates.start.dateTime)) {
+          artistShows.set(artist.name, show);
+        }
+      });
+      
+      return Array.from(artistShows.values());
+    },
   });
 
   const handleArtistClick = (artistName: string) => {
