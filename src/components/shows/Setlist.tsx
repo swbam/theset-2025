@@ -37,7 +37,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
   const [selectedSong, setSelectedSong] = useState<string>("");
 
   // Auto-populate with top tracks if empty
-  useSpotifyTracks(artistName, setlist?.id);
+  const { isLoading: isLoadingTopTracks } = useSpotifyTracks(artistName, setlist?.id);
 
   // Get artist's songs for the dropdown
   const { data: songs = [], isLoading: isLoadingSongs } = useArtistSongs(artistId);
@@ -130,7 +130,11 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
       )}
       
       <div className="space-y-2">
-        {setlist?.songs && setlist.songs.length > 0 ? (
+        {isLoadingTopTracks ? (
+          <div className="text-white/60 py-8 text-center">
+            Loading top tracks...
+          </div>
+        ) : setlist?.songs && setlist.songs.length > 0 ? (
           setlist.songs.map((song) => (
             <SetlistSong
               key={song.id}

@@ -12,7 +12,10 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
   return useQuery({
     queryKey: ['spotify-tracks', artistName, setlistId],
     queryFn: async () => {
-      if (!artistName || !setlistId) return null;
+      if (!artistName || !setlistId) {
+        console.log('Missing required params:', { artistName, setlistId });
+        return null;
+      }
 
       console.log('Checking for top tracks for:', artistName, 'setlist:', setlistId);
 
@@ -55,28 +58,35 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
 
       console.log('Found cached songs:', songs.length);
 
-      // Insert top tracks into setlist
-      const { data: insertedSongs, error } = await supabase
-        .from('setlist_songs')
-        .insert(
-          songs.map(song => ({
-            setlist_id: setlistId,
-            song_name: song.name,
-            spotify_id: song.spotify_id,
-            is_top_track: true,
-            total_votes: 0
-          }))
-        )
-        .select();
+      try {
+        // Insert top tracks into setlist
+        const { data: insertedSongs, error } = await supabase
+          .from('setlist_songs')
+          .insert(
+            songs.map(song => ({
+              setlist_id: setlistId,
+              song_name: song.name,
+              spotify_id: song.spotify_id,
+              is_top_track: true,
+              total_votes: 0,
+              suggested: false
+            }))
+          )
+          .select();
 
-      if (error) {
-        console.error('Error inserting top tracks:', error);
-        return null;
+        if (error) {
+          console.error('Error inserting top tracks:', error);
+          throw error;
+        }
+
+        console.log('Successfully inserted top tracks:', insertedSongs?.length);
+        return insertedSongs;
+      } catch (error) {
+        console.error('Failed to insert top tracks:', error);
+        throw error;
       }
-
-      console.log('Successfully inserted top tracks:', insertedSongs?.length);
-      return insertedSongs;
     },
     enabled: !!artistName && !!setlistId,
+    retry: 1
   });
 }
