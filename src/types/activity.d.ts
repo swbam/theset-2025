@@ -3,7 +3,7 @@ export interface SetlistActivity {
   id: string;
   created_at: string;
   name: string;
-  show: {
+  shows: {
     artist_name: string;
     venue: string;
   };

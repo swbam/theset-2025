@@ -46,6 +46,9 @@ export function useSetlist(showId: string | undefined, user: User | null) {
 
       console.log('Created new setlist:', setlist.id);
       return setlist;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['setlist', showId] });
     }
   });
 
@@ -90,12 +93,14 @@ export function useSetlist(showId: string | undefined, user: User | null) {
     queryKey: ['setlist', showId],
     queryFn: async () => {
       if (!showId) {
-        console.log('No show ID provided');
+        console.log('No show ID provided for setlist query');
         return null;
       }
 
       console.log('Fetching setlist for show:', showId);
-      const { data: setlist, error } = await supabase
+      
+      // First try to find an existing setlist
+      const { data: existingSetlist, error: fetchError } = await supabase
         .from('setlists')
         .select(`
           *,
@@ -111,28 +116,37 @@ export function useSetlist(showId: string | undefined, user: User | null) {
         .eq('show_id', showId)
         .maybeSingle();
         
-      if (error) {
-        console.error('Error fetching setlist:', error);
+      if (fetchError) {
+        console.error('Error fetching setlist:', fetchError);
         return null;
       }
 
-      if (!setlist && user) {
-        console.log('No setlist found, creating new one');
-        return createSetlistMutation.mutateAsync({
+      if (existingSetlist) {
+        console.log('Found existing setlist:', existingSetlist);
+        return existingSetlist;
+      }
+
+      if (user) {
+        console.log('No setlist found, creating new one for show:', showId);
+        const newSetlist = await createSetlistMutation.mutateAsync({
           showName: '',
           venueId: undefined
         });
+        console.log('Created new setlist:', newSetlist);
+        return newSetlist;
       }
 
-      console.log('Found setlist:', setlist);
-      return setlist;
+      console.log('No setlist found and no user to create one');
+      return null;
     },
-    enabled: !!showId,
+    enabled: !!showId
   });
 
   // Set up real-time subscription
   useEffect(() => {
     if (!setlist?.id) return;
+
+    console.log('Setting up realtime subscription for setlist:', setlist.id);
 
     const channel = supabase
       .channel('setlist-changes')
@@ -144,7 +158,8 @@ export function useSetlist(showId: string | undefined, user: User | null) {
           table: 'setlist_songs',
           filter: `setlist_id=eq.${setlist.id}`
         },
-        () => {
+        (payload) => {
+          console.log('Received setlist change:', payload);
           queryClient.invalidateQueries({ queryKey: ['setlist', showId] });
         }
       )
