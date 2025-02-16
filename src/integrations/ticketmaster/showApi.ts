@@ -6,7 +6,7 @@ export const fetchPopularShows = async (artistId?: string) => {
   try {
     const response = await callTicketmasterFunction('events', undefined, {
       size: '200', // Request more to ensure we get enough unique artists
-      sort: 'popularity,desc',
+      sort: 'relevance,desc', // Changed from 'popularity,desc' to a valid sort option
       segmentId: 'KZFzniwnSyZfZ7v7nJ', // Music segment
       includeTest: 'no',
       includeTBA: 'no',
