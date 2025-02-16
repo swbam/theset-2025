@@ -43,7 +43,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
   const { data: songs = [], isLoading: isLoadingSongs } = useArtistSongs(artistId);
 
   const handleSongSelect = async (songId: string) => {
-    const song = songs?.find(s => s.spotify_id === songId);
+    const song = songs.find(s => s.spotify_id === songId);
     if (song) {
       try {
         await onSuggest(song.name, song.spotify_id);
@@ -64,6 +64,9 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
     }
     setIsAdding(true);
   };
+
+  // Ensure songs array is never undefined
+  const availableSongs = songs || [];
 
   return (
     <div className="space-y-6">
@@ -91,7 +94,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
                 className="w-full justify-between"
               >
                 {selectedSong
-                  ? songs?.find((song) => song.spotify_id === selectedSong)?.name ?? "Select a song..."
+                  ? availableSongs.find((song) => song.spotify_id === selectedSong)?.name ?? "Select a song..."
                   : "Select a song..."}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -101,7 +104,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
                 <CommandInput placeholder="Search songs..." />
                 <CommandEmpty>No songs found.</CommandEmpty>
                 <CommandGroup className="max-h-60 overflow-auto">
-                  {(songs || []).map((song) => (
+                  {availableSongs.map((song) => (
                     <CommandItem
                       key={song.spotify_id}
                       value={song.name}
