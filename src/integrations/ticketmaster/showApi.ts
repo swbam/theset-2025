@@ -10,7 +10,8 @@ export const fetchUpcomingStadiumShows = async (artistId?: string) => {
     
     const response = await callTicketmasterFunction('topShows', undefined, {
       startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+      endDate: endDate.toISOString(),
+      size: '50'  // Increased size to get more shows
     });
 
     const shows = response?._embedded?.events || [];
@@ -34,7 +35,8 @@ export const fetchLargeVenueShows = async (artistId?: string) => {
     
     const response = await callTicketmasterFunction('topShows', undefined, {
       startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+      endDate: endDate.toISOString(),
+      size: '50'  // Increased size to get more shows
     });
 
     const shows = response?._embedded?.events || [];
@@ -58,7 +60,8 @@ export const fetchPopularTours = async (artistId?: string) => {
     
     const response = await callTicketmasterFunction('topShows', undefined, {
       startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
+      endDate: endDate.toISOString(),
+      size: '100'  // Increased size to get more unique artists
     });
 
     const shows = response?._embedded?.events || [];

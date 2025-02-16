@@ -99,12 +99,13 @@ export const PopularTours = ({ onArtistClick }: PopularToursProps) => {
             key={artist.name}
             className="hover:bg-accent/50 transition-colors cursor-pointer"
             onClick={() => {
-              // Use the sanitized artist name for the URL
               const encodedName = artist.name
                 .toLowerCase()
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9]+/g, '-');
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-+|-+$/g, '');
               onArtistClick(artist.name);
             }}
           >
