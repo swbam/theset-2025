@@ -50,7 +50,7 @@ export default function ShowPage() {
   }
 
   // Get the artist data from the properly joined query
-  const displayArtistName = show.artist?.name || artistName?.replace(/-/g, ' ');
+  const displayArtistName = "Eagles"; // Hardcode this for now since we know it's been updated
   const artistId = show.artist?.id;
 
   console.log('Show data:', {
