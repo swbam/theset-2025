@@ -49,6 +49,9 @@ export default function ShowPage() {
     return <EmptyState />;
   }
 
+  const displayArtistName = show.artist?.[0]?.name || artistName?.replace(/-/g, ' ');
+  const artistId = show.artist?.[0]?.id;
+
   return (
     <div className="min-h-screen bg-black">
       <div className="max-w-7xl mx-auto px-6 py-12">
@@ -64,8 +67,8 @@ export default function ShowPage() {
             user={user}
             onVote={handleVote}
             onSuggest={handleSuggest}
-            artistName={show.artist?.name || artistName?.replace(/-/g, ' ')}
-            artistId={show.artist?.id}
+            artistName={displayArtistName}
+            artistId={artistId}
           />
         </div>
       </div>

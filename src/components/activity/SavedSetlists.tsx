@@ -1,16 +1,7 @@
 
 import { LoadingState } from "@/components/shows/LoadingState";
 import { SavedSetlistCard } from "./SavedSetlistCard";
-
-interface SetlistActivity {
-  id: string;
-  created_at: string;
-  name: string;
-  shows: {
-    artist_name: string;
-    venue: string;
-  } | null;
-}
+import type { SetlistActivity } from "@/types/activity";
 
 interface SavedSetlistsProps {
   isLoading: boolean;
