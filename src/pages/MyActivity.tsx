@@ -11,32 +11,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SavedSetlists } from "@/components/activity/SavedSetlists";
 import { UserVotes } from "@/components/activity/UserVotes";
-
-interface SetlistActivity {
-  id: string;
-  created_at: string;
-  name: string;
-  show: {
-    artist_name: string;
-    venue: string;
-  };
-}
-
-interface VoteActivity {
-  id: string;
-  created_at: string;
-  setlist_songs: {
-    song_name: string;
-    setlist: {
-      id: string;
-      name: string;
-      show: {
-        artist_name: string;
-        venue: string;
-      };
-    };
-  };
-}
+import type { SetlistActivity, VoteActivity } from "@/types/activity";
 
 const MyActivity = () => {
   const { user } = useAuth();
@@ -62,7 +37,7 @@ const MyActivity = () => {
           .order("created_at", { ascending: false });
 
         if (error) throw error;
-        return data as SetlistActivity[];
+        return data as unknown as SetlistActivity[];
       } catch (error) {
         console.error("Error fetching setlists:", error);
         toast.error("Failed to load your setlists");
@@ -81,12 +56,12 @@ const MyActivity = () => {
           .select(`
             id,
             created_at,
-            setlist_songs (
+            setlist_songs!song_id (
               song_name,
-              setlist:setlists (
+              setlists (
                 id,
                 name,
-                show:shows (
+                shows (
                   artist_name,
                   venue
                 )
@@ -97,7 +72,7 @@ const MyActivity = () => {
           .order("created_at", { ascending: false });
 
         if (error) throw error;
-        return data as VoteActivity[];
+        return data as unknown as VoteActivity[];
       } catch (error) {
         console.error("Error fetching votes:", error);
         toast.error("Failed to load your votes");
