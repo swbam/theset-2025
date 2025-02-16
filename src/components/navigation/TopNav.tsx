@@ -16,8 +16,8 @@ export function TopNav() {
   return <div className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center gap-4 px-4">
         <Link to="/" className="flex items-center gap-2 font-semibold">
-          <img src="/logo.svg" alt="Logo" className="h-6 w-6" />
-          <span className="text-2xl">TheSet</span>
+          
+          <span className="text-2xl font-semibold mx-[30px]">TheSet</span>
         </Link>
         
         <div className="flex-1">
