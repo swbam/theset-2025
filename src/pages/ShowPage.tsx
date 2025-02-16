@@ -49,8 +49,16 @@ export default function ShowPage() {
     return <EmptyState />;
   }
 
-  const displayArtistName = show.artist?.[0]?.name || artistName?.replace(/-/g, ' ');
-  const artistId = show.artist?.[0]?.id;
+  // Handle both possible artist data structures
+  const displayArtistName = show.artist?.name || artistName?.replace(/-/g, ' ');
+  const artistId = show.artist_id;
+
+  console.log('Show data:', {
+    showId: show.id,
+    artistName: displayArtistName,
+    artistId,
+    setlistId: setlist?.id
+  });
 
   return (
     <div className="min-h-screen bg-black">

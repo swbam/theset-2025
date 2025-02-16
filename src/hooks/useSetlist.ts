@@ -13,6 +13,7 @@ export function useSetlist(showId: string | undefined, user: User | null) {
     mutationFn: async ({ showName, venueId }: { showName: string; venueId?: string }) => {
       if (!showId || !user) return null;
       
+      console.log('Creating new setlist for show:', showId);
       const { data: setlist, error } = await supabase
         .from('setlists')
         .insert({
@@ -85,12 +86,17 @@ export function useSetlist(showId: string | undefined, user: User | null) {
   const { data: setlist, ...queryResult } = useQuery({
     queryKey: ['setlist', showId],
     queryFn: async () => {
+      if (!showId) {
+        console.log('No show ID provided');
+        return null;
+      }
+
       console.log('Fetching setlist for show:', showId);
       const { data: setlist, error } = await supabase
         .from('setlists')
         .select(`
           *,
-          songs:setlist_songs!fk_setlist(
+          songs:setlist_songs(
             id,
             song_name,
             total_votes,
@@ -117,6 +123,7 @@ export function useSetlist(showId: string | undefined, user: User | null) {
         return null;
       }
 
+      console.log('Found setlist:', setlist);
       return setlist;
     },
     enabled: !!showId,
