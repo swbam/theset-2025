@@ -44,14 +44,14 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
       }
 
       // Get cached songs for the artist
-      const { data: songs } = await supabase
+      let { data: artistSongs } = await supabase
         .from('cached_songs')
         .select('*')
         .eq('artist_id', artist.id)
         .order('popularity', { ascending: false })
         .limit(10);
 
-      if (!songs || songs.length === 0) {
+      if (!artistSongs || artistSongs.length === 0) {
         // If no cached songs exist, create some default ones for testing
         const defaultSongs = [
           "Hotel California",
@@ -85,17 +85,17 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
           return null;
         }
 
-        songs = insertedSongs;
+        artistSongs = insertedSongs;
       }
 
-      console.log('Found cached songs:', songs.length);
+      console.log('Found cached songs:', artistSongs.length);
 
       try {
         // Insert top tracks into setlist
         const { data: insertedSongs, error } = await supabase
           .from('setlist_songs')
           .upsert(
-            songs.map(song => ({
+            artistSongs.map(song => ({
               setlist_id: setlistId,
               song_name: song.name,
               spotify_id: song.spotify_id,
