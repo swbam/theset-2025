@@ -11,7 +11,7 @@ import { useSetlist } from "@/hooks/useSetlist";
 import { useVotes } from "@/hooks/useVotes";
 
 export default function ShowPage() {
-  const { eventId, artistName } = useParams<{ eventId: string; artistName: string }>();
+  const { eventId } = useParams<{ eventId: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -50,15 +50,16 @@ export default function ShowPage() {
   }
 
   // Get the artist data from the properly joined query
-  const displayArtistName = "Eagles"; // Hardcode this for now since we know it's been updated
+  const artistName = show.artist?.name;
   const artistId = show.artist?.id;
 
   console.log('Show data:', {
     showId: show.id,
-    artistName: displayArtistName,
+    artistName,
     artistId,
+    artist: show.artist,
     setlistId: setlist?.id,
-    setlist: setlist
+    setlist
   });
 
   return (
@@ -76,7 +77,7 @@ export default function ShowPage() {
             user={user}
             onVote={handleVote}
             onSuggest={handleSuggest}
-            artistName={displayArtistName}
+            artistName={artistName}
             artistId={artistId}
           />
         </div>

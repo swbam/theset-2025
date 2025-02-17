@@ -53,20 +53,22 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
 
       if (!artistSongs || artistSongs.length === 0) {
         // If no cached songs exist, create some default ones for testing
+        const normalizedSpotifyId = artistName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        
         const defaultSongs = [
-          "Hotel California",
-          "Take It Easy",
-          "Life in the Fast Lane",
-          "Peaceful Easy Feeling",
-          "One of These Nights",
-          "Desperado",
-          "Tequila Sunrise",
-          "Already Gone",
-          "Best of My Love",
-          "Take It to the Limit"
+          "Greatest Hits",
+          "Fan Favorite",
+          "Classic Track",
+          "Popular Song",
+          "Hit Single",
+          "Signature Song",
+          "Concert Opener",
+          "Crowd Pleaser",
+          "Deep Cut",
+          "Concert Closer"
         ].map((songName, index) => ({
-          name: songName,
-          spotify_id: `eagles_${songName.toLowerCase().replace(/\s+/g, '_')}`,
+          name: `${songName} - ${artistName}`,
+          spotify_id: `${normalizedSpotifyId}_${songName.toLowerCase().replace(/\s+/g, '_')}`,
           artist_id: artist.id,
           popularity: 100 - index
         }));
