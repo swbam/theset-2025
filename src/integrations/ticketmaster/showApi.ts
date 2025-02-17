@@ -4,8 +4,11 @@ import { updateShowCache } from "./cache";
 
 export const fetchPopularShows = async (artistId?: string) => {
   try {
-    // Get current date in ISO format
-    const startDateTime = new Date().toISOString();
+    // Format current date in Ticketmaster's required format (YYYY-MM-DDTHH:mm:ssZ)
+    const now = new Date();
+    const startDateTime = now.toISOString().split('.')[0] + 'Z';
+    
+    console.log('Fetching popular shows from:', startDateTime);
 
     const response = await callTicketmasterFunction('events', undefined, {
       size: '200', // Request more to ensure we get enough unique artists
