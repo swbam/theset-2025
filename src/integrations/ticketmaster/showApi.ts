@@ -4,10 +4,15 @@ import { updateShowCache } from "./cache";
 
 export const fetchPopularShows = async (artistId?: string) => {
   try {
+    // Get current date in ISO format
+    const startDateTime = new Date().toISOString();
+
     const response = await callTicketmasterFunction('events', undefined, {
       size: '200', // Request more to ensure we get enough unique artists
-      sort: 'relevance,desc', // Changed from 'popularity,desc' to a valid sort option
-      segmentId: 'KZFzniwnSyZfZ7v7nJ', // Music segment
+      sort: 'relevance,desc',
+      classificationName: 'music',
+      countryCode: 'US',
+      startDateTime: startDateTime,
       includeTest: 'no',
       includeTBA: 'no',
       includeTBD: 'no'
