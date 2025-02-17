@@ -30,13 +30,20 @@ export const useArtistShows = (normalizedArtistName: string, artistId: string | 
         console.error('Error fetching cached shows:', cachedError);
       }
 
-      if (cachedShows && cachedShows.length > 0) {
-        console.log('Found cached shows:', cachedShows.length);
+      // Check if we need to refresh the cache
+      const { data: needsRefresh } = await supabase
+        .rpc('needs_artist_refresh', {
+          last_sync: cachedShows?.[0]?.last_synced_at,
+          ttl_hours: 1
+        });
+
+      if (cachedShows && cachedShows.length > 0 && !needsRefresh) {
+        console.log('Found fresh cached shows:', cachedShows.length);
         return cachedShows;
       }
 
-      // If no cached shows, fetch from Ticketmaster
-      console.log('No cached shows found, fetching from Ticketmaster');
+      // If no cached shows or cache is stale, fetch from Ticketmaster
+      console.log('No fresh cached shows found, fetching from Ticketmaster');
       const response = await fetchArtistEvents(normalizedArtistName);
       return response;
     },

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
 import { updateShowCache } from "./cache";
@@ -9,7 +8,8 @@ export const searchArtists = async (query: string) => {
   const response = await callTicketmasterFunction('events', query, {
     keyword: query,
     classificationName: 'music',
-    size: '20'
+    size: '50',
+    sort: 'relevance,desc'
   });
   
   // Handle empty or invalid response
@@ -27,20 +27,27 @@ export const searchArtists = async (query: string) => {
     const artist = event._embedded?.attractions?.[0];
     if (artist && artist.name) {
       if (!uniqueArtists.has(artist.name)) {
+        // Calculate relevance score based on name match and venue capacity
+        const nameMatchScore = artist.name.toLowerCase() === query.toLowerCase() ? 1000000 : 
+                             artist.name.toLowerCase().includes(query.toLowerCase()) ? 100000 : 0;
+        const capacity = event._embedded?.venues?.[0]?.capacity || 0;
+        
         uniqueArtists.set(artist.name, {
           name: artist.name,
           image: artist.images?.[0]?.url || event.images?.[0]?.url,
           venue: event._embedded?.venues?.[0]?.name,
           date: event.dates.start.dateTime,
           url: event.url,
-          capacity: event._embedded?.venues?.[0]?.capacity || 0,
+          capacity: capacity,
+          relevanceScore: nameMatchScore + capacity,
           ticketmaster_id: artist.id
         });
       }
     }
   });
 
-  return Array.from(uniqueArtists.values()).sort((a, b) => b.capacity - a.capacity);
+  return Array.from(uniqueArtists.values())
+    .sort((a, b) => b.relevanceScore - a.relevanceScore);
 };
 
 export const fetchArtistEvents = async (artistName: string) => {

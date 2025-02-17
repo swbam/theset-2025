@@ -10,6 +10,8 @@ interface SearchResult {
   name: string;
   image?: string;
   venue?: string;
+  popularity?: number;
+  capacity?: number;
 }
 
 interface SearchBarProps {
@@ -19,7 +21,7 @@ interface SearchBarProps {
 export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const { toast } = useToast();
 
   const debouncedSearch = useDebouncedCallback(async (query: string) => {
@@ -31,7 +33,24 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
     setIsSearching(true);
     try {
       const results = await searchArtists(query);
-      setSearchResults(results);
+      // Sort results by exact match first, then by capacity/popularity
+      const sortedResults = results.sort((a, b) => {
+        // Exact match gets highest priority
+        const exactMatchA = a.name.toLowerCase() === query.toLowerCase();
+        const exactMatchB = b.name.toLowerCase() === query.toLowerCase();
+        if (exactMatchA && !exactMatchB) return -1;
+        if (!exactMatchA && exactMatchB) return 1;
+        
+        // Contains match gets second priority
+        const containsA = a.name.toLowerCase().includes(query.toLowerCase());
+        const containsB = b.name.toLowerCase().includes(query.toLowerCase());
+        if (containsA && !containsB) return -1;
+        if (!containsA && containsB) return 1;
+        
+        // Finally sort by capacity/popularity
+        return (b.capacity || 0) - (a.capacity || 0);
+      });
+      setSearchResults(sortedResults);
     } catch (error) {
       console.error('Search error:', error);
       toast({
@@ -42,7 +61,7 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
     } finally {
       setIsSearching(false);
     }
-  }, 300); // 300ms debounce
+  }, 300);
 
   return (
     <div className="w-full max-w-2xl mx-auto relative">
@@ -97,4 +116,3 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
     </div>
   );
 };
-
