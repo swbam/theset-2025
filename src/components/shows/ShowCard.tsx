@@ -98,7 +98,7 @@ export const ShowCard = ({ show }: ShowCardProps) => {
       || 'venue';
 
     // Format the artist name
-    const encodedName = artistName.toLowerCase()
+    const encodedName = artistName.split(':')[0].toLowerCase() // Extract artist name before the colon
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
@@ -120,7 +120,7 @@ export const ShowCard = ({ show }: ShowCardProps) => {
         <div className="flex flex-col space-y-4">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <h3 className="font-semibold mb-2 text-white text-lg">{show.name}</h3>
+              <h3 className="font-semibold mb-2 text-white text-lg">{artistName}</h3>
               <div className="space-y-1">
                 {venueName && <p className="text-white/60">{venueName}</p>}
                 {cityState && <p className="text-white/60">{cityState}</p>}

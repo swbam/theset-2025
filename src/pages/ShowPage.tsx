@@ -23,6 +23,7 @@ export default function ShowPage() {
   
   const { data: show, isLoading: showLoading } = useShow(eventId);
   const { data: setlist, isLoading: setlistLoading, addSong } = useSetlist(show?.id, user);
+  console.log('Setlist data:', setlist);
   const { userVotes, handleVote } = useVotes(setlist?.id, user);
 
   const handleSuggest = async (songName: string, spotifyId?: string) => {
@@ -79,7 +80,7 @@ export default function ShowPage() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="space-y-8">
           <ShowDetails
-            name={show.name}
+            name={show.name.split(':')[0]} // Extract artist name before the colon
             date={show.date}
             venue={show.venue}
           />
