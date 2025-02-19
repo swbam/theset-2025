@@ -18,7 +18,7 @@ export const fetchPopularShows = async (artistId?: string) => {
       startDateTime: startDateTime,
       includeTest: 'no',
       includeTBA: 'no',
-      includeTBD: 'no' 
+      includeTBD: 'no'  
     });  
 
     const shows = response?._embedded?.events || [];
