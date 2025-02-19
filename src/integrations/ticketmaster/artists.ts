@@ -1,4 +1,5 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "../supabase/client";
+import { artistIdentifiers } from "../supabase/artistIdentifiers";
 import { callTicketmasterFunction } from "./api";
 import { updateShowCache } from "./cache";
 import type { TicketmasterEvent } from "./types";
@@ -56,21 +57,22 @@ export const fetchArtistEvents = async (artistName: string) => {
   const decodedArtistName = artistName.replace(/-/g, ' ');
   
   // First try to find the artist by name (case-insensitive)
-  const { data: existingArtist } = await supabase
+  const { data: existingArtists } = await supabase
     .from('artists')
-    .select('id, name, spotify_id, ticketmaster_id')
-    .ilike('name', decodedArtistName)
-    .maybeSingle();
+    .select('*')
+    .ilike('name', decodedArtistName);
     
-  if (existingArtist) {
-    console.log('Found artist in database:', existingArtist);
+  let artist = existingArtists?.[0];
+  
+  if (artist) {
+    console.log('Found artist in database:', artist);
     const { data: cachedShows } = await supabase
       .from('cached_shows')
       .select(`
         *,
         venue:venues(*)
       `)
-      .eq('artist_id', existingArtist.id)
+      .eq('artist_id', artist.id)
       .gte('date', new Date().toISOString())
       .order('date', { ascending: true });
       
@@ -117,41 +119,19 @@ export const fetchArtistEvents = async (artistName: string) => {
       return filteredShows;
     }
 
-    const normalizedSpotifyId = decodedArtistName.toLowerCase().replace(/[^a-z0-9]/g, '');
-    
-    // First check if artist exists by spotify_id
-    const { data: existingBySpotifyId } = await supabase
-      .from('artists')
-      .select('*')
-      .eq('spotify_id', normalizedSpotifyId)
-      .maybeSingle();
-
-    const artistData = {
+    // Use the artistIdentifiers utility to create or update the artist
+    const upsertedArtist = await artistIdentifiers.upsertArtist({
       name: decodedArtistName,
-      ticketmaster_id: ticketmasterArtist.id,
-      ticketmaster_data: ticketmasterArtist,
-      spotify_id: normalizedSpotifyId,
-      last_synced_at: new Date().toISOString()
-    };
-
-    // If artist exists, update it, otherwise insert new
-    const { data: upsertedArtist, error: artistError } = await supabase
-      .from('artists')
-      .upsert(
-        artistData,
-        {
-          onConflict: 'spotify_id',
-          ignoreDuplicates: false
-        }
-      )
-      .select()
-      .maybeSingle();
-
-    if (artistError) {
-      console.error('Error upserting artist:', artistError);
-      // Return shows even if we can't update the artist
-      return filteredShows;
-    }
+      metadata: {
+        genres: ticketmasterArtist.classifications?.[0]?.genre?.name,
+        popularity: 0, // Will be updated when Spotify data is fetched
+      },
+      platformData: {
+        platform: 'ticketmaster',
+        platformId: ticketmasterArtist.id,
+        data: ticketmasterArtist
+      }
+    });
 
     if (upsertedArtist) {
       console.log('Updating show cache for artist:', decodedArtistName);

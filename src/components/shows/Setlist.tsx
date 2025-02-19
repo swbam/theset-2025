@@ -1,14 +1,12 @@
-
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { useState, useMemo } from "react";
+import { Button } from "../../components/ui/button";
+import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "../../components/ui/command";
+import { Popover, PopoverTrigger, PopoverContent } from "../../components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 import { SetlistSong } from "./SetlistSong";
-import { useSpotifyTracks } from "@/hooks/useSpotifyTracks";
-import { useArtistSongs } from "@/hooks/useArtistSongs";
+import { useSpotifyTracks } from "../../hooks/useSpotifyTracks";
+import { useArtistSongs } from "../../hooks/useArtistSongs";
 import type { User } from "@supabase/supabase-js";
 
 interface SetlistProps {
@@ -34,14 +32,19 @@ interface SetlistProps {
 export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistName, artistId }: SetlistProps) => {
   const [isAdding, setIsAdding] = useState(false);
   const [open, setOpen] = useState(false);
-  const [selectedSong, setSelectedSong] = useState<string>("");
-  const [value, setValue] = useState(""); // Add this for Command component
+  const [value, setValue] = useState("");
 
   // Auto-populate with top tracks if empty
   const { isLoading: isLoadingTopTracks } = useSpotifyTracks(artistName, setlist?.id);
 
   // Get artist's songs for the dropdown
-  const { data: songs = [], isLoading: isLoadingSongs } = useArtistSongs(artistId);
+  const { data: songs = [] } = useArtistSongs(artistId);
+
+  // Sort songs by votes (highest to lowest)
+  const sortedSongs = useMemo(() => {
+    if (!setlist?.songs) return [];
+    return [...setlist.songs].sort((a, b) => b.total_votes - a.total_votes);
+  }, [setlist?.songs]);
 
   const handleSongSelect = async (currentValue: string) => {
     const song = songs.find(s => s.name.toLowerCase() === currentValue.toLowerCase());
@@ -49,7 +52,6 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
       try {
         await onSuggest(song.name, song.spotify_id);
         setValue("");
-        setSelectedSong("");
         setOpen(false);
         setIsAdding(false);
       } catch (error) {
@@ -60,7 +62,6 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
 
   const handleAddClick = () => {
     if (!user) {
-      // If not logged in, this will show the login prompt
       onSuggest("");
       return;
     }
@@ -123,7 +124,6 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
           <Button type="button" variant="ghost" onClick={() => {
             setIsAdding(false);
             setValue("");
-            setSelectedSong("");
           }}>
             Cancel
           </Button>
@@ -135,19 +135,26 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
           <div className="text-white/60 py-8 text-center">
             Loading top tracks...
           </div>
-        ) : setlist?.songs && setlist.songs.length > 0 ? (
-          setlist.songs.map((song) => (
-            <SetlistSong
-              key={song.id}
-              id={song.id}
-              songName={song.song_name}
-              totalVotes={song.total_votes}
-              suggested={song.suggested}
-              isTopTrack={song.is_top_track}
-              onVote={onVote}
-              hasVoted={userVotes?.includes(song.id)}
-            />
-          ))
+        ) : sortedSongs.length > 0 ? (
+          <div className="grid gap-2">
+            {sortedSongs.map((song, index) => (
+              <div
+                key={song.id}
+                className="animate-in fade-in-50"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <SetlistSong
+                  id={song.id}
+                  songName={song.song_name}
+                  totalVotes={song.total_votes}
+                  suggested={song.suggested}
+                  isTopTrack={song.is_top_track}
+                  onVote={onVote}
+                  hasVoted={userVotes?.includes(song.id)}
+                />
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="text-white/60 py-8 text-center space-y-2">
             <p>No songs have been added to this setlist yet.</p>

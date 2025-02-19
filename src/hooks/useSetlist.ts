@@ -1,13 +1,14 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "../integrations/supabase/client";
+import { useToast } from "../components/ui/use-toast";
 import { User } from "@supabase/supabase-js";
 import { useEffect } from "react";
+import { useSpotifyTracks } from "./useSpotifyTracks";
 
-export function useSetlist(showId: string | undefined, user: User | null) {
+export function useSetlist(showId: string | undefined, user: User | null, artistName?: string) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: spotifyTracks } = useSpotifyTracks(artistName, showId);
 
   const createSetlistMutation = useMutation({
     mutationFn: async ({ showName, venueId }: { showName: string; venueId?: string }) => {
@@ -44,6 +45,27 @@ export function useSetlist(showId: string | undefined, user: User | null) {
         throw error;
       }
 
+      // If we have Spotify tracks, add them to the setlist
+      if (spotifyTracks && spotifyTracks.length > 0) {
+        const { error: songsError } = await supabase
+          .from('setlist_songs')
+          .insert(
+            spotifyTracks.map(track => ({
+              setlist_id: setlist.id,
+              song_name: track.song_name,
+              spotify_id: track.spotify_id,
+              is_top_track: true,
+              total_votes: 0,
+              suggested: false
+            }))
+          );
+
+        if (songsError) {
+          console.error('Error adding Spotify tracks:', songsError);
+          // Don't throw, just log the error since the setlist was created
+        }
+      }
+
       console.log('Created new setlist:', setlist.id);
       return setlist;
     },
@@ -64,7 +86,8 @@ export function useSetlist(showId: string | undefined, user: User | null) {
           setlist_id: setlistId,
           song_name: songName,
           spotify_id: spotifyId,
-          suggested: true
+          suggested: true,
+          total_votes: 0
         })
         .select()
         .single();
