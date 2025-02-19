@@ -19,7 +19,7 @@ export const fetchPopularShows = async (artistId?: string) => {
       includeTest: 'no',
       includeTBA: 'no',
       includeTBD: 'no'
-    });
+    }); 
 
     const shows = response?._embedded?.events || [];
     
