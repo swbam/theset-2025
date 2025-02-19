@@ -5,6 +5,14 @@ import { searchArtists } from "../../integrations/ticketmaster/artistSearch";
 import { useToast } from "../../components/ui/use-toast";
 import { useDebouncedCallback } from 'use-debounce';
 
+interface Artist {
+  name: string;
+  image?: string;
+  venue?: string;
+  popularity?: number;
+  capacity?: number;
+}
+
 interface ArtistSearchBarProps {
   onArtistClick: (artistName: string) => void;
 }
@@ -12,7 +20,7 @@ interface ArtistSearchBarProps {
 export const ArtistSearchBar = ({ onArtistClick }: ArtistSearchBarProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<Artist[]>([]);
   const { toast } = useToast();
 
   const debouncedSearch = useDebouncedCallback(async (query: string) => {
