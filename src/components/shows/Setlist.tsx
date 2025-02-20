@@ -7,6 +7,7 @@ import { cn } from "../../lib/utils";
 import { SetlistSong } from "./SetlistSong";
 import { useSpotifyTracks } from "../../hooks/useSpotifyTracks";
 import { useArtistSongs } from "../../hooks/useArtistSongs";
+import { useVotingSystem } from "../../hooks/useVotingSystem";
 import type { User } from "@supabase/supabase-js";
 
 interface SetlistProps {
@@ -15,21 +16,18 @@ interface SetlistProps {
     songs?: Array<{
       id: string;
       song_name: string;
-      total_votes: number;
       suggested?: boolean;
       spotify_id?: string;
       is_top_track?: boolean;
     }>;
   } | null;
-  userVotes?: string[];
   user: User | null;
-  onVote: (songId: string) => Promise<void>;
   onSuggest: (songName: string, spotifyId?: string) => Promise<void>;
   artistName?: string;
   artistId?: string;
 }
 
-export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistName, artistId }: SetlistProps) => {
+export const Setlist = ({ setlist, user, onSuggest, artistName, artistId }: SetlistProps) => {
   const [isAdding, setIsAdding] = useState(false);
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
@@ -40,11 +38,23 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
   // Get artist's songs for the dropdown
   const { data: songs = [] } = useArtistSongs(artistId);
 
+  // Use the new voting system
+  const { 
+    castVote, 
+    getVoteCount, 
+    hasVoted, 
+    isVoting 
+  } = useVotingSystem(setlist?.id, user);
+
   // Sort songs by votes (highest to lowest)
   const sortedSongs = useMemo(() => {
     if (!setlist?.songs) return [];
-    return [...setlist.songs].sort((a, b) => b.total_votes - a.total_votes);
-  }, [setlist?.songs]);
+    return [...setlist.songs].sort((a, b) => {
+      const votesA = getVoteCount(a.id);
+      const votesB = getVoteCount(b.id);
+      return votesB - votesA;
+    });
+  }, [setlist?.songs, getVoteCount]);
 
   const handleSongSelect = async (currentValue: string) => {
     const song = songs.find(s => s.name.toLowerCase() === currentValue.toLowerCase());
@@ -67,6 +77,12 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
     }
     setIsAdding(true);
   };
+
+  // Filter out songs that are already in the setlist
+  const availableSongs = useMemo(() => {
+    const existingSongNames = new Set(setlist?.songs?.map(s => s.song_name.toLowerCase()));
+    return songs.filter(song => !existingSongNames.has(song.name.toLowerCase()));
+  }, [songs, setlist?.songs]);
 
   return (
     <div className="space-y-6">
@@ -102,7 +118,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
                 <CommandInput placeholder="Search songs..." />
                 <CommandEmpty>No songs found.</CommandEmpty>
                 <CommandGroup className="max-h-60 overflow-auto">
-                  {songs.map((song) => (
+                  {availableSongs.map((song) => (
                     <CommandItem
                       key={song.spotify_id}
                       value={song.name}
@@ -121,10 +137,14 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
               </Command>
             </PopoverContent>
           </Popover>
-          <Button type="button" variant="ghost" onClick={() => {
-            setIsAdding(false);
-            setValue("");
-          }}>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            onClick={() => {
+              setIsAdding(false);
+              setValue("");
+            }}
+          >
             Cancel
           </Button>
         </div>
@@ -146,11 +166,12 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest, artistNam
                 <SetlistSong
                   id={song.id}
                   songName={song.song_name}
-                  totalVotes={song.total_votes}
+                  voteCount={getVoteCount(song.id)}
                   suggested={song.suggested}
                   isTopTrack={song.is_top_track}
-                  onVote={onVote}
-                  hasVoted={userVotes?.includes(song.id)}
+                  onVote={castVote}
+                  hasVoted={hasVoted(song.id)}
+                  isVoting={isVoting}
                 />
               </div>
             ))}

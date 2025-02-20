@@ -2,7 +2,7 @@ import { Button } from "../../components/ui/button";
 import { Calendar } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { Card, CardContent } from "../../components/ui/card";
-import type { TicketmasterEvent, CachedShow } from "../../integrations/ticketmaster/types";
+import type { TicketmasterEvent, CachedShow, TicketmasterVenue, CachedVenue } from "../../integrations/ticketmaster/types";
 import { useNavigate } from "react-router-dom";
 
 interface ShowCardProps {
@@ -17,6 +17,8 @@ interface VenueLocation {
     name: string;
   };
   name?: string;
+  displayName?: string;
+  displayLocation?: string;
 }
 
 export const ShowCard = ({ show }: ShowCardProps) => {
@@ -61,26 +63,34 @@ export const ShowCard = ({ show }: ShowCardProps) => {
     }
   })();
 
-  const venue = isTicketmasterEvent ? show._embedded?.venues?.[0] : show.venue_location ? JSON.parse(show.venue_location) as VenueLocation : null;
+  // Get venue information
+  const venue = isTicketmasterEvent 
+    ? show._embedded?.venues?.[0] 
+    : show.venue;
 
   // Get artist name from the show data
   const artistName = isTicketmasterEvent ? show._embedded?.attractions?.[0]?.name : show.name?.split(' at ')?.[0];
   
-  const cityState = (() => {
-    if (!venue) return '';
-    if (isTicketmasterEvent) {
-      const city = venue.city?.name || '';
-      const state = venue.state?.name || '';
-      return city && state ? `${city}, ${state}` : city;
-    } else {
-      const parsedVenue = venue;
-      const city = parsedVenue.city?.name || '';
-      const state = parsedVenue.state?.name || '';
-      return city && state ? `${city}, ${state}` : city;
-    }
-  })();
+  // Use the display info provided by the Edge Function if available
+  const venueName = isTicketmasterEvent 
+    ? (venue as TicketmasterVenue)?.displayName || venue?.name || ''
+    : venue?.name || show.venue_name || '';
 
-  const venueName = isTicketmasterEvent ? venue?.name || '' : venue?.name || show.venue_name || '';
+  const cityState = isTicketmasterEvent
+    ? (venue as TicketmasterVenue)?.displayLocation || (() => {
+        if (!venue) return '';
+        const tmVenue = venue as TicketmasterVenue;
+        const city = tmVenue.city?.name || '';
+        const state = tmVenue.state?.name || '';
+        return city && state ? `${city}, ${state}` : city;
+      })()
+    : (() => {
+        if (!venue) return show.venue_location || '';
+        const cachedVenue = venue as CachedVenue;
+        return cachedVenue.city && cachedVenue.state 
+          ? `${cachedVenue.city}, ${cachedVenue.state}` 
+          : cachedVenue.city || '';
+      })();
 
   const generateSeoUrl = () => {
     if (!artistName) return '/';
@@ -122,8 +132,16 @@ export const ShowCard = ({ show }: ShowCardProps) => {
             <div className="flex-1">
               <h3 className="font-semibold mb-2 text-white text-lg">{artistName}</h3>
               <div className="space-y-1">
-                {venueName && <p className="text-white/60">{venueName}</p>}
-                {cityState && <p className="text-white/60">{cityState}</p>}
+                {venueName && (
+                  <p className="text-white/60 line-clamp-1" title={venueName}>
+                    {venueName}
+                  </p>
+                )}
+                {cityState && (
+                  <p className="text-white/60 line-clamp-1" title={cityState}>
+                    {cityState}
+                  </p>
+                )}
               </div>
             </div>
             {showDate && !isMultiDayEvent && (
@@ -146,7 +164,7 @@ export const ShowCard = ({ show }: ShowCardProps) => {
 
           <Button 
             variant="outline" 
-            className="w-full" 
+            className="w-full hover:bg-white/10 hover:text-white" 
             onClick={e => {
               e.stopPropagation();
               navigate(generateSeoUrl());

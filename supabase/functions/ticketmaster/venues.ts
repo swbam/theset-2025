@@ -1,5 +1,15 @@
+interface VenueData {
+  name?: string;
+  capacity?: string;
+  city?: {
+    name: string;
+  };
+  state?: {
+    name: string;
+  };
+}
 
-export function isLargeVenue(venue: any): boolean {
+export function isLargeVenue(venue: VenueData): boolean {
   if (!venue) return false;
 
   // Check venue name against keywords safely
@@ -8,13 +18,19 @@ export function isLargeVenue(venue: any): boolean {
     'arena',
     'stadium',
     'amphitheatre',
+    'amphitheater',
     'center',
+    'centre',
     'theatre',
+    'theater',
     'park',
     'hall',
     'coliseum',
     'bowl',
-    'pavilion'
+    'pavilion',
+    'auditorium',
+    'garden',
+    'grounds'
   ].some(keyword => venueName.includes(keyword));
 
   // Parse capacity safely
@@ -22,9 +38,32 @@ export function isLargeVenue(venue: any): boolean {
   try {
     capacity = venue.capacity ? parseInt(venue.capacity) : 0;
   } catch (error) {
-    console.error('Error parsing venue capacity:', error);
+    console.warn('Error parsing venue capacity:', error);
   }
+
+  // If we have a valid capacity, use it as a criteria
+  if (capacity > 0) {
+    return capacity >= 2000; // Lower threshold to include more venues
+  }
+
+  // If no capacity is provided, rely on venue name keywords
+  return hasLargeKeyword;
+}
+
+// Helper function to get venue display info
+export function getVenueDisplayInfo(venue: VenueData): { name: string; location: string } {
+  const name = venue.name || 'Unknown Venue';
+  const city = venue.city?.name;
+  const state = venue.state?.name;
   
-  // If venue has large keywords or significant capacity, consider it large
-  return hasLargeKeyword || capacity > 5000;
+  let location = '';
+  if (city && state) {
+    location = `${city}, ${state}`;
+  } else if (city) {
+    location = city;
+  } else if (state) {
+    location = state;
+  }
+
+  return { name, location };
 }

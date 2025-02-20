@@ -6,47 +6,51 @@ import { useState, useEffect } from "react";
 interface SetlistSongProps {
   id: string;
   songName: string;
-  totalVotes: number;
+  voteCount: number;
   suggested?: boolean;
   isTopTrack?: boolean;
-  onVote: (songId: string) => Promise<void>;
-  hasVoted?: boolean;
+  onVote: (songId: string) => void;
+  hasVoted: boolean;
+  isVoting: boolean;
 }
 
 export const SetlistSong = ({ 
   id, 
   songName, 
-  totalVotes, 
+  voteCount, 
   suggested,
   isTopTrack,
   onVote, 
-  hasVoted 
+  hasVoted,
+  isVoting: externalIsVoting 
 }: SetlistSongProps) => {
-  const [isVoting, setIsVoting] = useState(false);
-  const [optimisticVotes, setOptimisticVotes] = useState(totalVotes);
+  const [localIsVoting, setLocalIsVoting] = useState(false);
+  const [optimisticVotes, setOptimisticVotes] = useState(voteCount);
+  
+  const isVoting = externalIsVoting || localIsVoting;
 
   const handleVoteClick = async () => {
     if (hasVoted || isVoting) return;
     
-    setIsVoting(true);
+    setLocalIsVoting(true);
     // Optimistic update
     setOptimisticVotes(prev => prev + 1);
     
     try {
-      await onVote(id);
+      onVote(id);
     } catch (error) {
       // Revert optimistic update on error
       setOptimisticVotes(prev => prev - 1);
       console.error('Error voting:', error);
     } finally {
-      setIsVoting(false);
+      setLocalIsVoting(false);
     }
   };
 
   // Update optimistic votes when actual votes change
   useEffect(() => {
-    setOptimisticVotes(totalVotes);
-  }, [totalVotes]);
+    setOptimisticVotes(voteCount);
+  }, [voteCount]);
 
   return (
     <div className={cn(
@@ -58,7 +62,7 @@ export const SetlistSong = ({
         <div className="flex items-center gap-2">
           <p className="text-white font-medium">{songName}</p>
           {isTopTrack && (
-          <Star className="w-4 h-4 text-yellow-500 animate-in fade-in-50" />
+            <Star className="w-4 h-4 text-yellow-500 animate-in fade-in-50" />
           )}
         </div>
         {suggested && (

@@ -1,54 +1,71 @@
 import { supabase } from "../supabase/client";
 import { artistIdentifiers } from "../supabase/artistIdentifiers";
-import { callTicketmasterFunction } from "./api";
+import { searchArtists as searchTicketmasterArtists, fetchArtistEvents as fetchTicketmasterArtistEvents } from "./api";
 import { updateShowCache } from "./cache";
 import type { TicketmasterEvent } from "./types";
 
-export const searchArtists = async (query: string) => {
+interface ArtistSearchResult {
+  name: string;
+  image?: string;
+  venue?: string;
+  date?: string;
+  url?: string;
+  capacity: number;
+  relevanceScore: number;
+  ticketmaster_id: string;
+}
+
+export const searchArtists = async (query: string): Promise<ArtistSearchResult[]> => {
   console.log('Searching for artists:', query);
-  const response = await callTicketmasterFunction('events', query, {
-    keyword: query,
-    classificationName: 'music',
-    size: '50',
-    sort: 'relevance,desc'
-  });
   
-  // Handle empty or invalid response
-  if (!response?._embedded?.events) {
-    console.log('No events found for query:', query);
+  try {
+    const events = await searchTicketmasterArtists(query);
+    
+    // Handle empty or invalid response
+    if (!events || events.length === 0) {
+      console.log('No events found for query:', query);
+      return [];
+    }
+    
+    // Filter for music events and remove duplicates
+    const uniqueArtists = new Map<string, ArtistSearchResult>();
+    
+    events.forEach((event: TicketmasterEvent) => {
+      const artist = event._embedded?.attractions?.[0];
+      if (artist && artist.name) {
+        if (!uniqueArtists.has(artist.name)) {
+          // Calculate relevance score based on name match and venue capacity
+          const nameMatchScore = artist.name.toLowerCase() === query.toLowerCase() ? 1000000 : 
+                               artist.name.toLowerCase().includes(query.toLowerCase()) ? 100000 : 0;
+          
+          // Parse venue capacity, defaulting to 0 if not available
+          const venueCapacity = event._embedded?.venues?.[0]?.capacity
+            ? parseInt(event._embedded.venues[0].capacity, 10)
+            : 0;
+          
+          uniqueArtists.set(artist.name, {
+            name: artist.name,
+            image: artist.images?.[0]?.url || event.images?.[0]?.url,
+            venue: event._embedded?.venues?.[0]?.name,
+            date: event.dates?.start?.dateTime,
+            url: event.url,
+            capacity: venueCapacity,
+            relevanceScore: nameMatchScore + venueCapacity,
+            ticketmaster_id: artist.id || ''
+          });
+        }
+      }
+    });
+
+    const results = Array.from(uniqueArtists.values())
+      .sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+    console.log(`Found ${results.length} unique artists`);
+    return results;
+  } catch (error) {
+    console.error('Error searching artists:', error);
     return [];
   }
-  
-  const events = response._embedded.events;
-  
-  // Filter for music events and remove duplicates
-  const uniqueArtists = new Map();
-  
-  events.forEach((event: TicketmasterEvent) => {
-    const artist = event._embedded?.attractions?.[0];
-    if (artist && artist.name) {
-      if (!uniqueArtists.has(artist.name)) {
-        // Calculate relevance score based on name match and venue capacity
-        const nameMatchScore = artist.name.toLowerCase() === query.toLowerCase() ? 1000000 : 
-                             artist.name.toLowerCase().includes(query.toLowerCase()) ? 100000 : 0;
-        const capacity = event._embedded?.venues?.[0]?.capacity || 0;
-        
-        uniqueArtists.set(artist.name, {
-          name: artist.name,
-          image: artist.images?.[0]?.url || event.images?.[0]?.url,
-          venue: event._embedded?.venues?.[0]?.name,
-          date: event.dates.start.dateTime,
-          url: event.url,
-          capacity: capacity,
-          relevanceScore: nameMatchScore + capacity,
-          ticketmaster_id: artist.id
-        });
-      }
-    }
-  });
-
-  return Array.from(uniqueArtists.values())
-    .sort((a, b) => b.relevanceScore - a.relevanceScore);
 };
 
 export const fetchArtistEvents = async (artistName: string) => {
@@ -62,17 +79,17 @@ export const fetchArtistEvents = async (artistName: string) => {
     .select('*')
     .ilike('name', decodedArtistName);
     
-  let artist = existingArtists?.[0];
+  const existingArtist = existingArtists?.[0];
   
-  if (artist) {
-    console.log('Found artist in database:', artist);
+  if (existingArtist) {
+    console.log('Found artist in database:', existingArtist);
     const { data: cachedShows } = await supabase
       .from('cached_shows')
       .select(`
         *,
         venue:venues(*)
       `)
-      .eq('artist_id', artist.id)
+      .eq('artist_id', existingArtist.id)
       .gte('date', new Date().toISOString())
       .order('date', { ascending: true });
       
@@ -85,19 +102,13 @@ export const fetchArtistEvents = async (artistName: string) => {
   // If we're here, either we didn't find the artist or their shows need refreshing
   console.log('Fetching fresh shows from Ticketmaster for artist:', decodedArtistName);
   
-  const response = await callTicketmasterFunction('events', undefined, {
-    keyword: decodedArtistName,
-    classificationName: 'music',
-    size: '100'
-  });
+  const shows = await fetchTicketmasterArtistEvents(decodedArtistName);
   
-  if (!response?._embedded?.events) {
+  if (!shows || shows.length === 0) {
     console.log('No shows found for artist:', decodedArtistName);
     return [];
   }
 
-  const shows = response._embedded.events;
-  
   // Filter to ensure we only get shows for this artist
   const filteredShows = shows.filter(show => {
     const attractions = show._embedded?.attractions || [];
@@ -123,12 +134,14 @@ export const fetchArtistEvents = async (artistName: string) => {
     const upsertedArtist = await artistIdentifiers.upsertArtist({
       name: decodedArtistName,
       metadata: {
-        genres: ticketmasterArtist.classifications?.[0]?.genre?.name,
+        genres: ticketmasterArtist.classifications?.[0]?.genre?.name 
+          ? [ticketmasterArtist.classifications[0].genre.name]
+          : [],
         popularity: 0, // Will be updated when Spotify data is fetched
       },
       platformData: {
         platform: 'ticketmaster',
-        platformId: ticketmasterArtist.id,
+        platformId: ticketmasterArtist.id || '',
         data: ticketmasterArtist
       }
     });
