@@ -1,3 +1,4 @@
+
 import { Json } from "../supabase/types";
 
 export interface PriceRange {
@@ -84,7 +85,8 @@ export interface TicketmasterEvent {
 }
 
 export interface CachedVenue {
-  id?: string;
+  id: string;
+  ticketmaster_id: string;
   name: string;
   city: string;
   state?: string;
@@ -93,7 +95,6 @@ export interface CachedVenue {
   capacity?: number;
   venue_image_url?: string | null;
   last_synced_at: string;
-  ticketmaster_id: string;
   displayName?: string;
   displayLocation?: string;
 }
@@ -112,12 +113,13 @@ export interface CachedShow {
   status?: string | null;
   price_ranges?: PriceRange[];
   last_synced_at: string;
+  platform_id: string;
 }
 
 export interface Artist {
   id: string;
   name: string;
-  spotify_id: string;
+  spotify_id?: string | null;
   ticketmaster_id?: string | null;
   ticketmaster_data?: Json | null;
   image_url?: string | null;
@@ -125,16 +127,43 @@ export interface Artist {
   genres?: string[] | null;
   popularity?: number | null;
   spotify_data?: Json | null;
+  metadata?: Json | null;
+  created_at: string;
+  updated_at: string;
   last_synced_at: string;
 }
 
 export interface CachedSong {
   id: string;
-  spotify_id: string;
+  platform_id: string;
   artist_id: string;
   name: string;
   album?: string;
   preview_url?: string;
   popularity?: number;
   last_synced_at: string;
+}
+
+export interface ArtistSearchResult {
+  name: string;
+  image?: string;
+  venue?: string;
+  date?: string;
+  url?: string;
+  capacity?: number;
+  relevanceScore?: number;
+  ticketmaster_id?: string;
+}
+
+export interface UserArtist {
+  id: string;
+  user_id: string;
+  artist_id: string;
+  created_at: string;
+  artists: {
+    id: string;
+    name: string;
+    image_url: string | null;
+    genres: string[] | null;
+  };
 }

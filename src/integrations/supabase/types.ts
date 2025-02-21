@@ -114,6 +114,7 @@ export type Database = {
           platform_id: string
           status: string | null
           ticket_url: string | null
+          venue_id: string | null
           venue_name: string | null
         }
         Insert: {
@@ -125,6 +126,7 @@ export type Database = {
           platform_id: string
           status?: string | null
           ticket_url?: string | null
+          venue_id?: string | null
           venue_name?: string | null
         }
         Update: {
@@ -136,6 +138,7 @@ export type Database = {
           platform_id?: string
           status?: string | null
           ticket_url?: string | null
+          venue_id?: string | null
           venue_name?: string | null
         }
         Relationships: [
@@ -144,6 +147,13 @@ export type Database = {
             columns: ["artist_id"]
             isOneToOne: false
             referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cached_shows_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -316,6 +326,35 @@ export type Database = {
         }
         Relationships: []
       }
+      user_artists: {
+        Row: {
+          artist_id: string
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_artists_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_votes: {
         Row: {
           created_at: string | null
@@ -352,6 +391,45 @@ export type Database = {
           },
         ]
       }
+      venues: {
+        Row: {
+          capacity: number | null
+          city: string
+          country: string | null
+          created_at: string | null
+          id: string
+          last_synced_at: string | null
+          name: string
+          state: string | null
+          ticketmaster_id: string
+          venue_image_url: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          city: string
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          name: string
+          state?: string | null
+          ticketmaster_id: string
+          venue_image_url?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          city?: string
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          name?: string
+          state?: string | null
+          ticketmaster_id?: string
+          venue_image_url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       song_vote_counts: {
@@ -381,7 +459,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      check_sync_health: {
+        Args: {
+          platform: string
+        }
+        Returns: {
+          health_status: string
+          last_sync: string
+          error_rate: number
+        }[]
+      }
       needs_artist_refresh: {
+        Args: {
+          last_sync: string
+          ttl_hours?: number
+        }
+        Returns: boolean
+      }
+      needs_venue_refresh: {
         Args: {
           last_sync: string
           ttl_hours?: number
