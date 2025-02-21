@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../integrations/supabase/client";
 import { getArtistTracks } from "../integrations/spotify/client";
 import { useAuth } from "../contexts/AuthContext";
+import type { CachedSong } from "../integrations/ticketmaster/types";
 
 export function useSpotifyTracks(artistName: string | undefined, setlistId: string | undefined) {
   const { session } = useAuth();
@@ -46,6 +47,7 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
           spotifyTracks.map(track => ({
             setlist_id: setlistId,
             song_name: track.name,
+            spotify_id: track.id,
             is_top_track: true,
             votes: 0
           }))

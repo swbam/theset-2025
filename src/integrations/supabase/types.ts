@@ -84,22 +84,31 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          image_url: string | null
+          last_synced_at: string | null
           metadata: Json | null
           name: string
+          spotify_id: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
+          image_url?: string | null
+          last_synced_at?: string | null
           metadata?: Json | null
           name: string
+          spotify_id?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          image_url?: string | null
+          last_synced_at?: string | null
           metadata?: Json | null
           name?: string
+          spotify_id?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -115,6 +124,7 @@ export type Database = {
           status: string | null
           ticket_url: string | null
           venue_id: string | null
+          venue_location: string | null
           venue_name: string | null
         }
         Insert: {
@@ -127,6 +137,7 @@ export type Database = {
           status?: string | null
           ticket_url?: string | null
           venue_id?: string | null
+          venue_location?: string | null
           venue_name?: string | null
         }
         Update: {
@@ -139,6 +150,7 @@ export type Database = {
           status?: string | null
           ticket_url?: string | null
           venue_id?: string | null
+          venue_location?: string | null
           venue_name?: string | null
         }
         Relationships: [
@@ -206,6 +218,7 @@ export type Database = {
           is_top_track: boolean | null
           setlist_id: string
           song_name: string
+          spotify_id: string | null
           votes: number | null
         }
         Insert: {
@@ -214,6 +227,7 @@ export type Database = {
           is_top_track?: boolean | null
           setlist_id: string
           song_name: string
+          spotify_id?: string | null
           votes?: number | null
         }
         Update: {
@@ -222,6 +236,7 @@ export type Database = {
           is_top_track?: boolean | null
           setlist_id?: string
           song_name?: string
+          spotify_id?: string | null
           votes?: number | null
         }
         Relationships: [
@@ -237,6 +252,7 @@ export type Database = {
       setlists: {
         Row: {
           created_at: string | null
+          created_by: string | null
           id: string
           name: string
           show_id: string
@@ -244,6 +260,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          created_by?: string | null
           id?: string
           name: string
           show_id: string
@@ -251,6 +268,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          created_by?: string | null
           id?: string
           name?: string
           show_id?: string
@@ -271,6 +289,7 @@ export type Database = {
           error: string | null
           id: string
           platform: string
+          status: string | null
           success: boolean
           timestamp: string | null
           type: string
@@ -279,6 +298,7 @@ export type Database = {
           error?: string | null
           id?: string
           platform: string
+          status?: string | null
           success: boolean
           timestamp?: string | null
           type: string
@@ -287,6 +307,7 @@ export type Database = {
           error?: string | null
           id?: string
           platform?: string
+          status?: string | null
           success?: boolean
           timestamp?: string | null
           type?: string
@@ -298,30 +319,36 @@ export type Database = {
           average_sync_duration: unknown | null
           created_at: string | null
           error_count: number | null
+          error_events: number | null
           id: string
           last_sync_time: string | null
           platform: string
           success_count: number | null
+          total_events: number | null
           updated_at: string | null
         }
         Insert: {
           average_sync_duration?: unknown | null
           created_at?: string | null
           error_count?: number | null
+          error_events?: number | null
           id?: string
           last_sync_time?: string | null
           platform: string
           success_count?: number | null
+          total_events?: number | null
           updated_at?: string | null
         }
         Update: {
           average_sync_duration?: unknown | null
           created_at?: string | null
           error_count?: number | null
+          error_events?: number | null
           id?: string
           last_sync_time?: string | null
           platform?: string
           success_count?: number | null
+          total_events?: number | null
           updated_at?: string | null
         }
         Relationships: []
