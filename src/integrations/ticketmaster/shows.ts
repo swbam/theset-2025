@@ -8,7 +8,7 @@ export const fetchPopularShows = async (): Promise<TicketmasterEvent[]> => {
     console.log('Fetching popular shows from Ticketmaster...');
     const response = await callTicketmasterApi('events', {
       size: '20',
-      sort: 'relevance,desc',
+      sort: 'date,asc',
       classificationName: 'music'
     });
 
@@ -17,7 +17,20 @@ export const fetchPopularShows = async (): Promise<TicketmasterEvent[]> => {
       return [];
     }
 
-    return response._embedded.events;
+    const events = response._embedded.events;
+    
+    // Filter for valid events and deduplicate by artist
+    const artistShows = new Map<string, TicketmasterEvent>();
+    events.forEach(event => {
+      const artist = event._embedded?.attractions?.[0];
+      if (artist?.name && 
+          event._embedded?.venues?.[0]?.name && 
+          event.dates?.start?.dateTime) {
+        artistShows.set(artist.name, event);
+      }
+    });
+
+    return Array.from(artistShows.values());
   } catch (error) {
     console.error('Error fetching popular shows:', error);
     throw error;
