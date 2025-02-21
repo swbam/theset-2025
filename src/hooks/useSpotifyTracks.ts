@@ -1,7 +1,8 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../integrations/supabase/client";
-import { getArtistTracks, searchArtist, SpotifyTrack } from "../integrations/spotify/client";
-import { useAuth } from "@supabase/auth-helpers-react";
+import { getArtistTracks } from "../integrations/spotify/client";
+import { useAuth } from "../contexts/AuthContext";
 
 export function useSpotifyTracks(artistName: string | undefined, setlistId: string | undefined) {
   const { session } = useAuth();
@@ -17,7 +18,7 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
 
       console.log('Checking for top tracks for:', artistName, 'setlist:', setlistId);
 
-      // First check if we already have top tracks in the setlist
+      // First check if we already have tracks in the setlist
       const { data: existingTracks, error: existingError } = await supabase
         .from('setlist_songs')
         .select('*')
@@ -34,27 +35,19 @@ export function useSpotifyTracks(artistName: string | undefined, setlistId: stri
         return existingTracks;
       }
 
-      // Search for the artist on Spotify
-      const artist = await searchArtist(accessToken, artistName);
-      if (!artist) {
-        console.log('Artist not found on Spotify:', artistName);
-        return null;
-      }
+      // If no cached songs, fetch from Spotify
+      console.log('No cached songs found, fetching from Spotify');
+      const spotifyTracks = await getArtistTracks(accessToken, artistName);
 
-      // Get the artist's top tracks from Spotify
-      const topTracks = await getArtistTracks(accessToken, artist.id);
-      
       // Insert the tracks into our database
       const { data: insertedTracks, error: insertError } = await supabase
         .from('setlist_songs')
         .upsert(
-          topTracks.map(track => ({
+          spotifyTracks.map(track => ({
             setlist_id: setlistId,
             song_name: track.name,
-            spotify_id: track.id,
             is_top_track: true,
-            total_votes: 0,
-            suggested: false
+            votes: 0
           }))
         )
         .select();

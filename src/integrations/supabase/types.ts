@@ -373,6 +373,14 @@ export type Database = {
       }
     }
     Functions: {
+      cast_vote: {
+        Args: {
+          p_song_id: string
+          p_user_id?: string
+          p_ip_address?: string
+        }
+        Returns: undefined
+      }
       needs_artist_refresh: {
         Args: {
           last_sync: string

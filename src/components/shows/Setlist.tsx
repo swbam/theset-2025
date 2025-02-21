@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Button } from "../../components/ui/button";
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "../../components/ui/command";
@@ -17,12 +18,11 @@ interface SetlistProps {
       id: string;
       song_name: string;
       suggested?: boolean;
-      spotify_id?: string;
       is_top_track?: boolean;
     }>;
   } | null;
   user: User | null;
-  onSuggest: (songName: string, spotifyId?: string) => Promise<void>;
+  onSuggest: (songName: string) => Promise<void>;
   artistName?: string;
   artistId?: string;
 }
@@ -60,7 +60,7 @@ export const Setlist = ({ setlist, user, onSuggest, artistName, artistId }: Setl
     const song = songs.find(s => s.name.toLowerCase() === currentValue.toLowerCase());
     if (song) {
       try {
-        await onSuggest(song.name, song.spotify_id);
+        await onSuggest(song.name);
         setValue("");
         setOpen(false);
         setIsAdding(false);
@@ -120,7 +120,7 @@ export const Setlist = ({ setlist, user, onSuggest, artistName, artistId }: Setl
                 <CommandGroup className="max-h-60 overflow-auto">
                   {availableSongs.map((song) => (
                     <CommandItem
-                      key={song.spotify_id}
+                      key={song.id}
                       value={song.name}
                       onSelect={handleSongSelect}
                     >
@@ -194,4 +194,4 @@ export const Setlist = ({ setlist, user, onSuggest, artistName, artistId }: Setl
       </div>
     </div>
   );
-};
+}
