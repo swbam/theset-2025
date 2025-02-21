@@ -1,3 +1,4 @@
+
 import { supabase } from "../supabase/client";
 import type { TicketmasterEvent } from "./types";
 
@@ -13,13 +14,12 @@ interface TicketmasterResponse {
   };
 }
 
-async function callTicketmaster(
+export async function callTicketmasterApi(
   endpoint: 'events' | 'search' | 'popularShows',
-  query?: string,
   params: Record<string, string> = {}
 ): Promise<TicketmasterResponse> {
   const { data, error } = await supabase.functions.invoke('ticketmaster', {
-    body: { endpoint, query, params }
+    body: { endpoint, params }
   });
 
   if (error) {
@@ -39,7 +39,7 @@ export async function fetchPopularShows() {
     endDate.setMonth(endDate.getMonth() + 6);
     const endDateTime = endDate.toISOString().split('.')[0] + 'Z';
 
-    const response = await callTicketmaster('events', undefined, {
+    const response = await callTicketmasterApi('events', {
       startDateTime,
       endDateTime,
       sort: 'date,asc',
@@ -74,7 +74,8 @@ export async function searchArtists(query: string) {
     const now = new Date();
     const startDateTime = now.toISOString().split('.')[0] + 'Z';
 
-    const response = await callTicketmaster('search', query.trim(), {
+    const response = await callTicketmasterApi('search', {
+      q: query.trim(),
       startDateTime,
       sort: 'relevance,desc',
       size: '100'
@@ -109,14 +110,23 @@ export async function fetchArtistEvents(artistName: string) {
     endDate.setFullYear(endDate.getFullYear() + 1);
     const endDateTime = endDate.toISOString().split('.')[0] + 'Z';
 
-    const response = await callTicketmaster('events', artistName.trim(), {
+    const response = await callTicketmasterApi('events', {
+      keyword: artistName.trim(),
       startDateTime,
       endDateTime,
       sort: 'date,asc',
       size: '100'
     });
 
-    return response._embedded?.events || [];
+    const events = response._embedded?.events || [];
+
+    // Filter to ensure we only get shows for this artist
+    return events.filter(event => {
+      const attractions = event._embedded?.attractions || [];
+      return attractions.some(attraction => 
+        attraction.name.toLowerCase() === artistName.toLowerCase()
+      );
+    });
   } catch (error) {
     console.error('Error fetching artist events:', error);
     throw error;

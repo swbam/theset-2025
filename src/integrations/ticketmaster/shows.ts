@@ -7,7 +7,7 @@ export const fetchPopularShows = async (): Promise<TicketmasterEvent[]> => {
   try {
     console.log('Fetching popular shows from Ticketmaster...');
     const response = await callTicketmasterApi('events', {
-      size: 20,
+      size: '20',
       sort: 'relevance,desc',
       classificationName: 'music'
     });
