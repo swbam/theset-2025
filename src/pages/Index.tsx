@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Music2 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
@@ -5,7 +6,7 @@ import { SearchBar } from "../components/search/SearchBar";
 import { Button } from "../components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { ShowCard } from "../components/shows/ShowCard";
-import { fetchPopularShows } from "../integrations/ticketmaster/showApi";
+import { fetchPopularShows } from "../integrations/ticketmaster/shows";
 import type { TicketmasterEvent } from "../integrations/ticketmaster/types";
 import { useToast } from "../components/ui/use-toast";
 
