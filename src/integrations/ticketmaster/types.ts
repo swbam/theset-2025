@@ -19,6 +19,12 @@ export interface TicketmasterEvent {
     url: string;
     ratio?: string;
   }>;
+  priceRanges?: Array<{
+    type: string;
+    currency: string;
+    min: number;
+    max: number;
+  }>;
 }
 
 export interface TicketmasterVenue {
@@ -56,6 +62,11 @@ export interface TicketmasterAttraction {
     url: string;
     ratio?: string;
   }>;
+  classifications?: Array<{
+    genre?: {
+      name: string;
+    };
+  }>;
 }
 
 export interface CachedShow {
@@ -71,15 +82,21 @@ export interface CachedShow {
   status?: string;
   platform_id: string;
   last_synced_at: string;
-  venue?: {
-    id: string;
-    name: string;
-    city: string;
-    state?: string;
-    country?: string;
-    capacity?: number;
-    venue_image_url?: string;
-  };
+  price_ranges?: any;
+  venue?: CachedVenue;
+}
+
+export interface CachedVenue {
+  id: string;
+  name: string;
+  city: string;
+  state?: string;
+  country?: string;
+  capacity?: number;
+  venue_image_url?: string;
+  display_name?: string;
+  display_location?: string;
+  ticketmaster_id: string;
 }
 
 export interface Artist {
@@ -91,6 +108,10 @@ export interface Artist {
   last_synced_at: string;
   image_url?: string;
   spotify_id?: string;
+  cover_image_url?: string;
+  genres?: string[];
+  classifications?: any[];
+  ticketmaster_id?: string;
 }
 
 export interface CachedSong {
@@ -103,4 +124,27 @@ export interface CachedSong {
   preview_url?: string;
   last_synced_at: string;
   spotify_id?: string;
+}
+
+export interface ArtistSearchResult {
+  name: string;
+  image?: string;
+  venue?: string;
+  date?: string;
+  url?: string;
+  capacity?: number;
+  relevanceScore?: number;
+  ticketmaster_id?: string;
+  dates?: {
+    start: {
+      dateTime: string;
+    };
+  };
+  _embedded?: {
+    venues?: TicketmasterVenue[];
+  };
+  images?: Array<{
+    url: string;
+    ratio?: string;
+  }>;
 }

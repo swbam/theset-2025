@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../integrations/supabase/client";
 import { getArtistTracks } from "../integrations/spotify/client";
@@ -40,12 +41,15 @@ export function useArtistSongs(artistId: string | undefined) {
         // Cache the tracks in our database
         const { data: insertedSongs, error: insertError } = await supabase
           .from('cached_songs')
-          .upsert(
+          .insert(
             spotifyTracks.map(track => ({
               artist_id: artistId,
               name: track.name,
+              platform_id: track.id,
               spotify_id: track.id,
-              popularity: track.popularity || 0
+              popularity: track.popularity || 0,
+              preview_url: track.preview_url,
+              album: track.album?.name
             }))
           )
           .select();
@@ -53,12 +57,7 @@ export function useArtistSongs(artistId: string | undefined) {
         if (insertError) {
           console.error('Error caching songs:', insertError);
           // Return Spotify tracks even if caching failed
-          return spotifyTracks.map(track => ({
-            artist_id: artistId,
-            name: track.name,
-            spotify_id: track.id,
-            popularity: track.popularity || 0
-          }));
+          return spotifyTracks;
         }
 
         console.log('Successfully cached songs:', insertedSongs.length);
