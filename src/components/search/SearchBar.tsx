@@ -1,7 +1,8 @@
+
 import { useState } from "react";
 import { Input } from "../../components/ui/input";
 import { Search, Loader2 } from "lucide-react";
-import { searchArtists } from "../../integrations/ticketmaster/api";
+import { searchArtists } from "../../integrations/ticketmaster/client";
 import { useToast } from "../../components/ui/use-toast";
 import { useDebouncedCallback } from 'use-debounce';
 import type { TicketmasterEvent } from "../../integrations/ticketmaster/types";
@@ -11,6 +12,7 @@ interface SearchResult {
   image?: string;
   venue?: string;
   date?: string;
+  relevanceScore?: number;
 }
 
 interface SearchBarProps {
@@ -38,12 +40,29 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
         const artist = event._embedded?.attractions?.[0];
         const venue = event._embedded?.venues?.[0];
         const date = event.dates?.start?.dateTime;
+        const capacity = venue?.capacity ? parseInt(venue.capacity) : 0;
+        
+        // Calculate relevance score
+        let relevanceScore = 0;
+        if (artist?.name) {
+          // Exact match gets highest score
+          if (artist.name.toLowerCase() === query.toLowerCase()) {
+            relevanceScore += 1000000;
+          }
+          // Partial match gets medium score
+          else if (artist.name.toLowerCase().includes(query.toLowerCase())) {
+            relevanceScore += 100000;
+          }
+          // Add venue capacity to score
+          relevanceScore += capacity;
+        }
         
         return {
           name: artist?.name || '',
           image: artist?.images?.[0]?.url || event.images?.[0]?.url,
           venue: venue?.displayName || venue?.name,
-          date: date ? new Date(date).toLocaleDateString() : undefined
+          date: date ? new Date(date).toLocaleDateString() : undefined,
+          relevanceScore
         };
       });
 
@@ -58,20 +77,8 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
 
       // Sort results by relevance
       const sortedResults = uniqueResults.sort((a, b) => {
-        // Exact match gets highest priority
-        const exactMatchA = a.name.toLowerCase() === query.toLowerCase();
-        const exactMatchB = b.name.toLowerCase() === query.toLowerCase();
-        if (exactMatchA && !exactMatchB) return -1;
-        if (!exactMatchB && exactMatchA) return 1;
-        
-        // Contains match gets second priority
-        const containsA = a.name.toLowerCase().includes(query.toLowerCase());
-        const containsB = b.name.toLowerCase().includes(query.toLowerCase());
-        if (containsA && !containsB) return -1;
-        if (!containsA && containsB) return 1;
-        
-        // Finally sort alphabetically
-        return a.name.localeCompare(b.name);
+        // Use calculated relevance score
+        return (b.relevanceScore || 0) - (a.relevanceScore || 0);
       });
 
       setSearchResults(sortedResults.slice(0, 10)); // Limit to top 10 results

@@ -6,166 +6,113 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
-      artists: {
+      artist_identifiers: {
         Row: {
-          id: string
-          name: string
+          artist_id: string
           created_at: string | null
-          updated_at: string | null
-          metadata: Json | null
-          image_url: string | null
-          cover_image_url: string | null
+          id: string
+          last_synced_at: string | null
+          platform: string
+          platform_data: Json | null
+          platform_id: string
         }
         Insert: {
-          id?: string
-          name: string
+          artist_id: string
           created_at?: string | null
-          updated_at?: string | null
-          metadata?: Json | null
-          image_url?: string | null
-          cover_image_url?: string | null
+          id?: string
+          last_synced_at?: string | null
+          platform: string
+          platform_data?: Json | null
+          platform_id: string
         }
         Update: {
-          id?: string
-          name?: string
+          artist_id?: string
           created_at?: string | null
-          updated_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          platform?: string
+          platform_data?: Json | null
+          platform_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_identifiers_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artists: {
+        Row: {
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
           metadata?: Json | null
-          image_url?: string | null
-          cover_image_url?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
-      artist_identifiers: {
-        Row: {
-          id: string
-          artist_id: string
-          platform: 'spotify' | 'ticketmaster'
-          platform_id: string
-          last_synced_at: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          artist_id: string
-          platform: 'spotify' | 'ticketmaster'
-          platform_id: string
-          last_synced_at?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          artist_id?: string
-          platform?: 'spotify' | 'ticketmaster'
-          platform_id?: string
-          last_synced_at?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_artist_identifiers_artist"
-            columns: ["artist_id"]
-            isOneToOne: false
-            referencedRelation: "artists"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      sync_events: {
-        Row: {
-          id: string
-          type: 'artist_sync' | 'platform_link' | 'identifier_update'
-          status: 'success' | 'error'
-          platform: 'spotify' | 'ticketmaster'
-          artist_id: string | null
-          platform_id: string | null
-          error: string | null
-          metadata: Json | null
-          timestamp: string
-        }
-        Insert: {
-          id?: string
-          type: 'artist_sync' | 'platform_link' | 'identifier_update'
-          status: 'success' | 'error'
-          platform: 'spotify' | 'ticketmaster'
-          artist_id?: string | null
-          platform_id?: string | null
-          error?: string | null
-          metadata?: Json | null
-          timestamp?: string
-        }
-        Update: {
-          id?: string
-          type?: 'artist_sync' | 'platform_link' | 'identifier_update'
-          status?: 'success' | 'error'
-          platform?: 'spotify' | 'ticketmaster'
-          artist_id?: string | null
-          platform_id?: string | null
-          error?: string | null
-          metadata?: Json | null
-          timestamp?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sync_events_artist_id_fkey"
-            columns: ["artist_id"]
-            isOneToOne: false
-            referencedRelation: "artists"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       cached_shows: {
         Row: {
-          id: string
           artist_id: string
-          name: string
-          date: string
-          platform_id: string | null
-          venue_id: string | null
-          venue_name: string | null
-          venue_location: Json | null
-          price_ranges: Json | null
-          ticket_url: string | null
-          status: string | null
           created_at: string | null
-          updated_at: string | null
+          date: string
+          id: string
           last_synced_at: string | null
+          name: string
+          status: string | null
+          ticket_url: string | null
+          ticketmaster_id: string
+          venue_id: string | null
+          venue_location: string | null
+          venue_name: string | null
         }
         Insert: {
-          id?: string
           artist_id: string
-          name: string
-          date: string
-          platform_id?: string | null
-          venue_id?: string | null
-          venue_name?: string | null
-          venue_location?: Json | null
-          price_ranges?: Json | null
-          ticket_url?: string | null
-          status?: string | null
           created_at?: string | null
-          updated_at?: string | null
+          date: string
+          id?: string
           last_synced_at?: string | null
+          name: string
+          status?: string | null
+          ticket_url?: string | null
+          ticketmaster_id: string
+          venue_id?: string | null
+          venue_location?: string | null
+          venue_name?: string | null
         }
         Update: {
-          id?: string
           artist_id?: string
-          name?: string
-          date?: string
-          platform_id?: string | null
-          venue_id?: string | null
-          venue_name?: string | null
-          venue_location?: Json | null
-          price_ranges?: Json | null
-          ticket_url?: string | null
-          status?: string | null
           created_at?: string | null
-          updated_at?: string | null
+          date?: string
+          id?: string
           last_synced_at?: string | null
+          name?: string
+          status?: string | null
+          ticket_url?: string | null
+          ticketmaster_id?: string
+          venue_id?: string | null
+          venue_location?: string | null
+          venue_name?: string | null
         }
         Relationships: [
           {
@@ -174,45 +121,49 @@ export interface Database {
             isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["id"]
-          }
+          },
+          {
+            foreignKeyName: "cached_shows_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cached_songs: {
         Row: {
-          id: string
-          artist_id: string | null
-          name: string
-          platform_id: string | null
           album: string | null
+          artist_id: string
+          created_at: string | null
+          id: string
+          last_synced_at: string | null
+          name: string
+          platform_id: string
           popularity: number | null
           preview_url: string | null
-          created_at: string | null
-          updated_at: string | null
-          last_synced_at: string | null
         }
         Insert: {
-          id?: string
-          artist_id?: string | null
-          name: string
-          platform_id?: string | null
           album?: string | null
+          artist_id: string
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          name: string
+          platform_id: string
           popularity?: number | null
           preview_url?: string | null
-          created_at?: string | null
-          updated_at?: string | null
-          last_synced_at?: string | null
         }
         Update: {
-          id?: string
-          artist_id?: string | null
-          name?: string
-          platform_id?: string | null
           album?: string | null
+          artist_id?: string
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          name?: string
+          platform_id?: string
           popularity?: number | null
           preview_url?: string | null
-          created_at?: string | null
-          updated_at?: string | null
-          last_synced_at?: string | null
         }
         Relationships: [
           {
@@ -221,32 +172,290 @@ export interface Database {
             isOneToOne: false
             referencedRelation: "artists"
             referencedColumns: ["id"]
-          }
+          },
+        ]
+      }
+      setlist_songs: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_top_track: boolean | null
+          setlist_id: string
+          song_name: string
+          updated_at: string | null
+          votes: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_top_track?: boolean | null
+          setlist_id: string
+          song_name: string
+          updated_at?: string | null
+          votes?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_top_track?: boolean | null
+          setlist_id?: string
+          song_name?: string
+          updated_at?: string | null
+          votes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setlist_songs_setlist_id_fkey"
+            columns: ["setlist_id"]
+            isOneToOne: false
+            referencedRelation: "setlists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      setlists: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          show_id: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          show_id: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          show_id?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setlists_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "cached_shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_artists: {
+        Row: {
+          artist_id: string | null
+          created_at: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          artist_id?: string | null
+          created_at?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          artist_id?: string | null
+          created_at?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_artists_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_artists_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          spotify_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id: string
+          spotify_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          spotify_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          setlist_song_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          setlist_song_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          setlist_song_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_votes_setlist_song_id_fkey"
+            columns: ["setlist_song_id"]
+            isOneToOne: false
+            referencedRelation: "setlist_songs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_votes_setlist_song_id_fkey"
+            columns: ["setlist_song_id"]
+            isOneToOne: false
+            referencedRelation: "song_vote_counts"
+            referencedColumns: ["song_id"]
+          },
+          {
+            foreignKeyName: "user_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venues: {
+        Row: {
+          capacity: number | null
+          city: string
+          country: string | null
+          created_at: string | null
+          id: string
+          last_synced_at: string | null
+          name: string
+          state: string | null
+          ticketmaster_id: string
+        }
+        Insert: {
+          capacity?: number | null
+          city: string
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          name: string
+          state?: string | null
+          ticketmaster_id: string
+        }
+        Update: {
+          capacity?: number | null
+          city?: string
+          country?: string | null
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          name?: string
+          state?: string | null
+          ticketmaster_id?: string
+        }
+        Relationships: []
+      }
+      vote_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          ip_address: string | null
+          song_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          song_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ip_address?: string | null
+          song_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vote_logs_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "setlist_songs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vote_logs_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "song_vote_counts"
+            referencedColumns: ["song_id"]
+          },
         ]
       }
     }
     Views: {
-      sync_health_metrics: {
+      song_vote_counts: {
         Row: {
-          time_bucket: string
-          total_events: number
-          successful_events: number
-          error_events: number
-          error_rate: number
+          setlist_id: string | null
+          song_id: string | null
+          vote_count: number | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "setlist_songs_setlist_id_fkey"
+            columns: ["setlist_id"]
+            isOneToOne: false
+            referencedRelation: "setlists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
-      check_sync_health: {
+      cast_vote: {
         Args: {
-          check_period?: string
+          p_song_id: string
+          p_user_id?: string
+          p_ip_address?: string
         }
-        Returns: {
-          status: string
-          error_rate: number
-          total_events: number
-          error_events: number
-        }[]
+        Returns: undefined
       }
     }
     Enums: {
@@ -257,3 +466,100 @@ export interface Database {
     }
   }
 }
+
+type PublicSchema = Database[Extract<keyof Database, "public">]
+
+export type Tables<
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof PublicSchema["CompositeTypes"]
+    | { schema: keyof Database },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
+    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never

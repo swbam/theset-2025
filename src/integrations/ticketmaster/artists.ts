@@ -1,3 +1,4 @@
+
 import { supabase } from "../supabase/client";
 import { artistIdentifiers } from "../supabase/artistIdentifiers";
 import { searchArtists as searchTicketmasterArtists, fetchArtistEvents as fetchTicketmasterArtistEvents } from "./api";
@@ -10,9 +11,9 @@ interface ArtistSearchResult {
   venue?: string;
   date?: string;
   url?: string;
-  capacity: number;
-  relevanceScore: number;
-  ticketmaster_id: string;
+  capacity?: number;
+  relevanceScore?: number;
+  ticketmaster_id?: string;
 }
 
 export const searchArtists = async (query: string): Promise<ArtistSearchResult[]> => {
@@ -51,14 +52,14 @@ export const searchArtists = async (query: string): Promise<ArtistSearchResult[]
             url: event.url,
             capacity: venueCapacity,
             relevanceScore: nameMatchScore + venueCapacity,
-            ticketmaster_id: artist.id || ''
+            ticketmaster_id: artist.id
           });
         }
       }
     });
 
     const results = Array.from(uniqueArtists.values())
-      .sort((a, b) => b.relevanceScore - a.relevanceScore);
+      .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
 
     console.log(`Found ${results.length} unique artists`);
     return results;
