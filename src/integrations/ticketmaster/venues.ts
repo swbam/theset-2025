@@ -78,7 +78,12 @@ export const fetchVenueEvents = async (venueId: string) => {
 
   console.log('Fetching fresh venue data from Ticketmaster');
   try {
-    const response = await callTicketmasterApi(`venues/${venueId}/events`);
+    const response = await callTicketmasterApi('events', {
+      venueId,
+      sort: 'date,asc',
+      size: '100'
+    });
+    
     const shows = response._embedded?.events || [];
     
     if (shows.length > 0) {
