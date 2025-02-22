@@ -9,70 +9,80 @@ import { ShowCard } from "../components/shows/ShowCard";
 import { fetchPopularShows } from "../integrations/ticketmaster/shows";
 import type { TicketmasterEvent } from "../integrations/ticketmaster/types";
 import { useToast } from "../components/ui/use-toast";
+import { EmptyState } from "../components/shows/EmptyState";
+import { LoadingState } from "../components/shows/LoadingState";
 
 const Index = () => {
   const { user, signInWithSpotify } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: popularShows, isLoading, error, refetch, isError } = useQuery<TicketmasterEvent[]>({
+  const { data: popularShows, isLoading, error, refetch } = useQuery<TicketmasterEvent[]>({
     queryKey: ['popularShows'],
     queryFn: async () => {
       try {
         console.log('Fetching popular shows...');
         const shows = await fetchPopularShows();
-        console.log('Received shows:', shows?.length || 0);
         
         if (!shows) {
           console.warn('No shows returned from API');
-          throw new Error('Failed to fetch shows from Ticketmaster');
-        }
-
-        if (shows.length === 0) {
-          console.warn('Empty shows array returned from API');
-          throw new Error('No upcoming shows found');
+          return [];
         }
 
         // Validate show data
         const validShows = shows.filter(show => {
-          if (!show._embedded?.attractions?.[0]?.name) {
-            console.warn('Show missing artist name:', show.id);
-            return false;
+          const isValid = !!(
+            show._embedded?.attractions?.[0]?.name &&
+            show._embedded?.venues?.[0]?.name &&
+            show.dates?.start?.dateTime
+          );
+
+          if (!isValid) {
+            console.warn('Filtering out invalid show:', show.id);
           }
-          if (!show._embedded?.venues?.[0]?.name) {
-            console.warn('Show missing venue name:', show.id);
-            return false;
-          }
-          if (!show.dates?.start?.dateTime) {
-            console.warn('Show missing date:', show.id);
-            return false;
-          }
-          return true;
+
+          return isValid;
         });
 
         if (validShows.length === 0) {
           console.warn('No valid shows after filtering');
-          throw new Error('No valid shows available');
+          return [];
         }
 
         console.log(`Returning ${validShows.length} valid shows`);
         return validShows;
       } catch (error) {
         console.error('Error in popularShows query:', error);
-        toast({
-          title: "Error loading shows",
-          description: error instanceof Error 
-            ? error.message 
-            : "Failed to load popular shows. Please try again later.",
-          variant: "destructive"
-        });
-        throw error;
+        
+        // Check if it's a Supabase Edge Function error
+        if (error instanceof Error && error.message.includes('Edge Function')) {
+          toast({
+            title: "API Service Unavailable",
+            description: "We're having trouble connecting to our show data service. Please try again later.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error loading shows",
+            description: error instanceof Error 
+              ? error.message 
+              : "Failed to load popular shows. Please try again later.",
+            variant: "destructive"
+          });
+        }
+        
+        return [];
       }
     },
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     refetchOnWindowFocus: false,
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retry: (failureCount, error) => {
+      // Don't retry on Edge Function errors
+      if (error instanceof Error && error.message.includes('Edge Function')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
     refetchOnMount: true
   });
 
@@ -125,49 +135,26 @@ const Index = () => {
       </div>
 
       <div className="max-w-7xl mx-auto">
-        {/* Popular Shows Section */}
         <div className="space-y-6">
           <h2 className="text-2xl font-semibold tracking-tight">Popular Shows</h2>
           {isLoading ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div 
-                  key={i} 
-                  className="h-64 bg-black/30 animate-pulse rounded-lg"
-                  role="status"
-                  aria-label="Loading shows..."
-                />
-              ))}
-            </div>
-          ) : isError ? (
-            <div className="text-center py-8 text-red-400">
-              <p>Unable to load shows. Please try again later.</p>
-              <p className="text-sm mt-2 text-red-500/70">
-                {error instanceof Error ? error.message : 'An unknown error occurred'}
-              </p>
-              <Button 
-                onClick={handleRetry}
-                variant="outline"
-                className="mt-4"
-              >
-                Retry
-              </Button>
-            </div>
-          ) : !popularShows || popularShows.length === 0 ? (
-            <div className="text-center py-8 text-zinc-400">
-              <p>No shows found at the moment.</p>
-              <p className="mt-2">Check back later for updates!</p>
-              <Button 
-                onClick={handleRetry}
-                variant="outline"
-                className="mt-4"
-              >
-                Retry
-              </Button>
-            </div>
+            <LoadingState />
+          ) : error || !popularShows || popularShows.length === 0 ? (
+            <EmptyState
+              title="No shows available"
+              description="We're having trouble loading shows right now. Please try again later."
+              action={
+                <Button 
+                  onClick={handleRetry}
+                  variant="outline"
+                >
+                  Retry
+                </Button>
+              }
+            />
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {popularShows.map((show: TicketmasterEvent) => (
+              {popularShows.map((show) => (
                 <ShowCard 
                   key={show.id} 
                   show={show}
