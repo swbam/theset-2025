@@ -1,147 +1,98 @@
-import { supabase } from '../supabase/client';
-import type { Database } from '../supabase/types';
 
-type SyncEventType = Database['public']['Tables']['sync_events']['Row']['type'];
-type SyncEventStatus = Database['public']['Tables']['sync_events']['Row']['status'];
-type Platform = Database['public']['Tables']['sync_events']['Row']['platform'];
+import { supabase } from "../supabase/client";
+import type { Platform } from "../supabase/types";
 
 interface SyncEvent {
-  type: SyncEventType;
-  status: SyncEventStatus;
-  platform: Platform;
-  artistId?: string;
-  platformId?: string;
+  platform: string;
+  success: boolean;
+  type: string;
+  artist_id?: string;
   error?: string;
-  metadata?: Record<string, any>;
+  status?: string;
+  check_period?: string;
 }
 
-export const artistSyncMonitoring = {
-  /**
-   * Log a sync event to the monitoring system
-   */
-  async logSyncEvent(event: SyncEvent) {
-    try {
-      const { error } = await supabase
-        .from('sync_events')
-        .insert({
-          type: event.type,
-          status: event.status,
-          platform: event.platform,
-          artist_id: event.artistId,
-          platform_id: event.platformId,
-          error: event.error,
-          metadata: event.metadata,
-          timestamp: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error logging sync event:', error);
-      }
-    } catch (error) {
-      console.error('Failed to log sync event:', error);
-    }
-  },
-
-  /**
-   * Get recent sync events for an artist
-   */
-  async getArtistSyncHistory(artistId: string, limit = 10) {
-    const { data, error } = await supabase
+export async function logSyncEvent(event: SyncEvent) {
+  try {
+    const { error } = await supabase
       .from('sync_events')
-      .select('*')
-      .eq('artist_id', artistId)
-      .order('timestamp', { ascending: false })
-      .limit(limit);
-
-    if (error) {
-      console.error('Error fetching sync history:', error);
-      return [];
-    }
-
-    return data;
-  },
-
-  /**
-   * Get sync status metrics
-   */
-  async getSyncMetrics(timeframe: 'hour' | 'day' | 'week' = 'day') {
-    const { data: metrics, error } = await supabase
-      .rpc('check_sync_health', {
-        check_period: `${timeframe === 'hour' ? '1 hour' : 
-                       timeframe === 'day' ? '1 day' : 
-                       '7 days'}`
+      .insert({
+        platform: event.platform,
+        success: event.success,
+        type: event.type,
+        artist_id: event.artist_id,
+        error: event.error,
+        status: event.status,
+        check_period: event.check_period
       });
 
-    if (error) {
-      console.error('Error fetching sync metrics:', error);
-      return null;
-    }
+    if (error) throw error;
 
-    const { data: events } = await supabase
-      .from('sync_events')
-      .select('*')
-      .gte('timestamp', `now() - interval '${
-        timeframe === 'hour' ? '1 hour' : 
-        timeframe === 'day' ? '24 hours' : 
-        '7 days'
-      }'`);
+    // Update sync metrics
+    await updateSyncMetrics(event.platform, event.success);
+  } catch (error) {
+    console.error('Error logging sync event:', error);
+  }
+}
 
-    const syncEvents = events || [];
+async function updateSyncMetrics(platform: string, success: boolean) {
+  const { data: existingMetrics } = await supabase
+    .from('sync_metrics')
+    .select('*')
+    .eq('platform', platform)
+    .single();
 
-    return {
-      ...metrics?.[0],
-      byPlatform: {
-        spotify: syncEvents.filter(e => e.platform === 'spotify').length,
-        ticketmaster: syncEvents.filter(e => e.platform === 'ticketmaster').length
-      },
-      byType: {
-        artist_sync: syncEvents.filter(e => e.type === 'artist_sync').length,
-        platform_link: syncEvents.filter(e => e.type === 'platform_link').length,
-        identifier_update: syncEvents.filter(e => e.type === 'identifier_update').length
-      }
-    };
-  },
+  if (existingMetrics) {
+    await supabase
+      .from('sync_metrics')
+      .update({
+        success_count: success ? existingMetrics.success_count + 1 : existingMetrics.success_count,
+        error_count: success ? existingMetrics.error_count : existingMetrics.error_count + 1,
+        last_sync_time: new Date().toISOString(),
+        platform
+      })
+      .eq('id', existingMetrics.id);
+  } else {
+    await supabase
+      .from('sync_metrics')
+      .insert({
+        platform,
+        success_count: success ? 1 : 0,
+        error_count: success ? 0 : 1,
+        last_sync_time: new Date().toISOString()
+      });
+  }
+}
 
-  /**
-   * Check for potential sync issues
-   */
-  async checkSyncHealth() {
-    const { data: metrics, error } = await supabase
-      .rpc('check_sync_health');
+export async function checkSyncHealth(platform: Platform) {
+  try {
+    const { data, error } = await supabase.rpc('check_sync_health', {
+      platform
+    });
 
-    if (error) {
-      console.error('Error checking sync health:', error);
-      return null;
-    }
+    if (error) throw error;
 
-    const { data: recentErrors } = await supabase
-      .from('sync_events')
-      .select('*')
-      .eq('status', 'error')
-      .gte('timestamp', `now() - interval '1 hour'`)
-      .order('timestamp', { ascending: false });
-
-    const healthData = metrics?.[0];
-    
-    if (!healthData) {
+    if (!data || data.length === 0) {
       return {
-        status: 'unknown',
-        errorRate: 0,
-        recentErrors: []
+        health_status: 'unknown',
+        last_sync: null,
+        error_rate: 0
       };
     }
 
+    const health = data[0];
+    
     return {
-      status: healthData.status,
-      errorRate: healthData.error_rate,
-      totalEvents: healthData.total_events,
-      errorEvents: healthData.error_events,
-      recentErrors: (recentErrors || []).map(e => ({
-        type: e.type,
-        platform: e.platform,
-        error: e.error,
-        timestamp: e.timestamp
-      }))
+      health_status: health.health_status,
+      last_sync: health.last_sync,
+      error_rate: health.error_rate
+    };
+  } catch (error) {
+    console.error('Error checking sync health:', error);
+    return {
+      health_status: 'error',
+      last_sync: null,
+      error_rate: 100
     };
   }
-};
+}
