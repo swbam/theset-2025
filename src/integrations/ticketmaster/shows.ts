@@ -33,9 +33,7 @@ export const fetchPopularShows = async (): Promise<TicketmasterEvent[]> => {
     return Array.from(artistShows.values());
   } catch (error) {
     console.error('Error fetching popular shows:', error);
+    // Re-throw so the UI can handle the error appropriately
     throw error;
   }
 };
-
-export { updateShowCache } from './cache';
-export { prepareShowForCache } from './showTransform';

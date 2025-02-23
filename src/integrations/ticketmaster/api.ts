@@ -12,10 +12,13 @@ interface TicketmasterResponse {
     size?: number;
     number?: number;
   };
+  error?: {
+    message?: string;
+  };
 }
 
 export async function callTicketmasterApi(
-  endpoint: 'events' | 'search' | 'popularShows',
+  endpoint: 'events' | 'search',
   params: Record<string, string> = {}
 ): Promise<TicketmasterResponse> {
   try {
@@ -25,8 +28,13 @@ export async function callTicketmasterApi(
     });
 
     if (error) {
-      console.error('Ticketmaster API error:', error);
+      console.error('Supabase function error:', error);
       throw error;
+    }
+
+    if (!data || data.error) {
+      console.error('Ticketmaster API error:', data?.error);
+      throw new Error(data?.error || 'Failed to fetch data from Ticketmaster');
     }
 
     return data;
@@ -58,7 +66,8 @@ export async function fetchArtistEvents(artistName: string) {
   try {
     const response = await callTicketmasterApi('events', {
       keyword: artistName.trim(),
-      size: '100'
+      size: '100',
+      classificationName: 'music'
     });
 
     return response._embedded?.events || [];
