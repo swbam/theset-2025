@@ -1,31 +1,18 @@
 
-export interface SetlistSong {
-  id: string;
-  setlist_id: string;
-  song_name: string;
-  votes: number;
-  is_top_track: boolean;
-  spotify_id?: string;
-  suggested?: boolean;
+import type { Show } from "./show";
+
+export interface SetlistSongs {
+  [songId: string]: number; // songId: votes mapping
 }
 
 export interface Setlist {
   id: string;
   show_id: string;
-  name: string;
-  created_by: string;
-  created_at: string;
-  status: string;
-  songs: SetlistSong[];
+  songs: SetlistSongs;
+  created_at?: string;
+  show?: Show;
 }
 
-export interface CreateSetlistParams {
-  showName: string;
-  venueId?: string;
-}
-
-export interface AddSongParams {
-  songName: string;
-  setlistId: string;
-  spotifyId?: string;
+export interface SetlistWithShow extends Setlist {
+  show: Show;
 }

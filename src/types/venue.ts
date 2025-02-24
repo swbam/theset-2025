@@ -1,13 +1,8 @@
 
-export interface CachedVenue {
+export interface Venue {
   id: string;
-  name: string;
-  city: string;
-  state?: string;
-  country?: string;
-  capacity?: number;
-  venue_image_url?: string | null;
-  display_name?: string;
-  display_location?: string;
   ticketmaster_id: string;
+  name: string;
+  metadata?: Record<string, any>;
+  created_at?: string;
 }

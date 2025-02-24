@@ -1,52 +1,38 @@
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchArtistEvents } from "@/integrations/ticketmaster/client";
 import { supabase } from "@/integrations/supabase/client";
+import type { Show } from "@/types/show";
 
-export const useArtistShows = (normalizedArtistName: string, artistId: string | undefined) => {
+export function useArtistShows(artistId: string | undefined) {
   return useQuery({
-    queryKey: ['artistShows', normalizedArtistName, artistId],
+    queryKey: ['artistShows', artistId],
     queryFn: async () => {
-      console.log('Fetching shows for artist:', normalizedArtistName, 'with ID:', artistId);
-
       if (!artistId) {
         console.error('No artist ID provided');
         return [];
       }
 
-      // First try to get cached shows
-      const { data: cachedShows, error: cachedError } = await supabase
-        .from('cached_shows')
+      console.log('Fetching shows for artist:', artistId);
+
+      const { data: shows, error } = await supabase
+        .from('shows')
         .select(`
           *,
+          artist:artists(*),
           venue:venues(*),
-          artist:artists!cached_shows_artist_id_fkey(*)
+          setlist:setlists(*)
         `)
         .eq('artist_id', artistId)
         .gte('date', new Date().toISOString())
         .order('date', { ascending: true });
 
-      if (cachedError) {
-        console.error('Error fetching cached shows:', cachedError);
+      if (error) {
+        console.error('Error fetching shows:', error);
+        throw error;
       }
 
-      // Check if we need to refresh the cache
-      const { data: needsRefresh } = await supabase
-        .rpc('needs_artist_refresh', {
-          last_sync: cachedShows?.[0]?.last_synced_at,
-          ttl_hours: 1
-        });
-
-      if (cachedShows && cachedShows.length > 0 && !needsRefresh) {
-        console.log('Found fresh cached shows:', cachedShows.length);
-        return cachedShows;
-      }
-
-      // If no cached shows or cache is stale, fetch from Ticketmaster
-      console.log('No fresh cached shows found, fetching from Ticketmaster');
-      const response = await fetchArtistEvents(normalizedArtistName);
-      return response;
+      return shows as Show[];
     },
-    enabled: !!normalizedArtistName && !!artistId,
+    enabled: !!artistId
   });
-};
+}
