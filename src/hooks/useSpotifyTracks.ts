@@ -1,73 +1,82 @@
+
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "../integrations/supabase/client";
-import { getArtistTracks, searchArtist, SpotifyTrack } from "../integrations/spotify/client";
-import { useAuth } from "@supabase/auth-helpers-react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  popularity: number;
+}
 
 export function useSpotifyTracks(artistName: string | undefined, setlistId: string | undefined) {
-  const { session } = useAuth();
-  const accessToken = session?.provider_token;
-
   return useQuery({
     queryKey: ['spotify-tracks', artistName, setlistId],
     queryFn: async () => {
-      if (!artistName || !setlistId || !accessToken) {
-        console.log('Missing required params:', { artistName, setlistId, hasToken: !!accessToken });
-        return null;
-      }
+      if (!artistName || !setlistId) return null;
 
       console.log('Checking for top tracks for:', artistName, 'setlist:', setlistId);
 
       // First check if we already have top tracks in the setlist
-      const { data: existingTracks, error: existingError } = await supabase
+      const { data: existingTracks } = await supabase
         .from('setlist_songs')
         .select('*')
         .eq('setlist_id', setlistId)
         .eq('is_top_track', true);
 
-      if (existingError) {
-        console.error('Error fetching existing tracks:', existingError);
-        throw existingError;
-      }
-
       if (existingTracks && existingTracks.length > 0) {
         console.log('Found existing top tracks:', existingTracks.length);
-        return existingTracks;
+        return null; // Top tracks already added
       }
 
-      // Search for the artist on Spotify
-      const artist = await searchArtist(accessToken, artistName);
+      // Get the artist's ID first
+      const { data: artist } = await supabase
+        .from('artists')
+        .select('*')
+        .ilike('name', artistName)
+        .single();
+
       if (!artist) {
-        console.log('Artist not found on Spotify:', artistName);
+        console.log('Artist not found:', artistName);
         return null;
       }
 
-      // Get the artist's top tracks from Spotify
-      const topTracks = await getArtistTracks(accessToken, artist.id);
-      
-      // Insert the tracks into our database
-      const { data: insertedTracks, error: insertError } = await supabase
+      // Get cached songs for the artist
+      const { data: songs } = await supabase
+        .from('cached_songs')
+        .select('*')
+        .eq('artist_id', artist.id)
+        .order('popularity', { ascending: false })
+        .limit(10);
+
+      if (!songs || songs.length === 0) {
+        console.log('No cached songs found for artist:', artistName);
+        return null;
+      }
+
+      console.log('Found cached songs:', songs.length);
+
+      // Insert top tracks into setlist
+      const { data: insertedSongs, error } = await supabase
         .from('setlist_songs')
-        .upsert(
-          topTracks.map(track => ({
+        .insert(
+          songs.map(song => ({
             setlist_id: setlistId,
-            song_name: track.name,
-            spotify_id: track.id,
+            song_name: song.name,
+            spotify_id: song.spotify_id,
             is_top_track: true,
-            total_votes: 0,
-            suggested: false
+            total_votes: 0
           }))
         )
         .select();
 
-      if (insertError) {
-        console.error('Error inserting top tracks:', insertError);
-        throw insertError;
+      if (error) {
+        console.error('Error inserting top tracks:', error);
+        return null;
       }
 
-      console.log('Successfully inserted top tracks:', insertedTracks?.length);
-      return insertedTracks;
+      console.log('Successfully inserted top tracks:', insertedSongs?.length);
+      return insertedSongs;
     },
-    enabled: !!artistName && !!setlistId && !!accessToken,
-    retry: 1
+    enabled: !!artistName && !!setlistId,
   });
 }

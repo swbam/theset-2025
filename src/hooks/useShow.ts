@@ -18,12 +18,7 @@ export function useShow(eventId: string | undefined) {
         .select(`
           *,
           venue:venues(*),
-          artist:artists!cached_shows_artist_id_fkey(
-            id,
-            name,
-            spotify_id,
-            ticketmaster_id
-          )
+          artist:artists!cached_shows_artist_id_fkey(*)
         `)
         .eq('ticketmaster_id', eventId)
         .maybeSingle();
@@ -38,7 +33,7 @@ export function useShow(eventId: string | undefined) {
         return null;
       }
 
-      console.log('Found show with artist:', show);
+      console.log('Found show:', show);
       return show;
     },
     enabled: !!eventId,

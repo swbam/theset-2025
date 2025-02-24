@@ -1,16 +1,9 @@
-import { Json } from "../supabase/types";
-
-export interface PriceRange {
-  min: number;
-  max: number;
-  currency: string;
-  type: string;
-}
+import { Json } from "@/integrations/supabase/types";
 
 export interface TicketmasterVenue {
   id: string;
   name: string;
-  capacity?: string; // Changed from number to string since API returns it as string
+  capacity?: number;
   city?: {
     name: string;
     state?: {
@@ -35,8 +28,6 @@ export interface TicketmasterVenue {
     width?: number;
     height?: number;
   }>;
-  displayName?: string;
-  displayLocation?: string;
 }
 
 export interface TicketmasterEvent {
@@ -63,9 +54,6 @@ export interface TicketmasterEvent {
         segment: {
           name: string;
         };
-        genre?: {
-          name: string;
-        };
       }>;
     }>;
   };
@@ -74,7 +62,12 @@ export interface TicketmasterEvent {
     ratio?: string;
   }>;
   url: string;
-  priceRanges?: PriceRange[];
+  priceRanges?: Array<{
+    min: number;
+    max: number;
+    currency: string;
+    type: string;
+  }>;
   classifications?: Array<{
     primary: boolean;
     segment: {
@@ -90,12 +83,11 @@ export interface CachedVenue {
   state?: string;
   country?: string;
   address?: string;
+  location?: any;
   capacity?: number;
   venue_image_url?: string | null;
   last_synced_at: string;
   ticketmaster_id: string;
-  displayName?: string;
-  displayLocation?: string;
 }
 
 export interface CachedShow {
@@ -107,10 +99,10 @@ export interface CachedShow {
   venue_id?: string;
   venue?: CachedVenue;
   venue_name?: string;
-  venue_location?: string;
+  venue_location?: any;
   ticket_url: string;
   status?: string | null;
-  price_ranges?: PriceRange[];
+  price_ranges?: any;
   last_synced_at: string;
 }
 

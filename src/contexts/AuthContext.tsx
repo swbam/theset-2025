@@ -1,6 +1,7 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "../integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
@@ -40,15 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "spotify",
         options: {
-          scopes: [
-            "user-read-email",
-            "user-read-private",
-            "user-top-read",
-            "user-follow-read",
-            "playlist-read-private",
-            "user-library-read",
-            "artist-top-read"
-          ].join(" "),
+          scopes: "user-read-email user-read-private user-top-read user-follow-read",
         },
       });
       if (error) throw error;

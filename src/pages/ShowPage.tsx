@@ -1,29 +1,22 @@
+
 import { useParams } from "react-router-dom";
-import { useToast } from "../components/ui/use-toast";
-import { useAuth } from "../contexts/AuthContext";
-import { LoadingState } from "../components/shows/LoadingState";
-import { EmptyState } from "../components/shows/EmptyState";
-import { ShowDetails } from "../components/shows/ShowDetails";
-import { Setlist } from "../components/shows/Setlist";
-import { useShow } from "../hooks/useShow";
-import { useSetlist } from "../hooks/useSetlist";
-import { useVotes } from "../hooks/useVotes";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { LoadingState } from "@/components/shows/LoadingState";
+import { EmptyState } from "@/components/shows/EmptyState";
+import { ShowDetails } from "@/components/shows/ShowDetails";
+import { Setlist } from "@/components/shows/Setlist";
+import { useShow } from "@/hooks/useShow";
+import { useSetlist } from "@/hooks/useSetlist";
+import { useVotes } from "@/hooks/useVotes";
 
 export default function ShowPage() {
-  // Get all URL parameters
-  const { eventId, artistName, location, date } = useParams<{ 
-    eventId: string;
-    artistName: string;
-    location?: string;
-    date?: string;
-  }>();
-  
+  const { eventId, artistName } = useParams<{ eventId: string; artistName: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   
   const { data: show, isLoading: showLoading } = useShow(eventId);
   const { data: setlist, isLoading: setlistLoading, addSong } = useSetlist(show?.id, user);
-  console.log('Setlist data:', setlist);
   const { userVotes, handleVote } = useVotes(setlist?.id, user);
 
   const handleSuggest = async (songName: string, spotifyId?: string) => {
@@ -57,30 +50,23 @@ export default function ShowPage() {
   }
 
   // Get the artist data from the properly joined query
-  const artistNameFromShow = show.artist?.name;
+  const displayArtistName = show.artist?.name || artistName?.replace(/-/g, ' ');
   const artistId = show.artist?.id;
 
-  // Use URL parameters for meta tags if available
-  const formattedDate = date ? new Date(date).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }) : undefined;
-
-  const formattedLocation = location ? location.split('-').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ') : undefined;
-
-  // Set meta tags for SEO
-  document.title = `${artistNameFromShow || artistName} - ${formattedLocation || show.venue?.name} - ${formattedDate || new Date(show.date).toLocaleDateString()}`;
+  console.log('Show data:', {
+    showId: show.id,
+    artistName: displayArtistName,
+    artistId,
+    setlistId: setlist?.id,
+    setlist: setlist
+  });
 
   return (
     <div className="min-h-screen bg-black">
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="space-y-8">
           <ShowDetails
-            name={show.name.split(':')[0]} // Extract artist name before the colon
+            name={show.name}
             date={show.date}
             venue={show.venue}
           />
@@ -90,7 +76,7 @@ export default function ShowPage() {
             user={user}
             onVote={handleVote}
             onSuggest={handleSuggest}
-            artistName={artistNameFromShow || artistName}
+            artistName={displayArtistName}
             artistId={artistId}
           />
         </div>
