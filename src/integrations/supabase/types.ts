@@ -54,6 +54,39 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_identifiers: {
+        Row: {
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          last_synced_at: string | null
+          metadata: Json | null
+          platform: string
+          platform_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          last_synced_at?: string | null
+          metadata?: Json | null
+          platform: string
+          platform_id: string
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          last_synced_at?: string | null
+          metadata?: Json | null
+          platform?: string
+          platform_id?: string
+        }
+        Relationships: []
+      }
       setlists: {
         Row: {
           created_at: string | null
@@ -190,6 +223,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sync_events: {
+        Row: {
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          platform: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          platform: string
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          platform?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      sync_metrics: {
+        Row: {
+          created_at: string | null
+          error_count: number | null
+          id: string
+          last_sync_time: string | null
+          platform: string
+          success_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_count?: number | null
+          id?: string
+          last_sync_time?: string | null
+          platform: string
+          success_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_count?: number | null
+          id?: string
+          last_sync_time?: string | null
+          platform?: string
+          success_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       users: {
         Row: {
@@ -339,12 +435,27 @@ export type Database = {
         }
         Returns: boolean
       }
+      needs_sync: {
+        Args: {
+          last_sync: string
+          ttl_hours?: number
+        }
+        Returns: boolean
+      }
       needs_venue_refresh: {
         Args: {
           last_sync: string
           ttl_hours?: number
         }
         Returns: boolean
+      }
+      update_sync_metrics: {
+        Args: {
+          p_platform: string
+          p_success: boolean
+          p_error_message?: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
