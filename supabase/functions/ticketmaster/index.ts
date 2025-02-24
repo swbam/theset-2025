@@ -1,104 +1,77 @@
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const TICKETMASTER_API_KEY = Deno.env.get('TICKETMASTER_API_KEY');
-const TICKETMASTER_BASE_URL = 'https://app.ticketmaster.com/discovery/v2';
+// deno-lint-ignore-file no-explicit-any
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+  serve(handler: (req: Request) => Promise<Response>): void;
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function callTicketmasterAPI(endpoint: string, params: Record<string, string>) {
-  const searchParams = new URLSearchParams({
-    ...params,
-    apikey: TICKETMASTER_API_KEY!,
-  });
+const BASE_URL = "https://app.ticketmaster.com/discovery/v2";
 
-  const url = `${TICKETMASTER_BASE_URL}/${endpoint}.json?${searchParams}`;
-  
-  console.log('Calling Ticketmaster API:', url);
-
-  const response = await fetch(url);
-  
-  if (!response.ok) {
-    console.error('Ticketmaster API error:', {
-      status: response.status,
-      statusText: response.statusText
-    });
-    throw new Error(`Ticketmaster API error: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
-  }
-
+Deno.serve(async (req: Request): Promise<Response> => {
   try {
-    if (!TICKETMASTER_API_KEY) {
-      throw new Error('Ticketmaster API key not configured');
+    if (req.method === 'OPTIONS') {
+      return new Response('ok', { headers: corsHeaders });
     }
 
-    const { endpoint, params } = await req.json();
+    const { endpoint, query, params } = await req.json();
+    console.log(`Processing ${endpoint} request:`, { query, params });
 
-    if (!endpoint) {
-      throw new Error('No endpoint specified');
+    const apiKey = Deno.env.get('TICKETMASTER_API_KEY');
+    if (!apiKey) {
+      throw new Error('Missing Ticketmaster API key');
     }
 
-    console.log('Processing request:', { endpoint, params });
+    // Build query parameters
+    const queryParams = new URLSearchParams({
+      apikey: apiKey,
+      ...params,
+      classificationName: 'music',
+      countryCode: 'US',
+      segmentId: 'KZFzniwnSyZfZ7v7nJ', // Music segment ID
+      size: '100'
+    });
 
-    let response;
-    switch (endpoint) {
-      case 'events':
-        response = await callTicketmasterAPI('events', {
-          size: params.size || '20',
-          sort: params.sort || 'date,asc',
-          ...(params.classificationName && { classificationName: params.classificationName }),
-          ...(params.keyword && { keyword: params.keyword }),
-          ...(params.venueId && { venueId: params.venueId })
-        });
-        break;
-
-      case 'search':
-        response = await callTicketmasterAPI('events', {
-          keyword: params.keyword,
-          size: params.size || '100',
-          sort: 'relevance,desc'
-        });
-        break;
-
-      default:
-        throw new Error(`Invalid endpoint: ${endpoint}`);
+    if (query) {
+      queryParams.set('keyword', query);
     }
 
-    return new Response(JSON.stringify(response), {
+    const apiUrl = `${BASE_URL}/events.json?${queryParams.toString()}`;
+    console.log('Making request to:', apiUrl.replace(apiKey, '[REDACTED]'));
+
+    const response = await fetch(apiUrl, {
       headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
       }
     });
 
-  } catch (error) {
-    console.error('Edge function error:', error);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Ticketmaster API error:', response.status, errorText);
+      throw new Error(`Ticketmaster API error: ${response.status}`);
+    }
 
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      }),
-      {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    const data = await response.json();
+    console.log('Received response:', {
+      page: data.page,
+      totalElements: data.totalElements,
+      events: data._embedded?.events?.length || 0
+    });
+
+    return new Response(JSON.stringify(data), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Error in ticketmaster function:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });

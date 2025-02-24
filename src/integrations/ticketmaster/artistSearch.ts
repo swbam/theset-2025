@@ -1,16 +1,18 @@
+import { callTicketmasterFunction } from "./api";
 
-import { callTicketmasterApi } from "./api";
-
-export const searchArtist = async (query: string) => {
+// Function to search for artists
+export const searchArtists = async (query: string) => {
   try {
-    const response = await callTicketmasterApi('search', {
+    const response = await callTicketmasterFunction('attractions', undefined, {
+      size: '10',
+      sort: 'relevance,desc',
       keyword: query,
-      classificationName: 'music'
+      countryCode: 'US'
     });
-    
-    return response._embedded?.events || [];
+
+    return response?._embedded?.attractions || [];
   } catch (error) {
-    console.error('Error searching artist:', error);
-    throw error;
+    console.error('Error searching for artists:', error);
+    return [];
   }
 };

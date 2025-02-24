@@ -1,10 +1,13 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../integrations/supabase/client";
 import { useToast } from "../components/ui/use-toast";
 import { User } from "@supabase/supabase-js";
 import { useEffect } from "react";
-import type { VoteCount } from "../types/votes";
+
+interface VoteCount {
+  song_id: string;
+  vote_count: number;
+}
 
 export function useVotingSystem(setlistId: string | undefined, user: User | null) {
   const { toast } = useToast();
@@ -18,7 +21,7 @@ export function useVotingSystem(setlistId: string | undefined, user: User | null
 
       const { data, error } = await supabase
         .from('song_vote_counts')
-        .select('*')
+        .select('song_id, vote_count')
         .eq('setlist_id', setlistId);
 
       if (error) {
@@ -37,31 +40,17 @@ export function useVotingSystem(setlistId: string | undefined, user: User | null
     queryFn: async () => {
       if (!setlistId) return [];
 
-      if (user) {
-        const { data, error } = await supabase
-          .from('user_votes')
-          .select('song_id')
-          .eq('user_id', user.id);
+      const { data, error } = await supabase
+        .from('vote_logs')
+        .select('song_id')
+        .eq(user ? 'user_id' : 'ip_address', user?.id || 'anonymous');
 
-        if (error) {
-          console.error('Error fetching user votes:', error);
-          return [];
-        }
-
-        return data?.map(v => v.song_id) || [];
-      } else {
-        const { data, error } = await supabase
-          .from('anonymous_votes')
-          .select('song_id')
-          .eq('ip_address', 'anonymous'); // In production, this would be the actual IP
-
-        if (error) {
-          console.error('Error fetching anonymous votes:', error);
-          return [];
-        }
-
-        return data?.map(v => v.song_id) || [];
+      if (error) {
+        console.error('Error fetching user votes:', error);
+        return [];
       }
+
+      return data?.map(v => v.song_id) || [];
     },
     enabled: !!setlistId
   });
@@ -75,7 +64,7 @@ export function useVotingSystem(setlistId: string | undefined, user: User | null
 
       const { error } = await supabase.rpc('cast_vote', {
         p_song_id: songId,
-        p_user_id: user?.id,
+        p_user_id: user?.id || null,
         p_ip_address: user ? null : 'anonymous' // In production, this would be the actual IP
       });
 
@@ -87,6 +76,7 @@ export function useVotingSystem(setlistId: string | undefined, user: User | null
       }
     },
     onSuccess: () => {
+      // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['vote-counts', setlistId] });
       queryClient.invalidateQueries({ queryKey: ['user-votes', setlistId] });
       
@@ -119,6 +109,7 @@ export function useVotingSystem(setlistId: string | undefined, user: User | null
           filter: `setlist_id=eq.${setlistId}`
         },
         () => {
+          // Invalidate vote counts query when changes occur
           queryClient.invalidateQueries({ queryKey: ['vote-counts', setlistId] });
         }
       )
@@ -129,11 +120,13 @@ export function useVotingSystem(setlistId: string | undefined, user: User | null
     };
   }, [setlistId, queryClient]);
 
+  // Helper function to get vote count for a song
   const getVoteCount = (songId: string): number => {
     const voteData = voteCounts?.find(v => v.song_id === songId);
-    return voteData?.total_votes || 0;
+    return voteData?.vote_count || 0;
   };
 
+  // Helper function to check if user has voted for a song
   const hasVoted = (songId: string): boolean => {
     return userVotes?.includes(songId) || false;
   };

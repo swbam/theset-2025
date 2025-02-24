@@ -19,8 +19,6 @@ export const ArtistHero = ({
   isFollowActionPending, 
   onFollowClick 
 }: ArtistHeroProps) => {
-  const artistGenres = artist?.genres || [];
-  
   return (
     <div 
       className="h-[400px] relative bg-cover bg-center"
@@ -54,9 +52,9 @@ export const ArtistHero = ({
                 {isFollowing ? 'Following' : 'Follow'}
               </Button>
             </div>
-            {artistGenres.length > 0 && (
+            {artist?.genres && Array.isArray(artist.genres) && (
               <div className="flex gap-2">
-                {artistGenres.slice(0, 3).map((genre: string) => (
+                {artist.genres.slice(0, 3).map((genre: string) => (
                   <span 
                     key={genre} 
                     className="text-xs px-3 py-1 rounded-full bg-white/10 text-white font-medium"

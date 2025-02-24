@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { searchArtists } from "@/integrations/ticketmaster/client";
 import { getTopArtists, getFollowedArtists } from "@/integrations/spotify/client";
-import type { TicketmasterEvent } from "@/integrations/ticketmaster/types";
 
 export function RecommendedShows() {
   const { session } = useAuth();
@@ -31,11 +30,7 @@ export function RecommendedShows() {
       // Flatten and sort by date
       return showResults
         .flat()
-        .filter((show): show is TicketmasterEvent => !!show)
-        .sort((a, b) => 
-          new Date(a.dates.start.dateTime).getTime() - 
-          new Date(b.dates.start.dateTime).getTime()
-        )
+        .sort((a, b) => new Date(a.dates.start.dateTime).getTime() - new Date(b.dates.start.dateTime).getTime())
         .slice(0, 6);
     },
     enabled: !!spotifyToken,

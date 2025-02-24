@@ -1,37 +1,46 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Show } from "@/types/show";
 
-export function useShow(showId: string | undefined) {
+export function useShow(eventId: string | undefined) {
   return useQuery({
-    queryKey: ['show', showId],
+    queryKey: ['show', eventId],
     queryFn: async () => {
-      if (!showId) {
-        console.error('No show ID provided');
+      if (!eventId) {
+        console.error('No event ID provided');
         return null;
       }
       
-      console.log('Fetching show:', showId);
+      console.log('Fetching show with Ticketmaster ID:', eventId);
       
       const { data: show, error } = await supabase
-        .from('shows')
+        .from('cached_shows')
         .select(`
           *,
-          artist:artists(*),
           venue:venues(*),
-          setlist:setlists(*)
+          artist:artists!cached_shows_artist_id_fkey(
+            id,
+            name,
+            spotify_id,
+            ticketmaster_id
+          )
         `)
-        .eq('ticketmaster_id', showId)
-        .single();
+        .eq('ticketmaster_id', eventId)
+        .maybeSingle();
       
       if (error) {
         console.error('Error fetching show:', error);
-        throw error;
+        return null;
       }
 
-      return show as Show;
+      if (!show) {
+        console.error('Show not found for ID:', eventId);
+        return null;
+      }
+
+      console.log('Found show with artist:', show);
+      return show;
     },
-    enabled: !!showId,
+    enabled: !!eventId,
   });
 }

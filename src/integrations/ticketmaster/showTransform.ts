@@ -19,7 +19,6 @@ export const prepareShowForCache = (show: TicketmasterEvent, artistId?: string |
     venue_location: venue ? JSON.stringify(venue) : null,
     ticket_url: show.url,
     status: show.dates?.status?.code || null,
-    platform_id: show.id,
     price_ranges: show.priceRanges ? JSON.stringify(show.priceRanges) : null,
     last_synced_at: new Date().toISOString()
   };

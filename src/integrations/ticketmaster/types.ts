@@ -1,8 +1,47 @@
+import { Json } from "../supabase/types";
+
+export interface PriceRange {
+  min: number;
+  max: number;
+  currency: string;
+  type: string;
+}
+
+export interface TicketmasterVenue {
+  id: string;
+  name: string;
+  capacity?: string; // Changed from number to string since API returns it as string
+  city?: {
+    name: string;
+    state?: {
+      name: string;
+      stateCode?: string;
+    };
+  };
+  state?: {
+    name: string;
+    stateCode?: string;
+  };
+  country?: {
+    name: string;
+    countryCode?: string;
+  };
+  address?: {
+    line1: string;
+  };
+  images?: Array<{
+    url: string;
+    ratio?: string;
+    width?: number;
+    height?: number;
+  }>;
+  displayName?: string;
+  displayLocation?: string;
+}
 
 export interface TicketmasterEvent {
   id: string;
   name: string;
-  url?: string;
   dates: {
     start: {
       dateTime: string;
@@ -13,60 +52,50 @@ export interface TicketmasterEvent {
   };
   _embedded?: {
     venues?: TicketmasterVenue[];
-    attractions?: TicketmasterAttraction[];
+    attractions?: Array<{
+      id?: string;
+      name: string;
+      images?: Array<{
+        url: string;
+      }>;
+      classifications?: Array<{
+        primary: boolean;
+        segment: {
+          name: string;
+        };
+        genre?: {
+          name: string;
+        };
+      }>;
+    }>;
   };
   images?: Array<{
     url: string;
     ratio?: string;
   }>;
-  priceRanges?: Array<{
-    type: string;
-    currency: string;
-    min: number;
-    max: number;
-  }>;
-}
-
-export interface TicketmasterVenue {
-  id: string;
-  name: string;
-  city?: {
-    name: string;
-  };
-  state?: {
-    name: string;
-  };
-  country?: {
-    name: string;
-  };
-  address?: {
-    line1: string;
-  };
-  location?: {
-    latitude: string;
-    longitude: string;
-  };
-  capacity?: string;
-  images?: Array<{
-    url: string;
-    ratio?: string;
-  }>;
-  displayName?: string;
-  displayLocation?: string;
-}
-
-export interface TicketmasterAttraction {
-  id: string;
-  name: string;
-  images?: Array<{
-    url: string;
-    ratio?: string;
-  }>;
+  url: string;
+  priceRanges?: PriceRange[];
   classifications?: Array<{
-    genre?: {
+    primary: boolean;
+    segment: {
       name: string;
     };
   }>;
+}
+
+export interface CachedVenue {
+  id?: string;
+  name: string;
+  city: string;
+  state?: string;
+  country?: string;
+  address?: string;
+  capacity?: number;
+  venue_image_url?: string | null;
+  last_synced_at: string;
+  ticketmaster_id: string;
+  displayName?: string;
+  displayLocation?: string;
 }
 
 export interface CachedShow {
@@ -76,75 +105,36 @@ export interface CachedShow {
   name: string;
   date: string;
   venue_id?: string;
+  venue?: CachedVenue;
   venue_name?: string;
   venue_location?: string;
-  ticket_url?: string;
-  status?: string;
-  platform_id: string;
+  ticket_url: string;
+  status?: string | null;
+  price_ranges?: PriceRange[];
   last_synced_at: string;
-  price_ranges?: any;
-  venue?: CachedVenue;
-}
-
-export interface CachedVenue {
-  id: string;
-  name: string;
-  city: string;
-  state?: string;
-  country?: string;
-  capacity?: number;
-  venue_image_url?: string;
-  display_name?: string;
-  display_location?: string;
-  ticketmaster_id: string;
 }
 
 export interface Artist {
   id: string;
   name: string;
-  metadata?: any;
-  created_at: string;
-  updated_at: string;
+  spotify_id: string;
+  ticketmaster_id?: string | null;
+  ticketmaster_data?: Json | null;
+  image_url?: string | null;
+  cover_image_url?: string | null;
+  genres?: string[] | null;
+  popularity?: number | null;
+  spotify_data?: Json | null;
   last_synced_at: string;
-  image_url?: string;
-  spotify_id?: string;
-  cover_image_url?: string;
-  genres?: string[];
-  classifications?: any[];
-  ticketmaster_id?: string;
 }
 
 export interface CachedSong {
   id: string;
+  spotify_id: string;
   artist_id: string;
   name: string;
-  platform_id: string;
   album?: string;
-  popularity?: number;
   preview_url?: string;
+  popularity?: number;
   last_synced_at: string;
-  spotify_id?: string;
-}
-
-export interface ArtistSearchResult {
-  name: string;
-  image?: string;
-  venue?: string;
-  date?: string;
-  url?: string;
-  capacity?: number;
-  relevanceScore?: number;
-  ticketmaster_id?: string;
-  dates?: {
-    start: {
-      dateTime: string;
-    };
-  };
-  _embedded?: {
-    venues?: TicketmasterVenue[];
-  };
-  images?: Array<{
-    url: string;
-    ratio?: string;
-  }>;
 }

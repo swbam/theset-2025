@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Input } from "../../components/ui/input";
 import { Search, Loader2 } from "lucide-react";
-import { searchArtists } from "../../integrations/ticketmaster/api";
+import { searchArtists } from "../../integrations/ticketmaster/client";
 import { useToast } from "../../components/ui/use-toast";
 import { useDebouncedCallback } from 'use-debounce';
 import type { TicketmasterEvent } from "../../integrations/ticketmaster/types";
@@ -36,28 +36,52 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
       const events = await searchArtists(query);
       
       // Transform events into search results
-      const results = events
-        .filter((event: TicketmasterEvent) => event._embedded?.attractions?.[0]?.name)
-        .map((event: TicketmasterEvent) => {
-          const artist = event._embedded?.attractions?.[0];
-          const venue = event._embedded?.venues?.[0];
-          const date = event.dates?.start?.dateTime;
-          
-          return {
-            name: artist?.name || '',
-            image: artist?.images?.[0]?.url || event.images?.[0]?.url,
-            venue: venue?.name,
-            date: date ? new Date(date).toLocaleDateString() : undefined,
-            relevanceScore: venue?.capacity ? parseInt(venue.capacity) : 0
-          };
-        });
+      const results: SearchResult[] = events.map((event: TicketmasterEvent) => {
+        const artist = event._embedded?.attractions?.[0];
+        const venue = event._embedded?.venues?.[0];
+        const date = event.dates?.start?.dateTime;
+        const capacity = venue?.capacity ? parseInt(venue.capacity) : 0;
+        
+        // Calculate relevance score
+        let relevanceScore = 0;
+        if (artist?.name) {
+          // Exact match gets highest score
+          if (artist.name.toLowerCase() === query.toLowerCase()) {
+            relevanceScore += 1000000;
+          }
+          // Partial match gets medium score
+          else if (artist.name.toLowerCase().includes(query.toLowerCase())) {
+            relevanceScore += 100000;
+          }
+          // Add venue capacity to score
+          relevanceScore += capacity;
+        }
+        
+        return {
+          name: artist?.name || '',
+          image: artist?.images?.[0]?.url || event.images?.[0]?.url,
+          venue: venue?.displayName || venue?.name,
+          date: date ? new Date(date).toLocaleDateString() : undefined,
+          relevanceScore
+        };
+      });
 
       // Filter out duplicates and sort results
-      const uniqueResults = Array.from(
-        new Map(results.map(r => [r.name.toLowerCase(), r])).values()
-      ).sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+      const uniqueResults = results.reduce((acc: SearchResult[], curr) => {
+        const exists = acc.some(r => r.name.toLowerCase() === curr.name.toLowerCase());
+        if (!exists && curr.name) {
+          acc.push(curr);
+        }
+        return acc;
+      }, []);
 
-      setSearchResults(uniqueResults.slice(0, 10)); // Limit to top 10 results
+      // Sort results by relevance
+      const sortedResults = uniqueResults.sort((a, b) => {
+        // Use calculated relevance score
+        return (b.relevanceScore || 0) - (a.relevanceScore || 0);
+      });
+
+      setSearchResults(sortedResults.slice(0, 10)); // Limit to top 10 results
     } catch (error) {
       console.error('Search error:', error);
       toast({

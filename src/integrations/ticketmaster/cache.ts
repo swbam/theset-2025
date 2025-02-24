@@ -1,113 +1,135 @@
-
 import { supabase } from "../supabase/client";
-import type { TicketmasterEvent, TicketmasterVenue } from "./types";
-import type { CachedShow } from "@/types/show";
+import type { TicketmasterEvent, CachedShow, TicketmasterVenue } from "./types";
 
-export async function updateVenueCache(venue: TicketmasterVenue): Promise<string | null> {
-  if (!venue?.name || !venue?.id) {
-    console.warn('Invalid venue data for caching:', venue);
-    return null;
-  }
+interface VenueCache {
+  id?: string;
+  ticketmaster_id: string;
+  name: string;
+  city: string;
+  state?: string;
+  country?: string;
+  capacity?: number;
+  last_synced_at: string;
+}
+
+async function updateVenuesCache(venues: TicketmasterVenue[]): Promise<Map<string, string>> {
+  const venueMap = new Map<string, string>();
+  
+  if (venues.length === 0) return venueMap;
 
   try {
-    const venueData = {
+    const venuesToUpsert = venues.map(venue => ({
       ticketmaster_id: venue.id,
       name: venue.name,
       city: venue.city?.name || '',
       state: venue.state?.name,
       country: venue.country?.name,
       capacity: venue.capacity ? parseInt(venue.capacity) : undefined,
-      venue_image_url: venue.images?.[0]?.url,
-      display_name: venue.displayName,
-      display_location: venue.displayLocation
-    };
+      last_synced_at: new Date().toISOString()
+    }));
 
-    const { data: upsertedVenue, error } = await supabase
+    const { data: upsertedVenues, error } = await supabase
       .from('venues')
-      .upsert(venueData)
-      .select()
-      .single();
+      .upsert(venuesToUpsert, {
+        onConflict: 'ticketmaster_id',
+        returning: true
+      });
 
     if (error) {
-      console.error('Error upserting venue:', error);
-      return null;
+      console.error('Error upserting venues:', error);
+      return venueMap;
     }
 
-    return upsertedVenue.id;
+    // Map Ticketmaster IDs to our internal IDs
+    upsertedVenues?.forEach((venue: VenueCache) => {
+      if (venue.id && venue.ticketmaster_id) {
+        venueMap.set(venue.ticketmaster_id, venue.id);
+      }
+    });
+
   } catch (error) {
-    console.error('Error in updateVenueCache:', error);
+    console.error('Error in updateVenuesCache:', error);
+  }
+
+  return venueMap;
+}
+
+function prepareShowForCache(show: TicketmasterEvent, artistId: string): CachedShow | null {
+  try {
+    const venue = show._embedded?.venues?.[0];
+    if (!venue) return null;
+
+    return {
+      ticketmaster_id: show.id,
+      artist_id: artistId,
+      name: show.name,
+      date: show.dates.start.dateTime,
+      venue_name: venue.name,
+      venue_location: venue.displayLocation || `${venue.city?.name || ''}, ${venue.state?.name || ''}`.trim(),
+      ticket_url: show.url,
+      status: show.dates?.status?.code || null,
+      last_synced_at: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Error preparing show for cache:', error);
     return null;
   }
 }
 
-export const prepareShowForCache = (
-  show: TicketmasterEvent,
-  artistId: string,
-  venueId?: string
-): Omit<CachedShow, 'id'> & { artist_id: string } => {
-  const venue = show._embedded?.venues?.[0];
-  
-  if (!venue) {
-    console.warn('Show missing venue data:', show.id);
-    throw new Error('Invalid show data: missing venue');
-  }
-
-  return {
-    platform_id: show.id,
-    artist_id: artistId,
-    name: show.name,
-    date: show.dates.start.dateTime,
-    venue_id: venueId,
-    venue_name: venue.name,
-    venue_location: venue.displayLocation || `${venue.city?.name || ''}, ${venue.state?.name || ''}`.trim(),
-    ticket_url: show.url,
-    status: show.dates?.status?.code,
-    last_synced_at: new Date().toISOString()
-  };
-};
-
-export async function updateShowCache(shows: TicketmasterEvent[], artistId: string) {
-  if (!shows.length || !artistId) {
+export async function updateShowCache(shows: TicketmasterEvent[], artistId?: string | null) {
+  if (shows.length === 0 || !artistId) {
     console.log('No shows or artist ID provided for caching');
-    return [];
+    return;
   }
 
-  const cachedShows: CachedShow[] = [];
+  console.log(`Processing ${shows.length} shows for caching`);
 
-  for (const show of shows) {
-    const venue = show._embedded?.venues?.[0];
-    if (!venue) continue;
+  try {
+    // First, extract and upsert all venues
+    const venues = shows
+      .map(show => show._embedded?.venues?.[0])
+      .filter((v): v is NonNullable<typeof v> => v !== undefined);
 
-    try {
-      // Update venue cache first
-      const venueId = await updateVenueCache(venue);
-      if (!venueId) continue;
+    const venueIds = await updateVenuesCache(venues);
 
-      // Prepare show data
-      const showData = prepareShowForCache(show, artistId, venueId);
+    // Prepare shows for caching
+    const showsToCache = shows
+      .map(show => {
+        const prepared = prepareShowForCache(show, artistId);
+        if (!prepared) return null;
 
-      const { data: cachedShow, error } = await supabase
-        .from('cached_shows')
-        .upsert(showData)
-        .select(`
-          *,
-          venue:venues(*),
-          artist:artists(*)
-        `)
-        .single();
+        const venueId = show._embedded?.venues?.[0]?.id;
+        if (venueId) {
+          return {
+            ...prepared,
+            venue_id: venueIds.get(venueId) || null
+          };
+        }
 
-      if (error) {
-        console.error('Error caching show:', error);
-        continue;
-      }
+        return prepared;
+      })
+      .filter((s): s is CachedShow => s !== null);
 
-      if (cachedShow) {
-        cachedShows.push(cachedShow as CachedShow);
-      }
-    } catch (error) {
-      console.error('Error in show cache update:', error);
+    if (showsToCache.length === 0) {
+      console.log('No valid shows to cache');
+      return;
     }
-  }
 
-  return cachedShows;
+    console.log(`Upserting ${showsToCache.length} shows to cache`);
+    
+    const { error: upsertError } = await supabase
+      .from('cached_shows')
+      .upsert(showsToCache, {
+        onConflict: 'ticketmaster_id',
+        returning: true
+      });
+
+    if (upsertError) {
+      console.error('Error updating show cache:', upsertError);
+    } else {
+      console.log('Successfully cached shows:', showsToCache.map(s => s.ticketmaster_id));
+    }
+  } catch (error) {
+    console.error('Error in updateShowCache:', error);
+  }
 }
