@@ -1,18 +1,7 @@
 
 import { supabase } from "../supabase/client";
-import type { TicketmasterEvent, CachedShow, TicketmasterVenue } from "./types";
-
-interface VenueCache {
-  id: string;
-  ticketmaster_id: string;
-  name: string;
-  city: string;
-  state?: string;
-  country?: string;
-  capacity?: number;
-  venue_image_url?: string;
-  last_synced_at: string;
-}
+import type { TicketmasterEvent, TicketmasterVenue } from "./types";
+import type { CachedShow } from "../supabase/types";
 
 export async function updateVenueCache(venue: TicketmasterVenue): Promise<string | null> {
   if (!venue?.name || !venue?.id) {
@@ -29,7 +18,8 @@ export async function updateVenueCache(venue: TicketmasterVenue): Promise<string
       country: venue.country?.name,
       capacity: venue.capacity ? parseInt(venue.capacity) : undefined,
       venue_image_url: venue.images?.[0]?.url,
-      last_synced_at: new Date().toISOString()
+      display_name: venue.displayName,
+      display_location: venue.displayLocation
     };
 
     const { data: upsertedVenue, error } = await supabase
@@ -54,16 +44,16 @@ export const prepareShowForCache = (
   show: TicketmasterEvent,
   artistId: string,
   venueId?: string
-): Partial<CachedShow> => {
+): Omit<CachedShow, 'id'> => {
   const venue = show._embedded?.venues?.[0];
   
   if (!venue) {
     console.warn('Show missing venue data:', show.id);
-    return {};
+    throw new Error('Invalid show data: missing venue');
   }
 
   return {
-    ticketmaster_id: show.id,
+    platform_id: show.id,
     artist_id: artistId,
     name: show.name,
     date: show.dates.start.dateTime,
@@ -72,7 +62,7 @@ export const prepareShowForCache = (
     venue_location: venue.displayLocation || `${venue.city?.name || ''}, ${venue.state?.name || ''}`.trim(),
     ticket_url: show.url,
     status: show.dates?.status?.code,
-    platform_id: show.id,
+    ticketmaster_id: show.id,
     last_synced_at: new Date().toISOString()
   };
 };
@@ -89,19 +79,22 @@ export async function updateShowCache(shows: TicketmasterEvent[], artistId: stri
     const venue = show._embedded?.venues?.[0];
     if (!venue) continue;
 
-    // Update venue cache first
-    const venueId = await updateVenueCache(venue);
-    if (!venueId) continue;
-
-    // Prepare show data
-    const showData = prepareShowForCache(show, artistId, venueId);
-    if (!showData.ticketmaster_id) continue;
-
     try {
+      // Update venue cache first
+      const venueId = await updateVenueCache(venue);
+      if (!venueId) continue;
+
+      // Prepare show data
+      const showData = prepareShowForCache(show, artistId, venueId);
+
       const { data: cachedShow, error } = await supabase
         .from('cached_shows')
         .upsert(showData)
-        .select()
+        .select(`
+          *,
+          venue:venues(*),
+          artist:artists(*)
+        `)
         .single();
 
       if (error) {
