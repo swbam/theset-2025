@@ -2,28 +2,27 @@
 import { useNavigate } from "react-router-dom";
 import { Calendar } from "lucide-react";
 import { Button } from "../ui/button";
-import type { TicketmasterEvent } from "@/integrations/ticketmaster/types";
-
-interface ShowCardProps {
-  show: TicketmasterEvent;
-}
+import type { ShowCardProps } from "@/types/show";
 
 export const ShowCard = ({ show }: ShowCardProps) => {
   const navigate = useNavigate();
-  const artist = show._embedded?.attractions?.[0];
-  const venue = show._embedded?.venues?.[0];
+  const venue = show.venue || {
+    name: show.venue_name || 'Unknown Venue',
+    city: show.venue_location?.split(',')[0],
+    state: show.venue_location?.split(',')[1]?.trim()
+  };
 
-  if (!artist?.name || !venue?.name || !show.dates?.start?.dateTime) {
+  if (!show.date) {
     return null;
   }
 
-  const date = new Date(show.dates.start.dateTime);
-  const artistSlug = artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const location = `${venue.city?.name || ''}, ${venue.state?.name || ''}`.trim();
+  const date = new Date(show.date);
+  const artistName = show.artist?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
+  const location = venue.city;
   const dateSlug = date.toISOString().split('T')[0];
 
   const handleViewSetlist = () => {
-    const url = `/artist/${artistSlug}/${location}/${dateSlug}/${show.id}`;
+    const url = `/artist/${artistName}/${location}/${dateSlug}/${show.platform_id}`;
     navigate(url);
   };
 
@@ -32,7 +31,7 @@ export const ShowCard = ({ show }: ShowCardProps) => {
       <div className="p-6 space-y-4">
         <div className="space-y-2">
           <h3 className="text-2xl font-semibold tracking-tight">
-            {artist.name}
+            {show.artist?.name}
           </h3>
           <p className="text-sm text-muted-foreground">
             {venue.name}
@@ -56,10 +55,10 @@ export const ShowCard = ({ show }: ShowCardProps) => {
           >
             View Setlist
           </Button>
-          {show.url && (
+          {show.ticket_url && (
             <Button
               variant="outline"
-              onClick={() => window.open(show.url, '_blank')}
+              onClick={() => window.open(show.ticket_url, '_blank')}
             >
               Buy Tickets
             </Button>

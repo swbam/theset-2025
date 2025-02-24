@@ -1,7 +1,7 @@
 
 import { supabase } from "../supabase/client";
 import type { TicketmasterEvent, TicketmasterVenue } from "./types";
-import type { CachedShow } from "../supabase/types";
+import type { CachedShow } from "@/types/show";
 
 export async function updateVenueCache(venue: TicketmasterVenue): Promise<string | null> {
   if (!venue?.name || !venue?.id) {
@@ -44,7 +44,7 @@ export const prepareShowForCache = (
   show: TicketmasterEvent,
   artistId: string,
   venueId?: string
-): Omit<CachedShow, 'id'> => {
+): Omit<CachedShow, 'id'> & { artist_id: string } => {
   const venue = show._embedded?.venues?.[0];
   
   if (!venue) {
@@ -62,7 +62,6 @@ export const prepareShowForCache = (
     venue_location: venue.displayLocation || `${venue.city?.name || ''}, ${venue.state?.name || ''}`.trim(),
     ticket_url: show.url,
     status: show.dates?.status?.code,
-    ticketmaster_id: show.id,
     last_synced_at: new Date().toISOString()
   };
 };
