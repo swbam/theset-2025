@@ -1,7 +1,7 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { PlatformClient } from "../platform/client";
 import type { TicketmasterEvent, TicketmasterVenue } from './types';
+import { searchArtists, fetchArtistEvents, fetchPopularTours } from './artists';
 
 async function processArtist(artistData: any) {
   console.log('Processing artist:', artistData.name);
@@ -155,5 +155,12 @@ async function processShow(showData: TicketmasterEvent, artistId: string, venueI
   return show.id;
 }
 
-export { processArtist, processVenue, processShow };
+export { 
+  processArtist, 
+  processVenue, 
+  processShow,
+  searchArtists,
+  fetchArtistEvents,
+  fetchPopularTours
+};
 export type { TicketmasterEvent, TicketmasterVenue };

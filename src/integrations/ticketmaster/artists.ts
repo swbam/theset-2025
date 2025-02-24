@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from "./api";
-import { updateShowCache } from "./shows";
+import { processShow } from "./client";
 import type { TicketmasterEvent } from "./types";
 
 export const searchArtists = async (query: string) => {
@@ -41,43 +41,49 @@ export const fetchArtistEvents = async (artistName: string) => {
     
   if (artist) {
     console.log('Found artist in database:', artist);
-    const { data: cachedShows } = await supabase
-      .from('cached_shows')
+    const { data: shows } = await supabase
+      .from('shows')
       .select(`
         *,
+        artist:artists(*),
         venue:venues(*)
       `)
       .eq('artist_id', artist.id)
       .gte('date', new Date().toISOString())
       .order('date', { ascending: true });
       
-    if (cachedShows && cachedShows.length > 0) {
-      console.log('Returning cached shows for artist:', artistName);
-      return cachedShows;
+    if (shows && shows.length > 0) {
+      console.log('Returning shows for artist:', artistName);
+      return shows;
     }
   }
 
   console.log('Fetching fresh shows from Ticketmaster for artist:', artistName);
-  const shows = await callTicketmasterFunction('artist', artistName);
+  const events = await callTicketmasterFunction('artist', artistName);
   
-  if (artist && shows.length > 0) {
-    console.log('Updating show cache for artist:', artistName);
-    await updateShowCache(shows, artist.id);
+  if (artist && events.length > 0) {
+    console.log('Processing Ticketmaster events for artist:', artistName);
+    const processedEvents = await Promise.all(
+      events.map(async (event: TicketmasterEvent) => {
+        const venue = event._embedded?.venues?.[0];
+        if (!venue) return null;
+        
+        return processShow(event, artist.id, venue.id);
+      })
+    );
+    return processedEvents.filter(Boolean);
   }
 
-  return shows;
+  return events;
 };
 
 export const fetchPopularTours = async () => {
+  console.log('Fetching popular tours');
   const shows = await callTicketmasterFunction('events', undefined, {
     classificationName: 'music',
     sort: 'relevance,desc',
     size: '100'
   });
-
-  if (shows.length > 0) {
-    await updateShowCache(shows);
-  }
 
   return shows;
 };
