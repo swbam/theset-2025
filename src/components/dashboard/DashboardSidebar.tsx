@@ -32,6 +32,7 @@ export function DashboardSidebar() {
 
   const publicMenuItems = [
     { title: "Home", icon: Home, path: "/" },
+    { title: "Artists", icon: Music, path: "/artists" },
   ];
 
   const menuItems = user ? authenticatedMenuItems : publicMenuItems;

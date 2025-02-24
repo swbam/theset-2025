@@ -1,4 +1,3 @@
-import { Json } from "@/integrations/supabase/types";
 
 export interface TicketmasterVenue {
   id: string;
@@ -37,14 +36,10 @@ export interface TicketmasterEvent {
     start: {
       dateTime: string;
     };
-    status?: {
-      code: string;
-    };
   };
   _embedded?: {
     venues?: TicketmasterVenue[];
     attractions?: Array<{
-      id?: string;
       name: string;
       images?: Array<{
         url: string;
@@ -62,12 +57,6 @@ export interface TicketmasterEvent {
     ratio?: string;
   }>;
   url: string;
-  priceRanges?: Array<{
-    min: number;
-    max: number;
-    currency: string;
-    type: string;
-  }>;
   classifications?: Array<{
     primary: boolean;
     segment: {
@@ -76,10 +65,22 @@ export interface TicketmasterEvent {
   }>;
 }
 
-export interface CachedVenue {
-  id?: string;
+export interface CachedShow {
+  ticketmaster_id: string;
+  artist_id?: string | null;
   name: string;
-  city: string;
+  date: string;
+  venue_id?: string;
+  venue_name?: string;
+  venue_location?: any;
+  ticket_url: string;
+  last_synced_at: string;
+}
+
+export interface CachedVenue {
+  ticketmaster_id: string;
+  name: string;
+  city?: string;
   state?: string;
   country?: string;
   address?: string;
@@ -87,36 +88,17 @@ export interface CachedVenue {
   capacity?: number;
   venue_image_url?: string | null;
   last_synced_at: string;
-  ticketmaster_id: string;
 }
 
-export interface CachedShow {
-  id: string;
-  ticketmaster_id: string;
-  artist_id: string;
-  name: string;
-  date: string;
-  venue_id?: string;
-  venue?: CachedVenue;
-  venue_name?: string;
-  venue_location?: any;
-  ticket_url: string;
-  status?: string | null;
-  price_ranges?: any;
-  last_synced_at: string;
-}
-
-export interface Artist {
+export interface CachedArtist {
   id: string;
   name: string;
   spotify_id: string;
-  ticketmaster_id?: string | null;
-  ticketmaster_data?: Json | null;
   image_url?: string | null;
   cover_image_url?: string | null;
   genres?: string[] | null;
   popularity?: number | null;
-  spotify_data?: Json | null;
+  spotify_data?: any;
   last_synced_at: string;
 }
 

@@ -9,35 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      anonymous_votes: {
-        Row: {
-          created_at: string | null
-          id: string
-          ip_address: string
-          song_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          ip_address: string
-          song_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          ip_address?: string
-          song_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "anonymous_votes_song_id_fkey"
-            columns: ["song_id"]
-            isOneToOne: false
-            referencedRelation: "setlist_songs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       artists: {
         Row: {
           cover_image_url: string | null
@@ -50,8 +21,6 @@ export type Database = {
           popularity: number | null
           spotify_data: Json | null
           spotify_id: string
-          ticketmaster_data: Json | null
-          ticketmaster_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -65,8 +34,6 @@ export type Database = {
           popularity?: number | null
           spotify_data?: Json | null
           spotify_id: string
-          ticketmaster_data?: Json | null
-          ticketmaster_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -80,15 +47,13 @@ export type Database = {
           popularity?: number | null
           spotify_data?: Json | null
           spotify_id?: string
-          ticketmaster_data?: Json | null
-          ticketmaster_id?: string | null
           updated_at?: string | null
         }
         Relationships: []
       }
       cached_shows: {
         Row: {
-          artist_id: string
+          artist_id: string | null
           created_at: string | null
           date: string
           id: string
@@ -104,7 +69,7 @@ export type Database = {
           venue_name: string | null
         }
         Insert: {
-          artist_id: string
+          artist_id?: string | null
           created_at?: string | null
           date: string
           id?: string
@@ -120,7 +85,7 @@ export type Database = {
           venue_name?: string | null
         }
         Update: {
-          artist_id?: string
+          artist_id?: string | null
           created_at?: string | null
           date?: string
           id?: string
@@ -251,10 +216,8 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          is_top_track: boolean | null
           setlist_id: string
           song_name: string
-          spotify_id: string | null
           suggested: boolean | null
           total_votes: number | null
           updated_at: string | null
@@ -263,10 +226,8 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
-          is_top_track?: boolean | null
           setlist_id: string
           song_name: string
-          spotify_id?: string | null
           suggested?: boolean | null
           total_votes?: number | null
           updated_at?: string | null
@@ -275,10 +236,8 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
-          is_top_track?: boolean | null
           setlist_id?: string
           song_name?: string
-          spotify_id?: string | null
           suggested?: boolean | null
           total_votes?: number | null
           updated_at?: string | null
@@ -286,7 +245,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_setlist"
+            foreignKeyName: "setlist_songs_setlist_id_fkey"
             columns: ["setlist_id"]
             isOneToOne: false
             referencedRelation: "setlists"
@@ -327,24 +286,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_cached_show_id"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "cached_shows"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_show_id"
-            columns: ["show_id"]
-            isOneToOne: false
-            referencedRelation: "cached_shows"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "setlists_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "setlists_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
             referencedColumns: ["id"]
           },
           {
@@ -446,13 +398,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_setlist_song"
-            columns: ["song_id"]
-            isOneToOne: false
-            referencedRelation: "setlist_songs"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "user_votes_song_id_fkey"
             columns: ["song_id"]
             isOneToOne: false
@@ -541,12 +486,6 @@ export type Database = {
           ttl_hours?: number
         }
         Returns: boolean
-      }
-      normalize_artist_name: {
-        Args: {
-          name: string
-        }
-        Returns: string
       }
     }
     Enums: {

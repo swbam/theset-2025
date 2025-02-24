@@ -1,44 +1,135 @@
 
 import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingState } from "@/components/shows/LoadingState";
 import { EmptyState } from "@/components/shows/EmptyState";
 import { ShowDetails } from "@/components/shows/ShowDetails";
 import { Setlist } from "@/components/shows/Setlist";
-import { useShow } from "@/hooks/useShow";
-import { useSetlist } from "@/hooks/useSetlist";
-import { useVotes } from "@/hooks/useVotes";
 
 export default function ShowPage() {
-  const { eventId, artistName } = useParams<{ eventId: string; artistName: string }>();
+  // Extract the event ID from the URL
+  const { eventId } = useParams<{ eventId: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   
-  const { data: show, isLoading: showLoading } = useShow(eventId);
-  const { data: setlist, isLoading: setlistLoading, addSong } = useSetlist(show?.id, user);
-  const { userVotes, handleVote } = useVotes(setlist?.id, user);
+  const { data: show, isLoading: showLoading } = useQuery({
+    queryKey: ['show', eventId],
+    queryFn: async () => {
+      const { data: show, error } = await supabase
+        .from('cached_shows')
+        .select(`
+          *,
+          venue:venues(
+            id,
+            name,
+            city,
+            state,
+            country
+          )
+        `)
+        .eq('ticketmaster_id', eventId)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching show:', error);
+        return null;
+      }
 
-  const handleSuggest = async (songName: string, spotifyId?: string) => {
+      if (!show) {
+        console.error('Show not found:', eventId);
+        return null;
+      }
+
+      return show;
+    },
+    enabled: !!eventId,
+  });
+
+  const { data: setlist, isLoading: setlistLoading } = useQuery({
+    queryKey: ['setlist', show?.id],
+    queryFn: async () => {
+      const { data: setlist, error } = await supabase
+        .from('setlists')
+        .select(`
+          *,
+          songs:setlist_songs(
+            id,
+            song_name,
+            total_votes,
+            suggested
+          )
+        `)
+        .eq('show_id', show?.id)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching setlist:', error);
+        return null;
+      }
+
+      return setlist;
+    },
+    enabled: !!show?.id,
+  });
+
+  const { data: userVotes } = useQuery({
+    queryKey: ['user-votes', setlist?.id],
+    queryFn: async () => {
+      const { data: votes, error } = await supabase
+        .from('user_votes')
+        .select('song_id')
+        .eq('user_id', user?.id);
+      
+      if (error) {
+        console.error('Error fetching user votes:', error);
+        return [];
+      }
+
+      return votes?.map(v => v.song_id) || [];
+    },
+    enabled: !!setlist?.id && !!user?.id,
+  });
+
+  const handleVote = async (songId: string) => {
     if (!user) {
       toast({
-        title: "Sign in required",
-        description: "Please sign in to suggest songs",
+        title: "Login Required",
+        description: "Please log in to vote for songs",
         variant: "destructive"
       });
       return;
     }
 
-    if (!setlist) {
+    const { error } = await supabase
+      .from('user_votes')
+      .insert({
+        user_id: user.id,
+        song_id: songId
+      });
+
+    if (error) {
       toast({
         title: "Error",
-        description: "Setlist not available",
+        description: "Failed to submit vote",
         variant: "destructive"
       });
       return;
     }
 
-    await addSong({ songName, setlistId: setlist.id, spotifyId });
+    toast({
+      title: "Vote Submitted",
+      description: "Your vote has been recorded"
+    });
+  };
+
+  const handleSuggest = () => {
+    toast({
+      title: "Coming Soon",
+      description: "Song suggestions will be available soon!"
+    });
   };
 
   if (showLoading || setlistLoading) {
@@ -48,18 +139,6 @@ export default function ShowPage() {
   if (!show) {
     return <EmptyState />;
   }
-
-  // Get the artist data from the properly joined query
-  const displayArtistName = show.artist?.name || artistName?.replace(/-/g, ' ');
-  const artistId = show.artist?.id;
-
-  console.log('Show data:', {
-    showId: show.id,
-    artistName: displayArtistName,
-    artistId,
-    setlistId: setlist?.id,
-    setlist: setlist
-  });
 
   return (
     <div className="min-h-screen bg-black">
@@ -76,8 +155,6 @@ export default function ShowPage() {
             user={user}
             onVote={handleVote}
             onSuggest={handleSuggest}
-            artistName={displayArtistName}
-            artistId={artistId}
           />
         </div>
       </div>

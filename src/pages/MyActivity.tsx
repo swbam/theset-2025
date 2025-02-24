@@ -7,16 +7,39 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/shows/LoadingState";
+import { format } from "date-fns";
 import { toast } from "sonner";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { SavedSetlists } from "@/components/activity/SavedSetlists";
-import { UserVotes } from "@/components/activity/UserVotes";
-import type { SetlistActivity, VoteActivity } from "@/types/activity";
+
+interface SetlistActivity {
+  id: string;
+  created_at: string;
+  name: string;
+  shows: {
+    artist_name: string;
+    venue: string;
+  } | null;
+}
+
+interface VoteActivity {
+  id: string;
+  created_at: string;
+  setlist_songs: {
+    song_name: string;
+    setlist: {
+      name: string;
+      shows: {
+        artist_name: string;
+        venue: string;
+      } | null;
+    } | null;
+  } | null;
+}
 
 const MyActivity = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
 
   const { data: setlists, isLoading: isLoadingSetlists } = useQuery({
     queryKey: ["userSetlists", user?.id],
@@ -28,7 +51,7 @@ const MyActivity = () => {
             id,
             created_at,
             name,
-            show:shows (
+            shows (
               artist_name,
               venue
             )
@@ -37,7 +60,7 @@ const MyActivity = () => {
           .order("created_at", { ascending: false });
 
         if (error) throw error;
-        return data as unknown as SetlistActivity[];
+        return data as SetlistActivity[];
       } catch (error) {
         console.error("Error fetching setlists:", error);
         toast.error("Failed to load your setlists");
@@ -56,10 +79,9 @@ const MyActivity = () => {
           .select(`
             id,
             created_at,
-            setlist_songs!song_id (
+            setlist_songs (
               song_name,
-              setlists (
-                id,
+              setlist (
                 name,
                 shows (
                   artist_name,
@@ -72,7 +94,7 @@ const MyActivity = () => {
           .order("created_at", { ascending: false });
 
         if (error) throw error;
-        return data as unknown as VoteActivity[];
+        return data as VoteActivity[];
       } catch (error) {
         console.error("Error fetching votes:", error);
         toast.error("Failed to load your votes");
@@ -91,33 +113,105 @@ const MyActivity = () => {
   if (!user) return null;
 
   return (
-    <div className="flex-1 max-w-[2000px] mx-auto px-4 md:px-8 pt-6">
-      {!isMobile && (
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">My Activity</h1>
-            <p className="text-lg text-muted-foreground">
-              View your saved setlists and voting history
-            </p>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-gradient-to-b from-black to-zinc-900">
+        <DashboardSidebar />
+        <SidebarInset>
+          <div className="w-full max-w-7xl mx-auto px-6 py-8">
+            <div className="mb-8">
+              <h1 className="text-4xl font-bold mb-2">My Activity</h1>
+              <p className="text-lg text-muted-foreground">
+                View your saved setlists and voting history
+              </p>
+            </div>
+
+            <Tabs defaultValue="setlists" className="space-y-6">
+              <TabsList className="bg-background/10 backdrop-blur-sm">
+                <TabsTrigger value="setlists">Saved Setlists</TabsTrigger>
+                <TabsTrigger value="votes">My Votes</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="setlists" className="space-y-4">
+                {isLoadingSetlists ? (
+                  <LoadingState />
+                ) : !setlists?.length ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No setlists saved yet</p>
+                    <p className="text-sm mt-1">
+                      Create a setlist for your favorite artists' shows
+                    </p>
+                  </div>
+                ) : (
+                  setlists?.map((setlist) => (
+                    <div
+                      key={setlist.id}
+                      className="p-6 rounded-lg bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm space-y-2"
+                    >
+                      <h3 className="text-xl font-semibold">{setlist.shows?.artist_name}</h3>
+                      <p className="text-muted-foreground">
+                        {setlist.shows?.venue}
+                      </p>
+                      <div className="flex items-center justify-between mt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Saved on {format(new Date(setlist.created_at), 'M/d/yyyy')}
+                        </p>
+                        <Button
+                          variant="secondary"
+                          onClick={() => navigate(`/setlist/${setlist.id}`)}
+                        >
+                          View Setlist
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+
+              <TabsContent value="votes" className="space-y-4">
+                {isLoadingVotes ? (
+                  <LoadingState />
+                ) : !votes?.length ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No votes yet</p>
+                    <p className="text-sm mt-1">
+                      Vote on songs in setlists to help predict show setlists
+                    </p>
+                  </div>
+                ) : (
+                  votes?.map((vote) => (
+                    <div
+                      key={vote.id}
+                      className="p-6 rounded-lg bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm space-y-2"
+                    >
+                      <h3 className="text-xl font-semibold">
+                        {vote.setlist_songs?.setlist?.shows?.artist_name}
+                      </h3>
+                      <p className="text-muted-foreground">
+                        {vote.setlist_songs?.setlist?.shows?.venue}
+                      </p>
+                      <p className="text-sm">
+                        Voted for "{vote.setlist_songs?.song_name}"
+                      </p>
+                      <div className="flex items-center justify-between mt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Voted on {format(new Date(vote.created_at), 'M/d/yyyy')}
+                        </p>
+                        <Button
+                          variant="secondary"
+                          onClick={() => navigate(`/setlist/${vote.setlist_songs?.setlist?.id}`)}
+                        >
+                          View Setlist
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
-        </div>
-      )}
-
-      <Tabs defaultValue="setlists" className="space-y-4">
-        <TabsList className="bg-background/10 backdrop-blur-sm">
-          <TabsTrigger value="setlists">Saved Setlists</TabsTrigger>
-          <TabsTrigger value="votes">My Votes</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="setlists" className="space-y-4">
-          <SavedSetlists isLoading={isLoadingSetlists} setlists={setlists} />
-        </TabsContent>
-
-        <TabsContent value="votes" className="space-y-4">
-          <UserVotes isLoading={isLoadingVotes} votes={votes} />
-        </TabsContent>
-      </Tabs>
-    </div>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
   );
 };
 

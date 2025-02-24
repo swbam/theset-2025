@@ -1,10 +1,9 @@
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Loader2 } from "lucide-react";
 import { searchArtists } from "@/integrations/ticketmaster/client";
 import { useToast } from "@/components/ui/use-toast";
-import { useDebouncedCallback } from 'use-debounce';
 
 interface SearchResult {
   name: string;
@@ -22,7 +21,7 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const { toast } = useToast();
 
-  const debouncedSearch = useDebouncedCallback(async (query: string) => {
+  const handleSearch = async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
       return;
@@ -33,16 +32,15 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
       const results = await searchArtists(query);
       setSearchResults(results);
     } catch (error) {
-      console.error('Search error:', error);
       toast({
-        title: "Search Error",
-        description: "Failed to search for artists. Please try again.",
+        title: "Error",
+        description: "Failed to search for artists",
         variant: "destructive",
       });
     } finally {
       setIsSearching(false);
     }
-  }, 300); // 300ms debounce
+  };
 
   return (
     <div className="w-full max-w-2xl mx-auto relative">
@@ -53,9 +51,8 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
           className="w-full h-12 pl-12 glass-morphism"
           value={searchQuery}
           onChange={(e) => {
-            const value = e.target.value;
-            setSearchQuery(value);
-            debouncedSearch(value);
+            setSearchQuery(e.target.value);
+            handleSearch(e.target.value);
           }}
         />
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
@@ -97,4 +94,3 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
     </div>
   );
 };
-

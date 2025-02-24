@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { TicketmasterVenue, CachedVenue } from "./types";
 import { callTicketmasterFunction } from "./api";
+import type { TicketmasterVenue, CachedVenue } from "./types";
 
 export const prepareVenueForCache = (venue: TicketmasterVenue): CachedVenue | null => {
   if (!venue?.name) {
@@ -15,7 +15,7 @@ export const prepareVenueForCache = (venue: TicketmasterVenue): CachedVenue | nu
   return {
     ticketmaster_id: venue.id,
     name: venue.name,
-    city: venue.city?.name || '',
+    city: venue.city?.name,
     state: venue.state?.name,
     country: venue.country?.name,
     address: venue.address?.line1,
@@ -70,27 +70,34 @@ export const updateVenuesCache = async (venues: TicketmasterVenue[]) => {
 
   if (venuesToCache.length > 0) {
     console.log(`Upserting ${venuesToCache.length} unique venues`);
-    const { data: upsertedVenues, error: venueError } = await supabase
+    const { error: venueError } = await supabase
       .from('venues')
-      .upsert(venuesToCache)
-      .select('id, ticketmaster_id');
+      .upsert(venuesToCache, {
+        onConflict: 'ticketmaster_id',
+        ignoreDuplicates: false
+      });
 
     if (venueError) {
       console.error('Error updating venue cache:', venueError);
       return new Map<string, string>();
     }
-
-    // Create venue IDs map from upserted venues
-    const venueIds = new Map<string, string>();
-    if (upsertedVenues) {
-      upsertedVenues.forEach(venue => {
-        venueIds.set(venue.ticketmaster_id, venue.id);
-      });
-    }
-    return venueIds;
   }
 
-  return new Map<string, string>();
+  // Get venue IDs map
+  const venueIds = new Map<string, string>();
+  for (const venue of venuesToCache) {
+    const { data: venueData } = await supabase
+      .from('venues')
+      .select('id, ticketmaster_id')
+      .eq('ticketmaster_id', venue.ticketmaster_id)
+      .single();
+    
+    if (venueData) {
+      venueIds.set(venue.ticketmaster_id, venueData.id);
+    }
+  }
+
+  return venueIds;
 };
 
 export const fetchVenueEvents = async (venueId: string) => {
@@ -130,7 +137,7 @@ export const fetchVenueEvents = async (venueId: string) => {
       ticketmaster_id: show.id,
       name: show.name,
       date: show.dates.start.dateTime,
-      venue_id: show._embedded?.venues?.[0]?.id ? venueIds.get(show._embedded.venues[0].id) : null,
+      venue_id: venueIds.get(show._embedded?.venues?.[0]?.id || ''),
       venue_name: show._embedded?.venues?.[0]?.name,
       venue_location: show._embedded?.venues?.[0],
       ticket_url: show.url,
@@ -141,7 +148,8 @@ export const fetchVenueEvents = async (venueId: string) => {
       const { error: showsError } = await supabase
         .from('cached_shows')
         .upsert(showsToCache, {
-          onConflict: 'ticketmaster_id'
+          onConflict: 'ticketmaster_id',
+          ignoreDuplicates: false
         });
 
       if (showsError) {
