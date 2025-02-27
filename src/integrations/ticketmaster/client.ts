@@ -1,7 +1,9 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { PlatformClient } from "../platform/client";
 import type { TicketmasterEvent, TicketmasterVenue } from './types';
 import { searchArtists, fetchArtistEvents, fetchPopularTours } from './artists';
+import type { Json } from '@/integrations/supabase/types';
 
 async function processArtist(artistData: any) {
   console.log('Processing artist:', artistData.name);
@@ -15,7 +17,7 @@ async function processArtist(artistData: any) {
       .from('artists')
       .update({
         name: artistData.name,
-        metadata: artistData,
+        metadata: artistData as Json,
         updated_at: new Date().toISOString()
       })
       .eq('id', identifier.entity_id);
@@ -33,7 +35,7 @@ async function processArtist(artistData: any) {
     .from('artists')
     .insert({
       name: artistData.name,
-      metadata: artistData
+      metadata: artistData as Json
     })
     .select()
     .single();
@@ -49,7 +51,7 @@ async function processArtist(artistData: any) {
     artist.id,
     'ticketmaster',
     artistData.id,
-    artistData
+    artistData as Json
   );
 
   return artist.id;
@@ -65,7 +67,7 @@ async function processVenue(venueData: TicketmasterVenue) {
       .from('venues')
       .update({
         name: venueData.name,
-        metadata: venueData
+        metadata: venueData as unknown as Json
       })
       .eq('id', identifier.entity_id);
 
@@ -81,7 +83,8 @@ async function processVenue(venueData: TicketmasterVenue) {
     .from('venues')
     .insert({
       name: venueData.name,
-      metadata: venueData
+      ticketmaster_id: venueData.id,
+      metadata: venueData as unknown as Json
     })
     .select()
     .single();
@@ -96,7 +99,7 @@ async function processVenue(venueData: TicketmasterVenue) {
     venue.id,
     'ticketmaster',
     venueData.id,
-    venueData
+    venueData as unknown as Json
   );
 
   return venue.id;
@@ -115,7 +118,8 @@ async function processShow(showData: TicketmasterEvent, artistId: string, venueI
         venue_id: venueId,
         date: showData.dates.start.dateTime,
         status: 'active',
-        ticket_url: showData.url
+        ticket_url: showData.url,
+        ticketmaster_id: showData.id
       })
       .eq('id', identifier.entity_id);
 
@@ -134,7 +138,8 @@ async function processShow(showData: TicketmasterEvent, artistId: string, venueI
       venue_id: venueId,
       date: showData.dates.start.dateTime,
       status: 'active',
-      ticket_url: showData.url
+      ticket_url: showData.url,
+      ticketmaster_id: showData.id
     })
     .select()
     .single();
@@ -149,7 +154,7 @@ async function processShow(showData: TicketmasterEvent, artistId: string, venueI
     show.id,
     'ticketmaster',
     showData.id,
-    showData
+    showData as unknown as Json
   );
 
   return show.id;

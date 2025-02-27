@@ -1,4 +1,6 @@
 
+import type { Json } from '@/integrations/supabase/types';
+
 export interface TicketmasterVenue {
   id: string;
   name: string;
@@ -40,6 +42,7 @@ export interface TicketmasterEvent {
   _embedded?: {
     venues?: TicketmasterVenue[];
     attractions?: Array<{
+      id: string;
       name: string;
       images?: Array<{
         url: string;
@@ -66,49 +69,35 @@ export interface TicketmasterEvent {
 }
 
 export interface CachedShow {
+  id: string;
   ticketmaster_id: string;
-  artist_id?: string | null;
+  artist_id: string;
   name: string;
   date: string;
-  venue_id?: string;
   venue_name?: string;
-  venue_location?: any;
-  ticket_url: string;
-  last_synced_at: string;
+  venue_location?: Json;
+  ticket_url?: string;
+  last_synced_at?: string;
 }
 
 export interface CachedVenue {
+  id: string;
   ticketmaster_id: string;
   name: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  address?: string;
-  location?: any;
-  capacity?: number;
-  venue_image_url?: string | null;
-  last_synced_at: string;
+  metadata: Json;
+  last_synced_at?: string;
+  created_at?: string;
 }
 
 export interface CachedArtist {
   id: string;
   name: string;
-  spotify_id: string;
-  image_url?: string | null;
-  cover_image_url?: string | null;
-  genres?: string[] | null;
-  popularity?: number | null;
-  spotify_data?: any;
-  last_synced_at: string;
-}
-
-export interface CachedSong {
-  id: string;
-  spotify_id: string;
-  artist_id: string;
-  name: string;
-  album?: string;
-  preview_url?: string;
-  popularity?: number;
-  last_synced_at: string;
+  spotify_id?: string;
+  image_url?: string;
+  cover_image_url?: string;
+  genres?: string[];
+  metadata?: Json;
+  last_synced_at?: string;
+  created_at?: string;
+  updated_at?: string;
 }
