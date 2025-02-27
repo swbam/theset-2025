@@ -17,7 +17,7 @@ export class PlatformClient {
       return null;
     }
 
-    return data;
+    return data as PlatformIdentifier;
   }
 
   static async linkIdentifier(
@@ -30,7 +30,7 @@ export class PlatformClient {
     const { data, error } = await supabase
       .from('platform_identifiers')
       .upsert({
-        entity_type: entityType,
+        entity_type: entityType as string,
         entity_id: entityId,
         platform,
         platform_id: platformId,
@@ -45,7 +45,7 @@ export class PlatformClient {
       return null;
     }
 
-    return data;
+    return data as PlatformIdentifier;
   }
 
   static async updateSyncMetrics(

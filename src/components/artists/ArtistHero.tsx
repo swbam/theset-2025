@@ -1,5 +1,5 @@
 
-import { Artist } from "@/integrations/supabase/types";
+import type { Artist } from "@/types/artist";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
