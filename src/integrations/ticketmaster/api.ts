@@ -1,5 +1,6 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import type { TicketmasterEvent, TicketmasterVenue, CachedShow } from "./types";
+import type { CachedShow, CachedSong } from "@/types/sync";
 
 export const callTicketmasterFunction = async (endpoint: string, query?: string, params?: Record<string, string>) => {
   console.log(`Calling Ticketmaster API - ${endpoint}:`, { query, params });
@@ -21,19 +22,7 @@ export const fetchFromCache = async (artistId: string | null, ttlHours = 24) => 
   
   const { data: shows, error } = await supabase
     .from('cached_shows')
-    .select(`
-      *,
-      venue:venues(
-        id,
-        name,
-        city,
-        state,
-        country,
-        address,
-        capacity,
-        location
-      )
-    `)
+    .select('*')
     .eq('artist_id', artistId)
     .gte('date', new Date().toISOString())
     .order('date', { ascending: true });
@@ -45,7 +34,7 @@ export const fetchFromCache = async (artistId: string | null, ttlHours = 24) => 
 
   // Check if we need to refresh the cache
   const { data: needsRefresh } = await supabase
-    .rpc('needs_refresh', { 
+    .rpc('needs_sync', { 
       last_sync: shows?.[0]?.last_synced_at,
       ttl_hours: ttlHours 
     });
@@ -69,7 +58,7 @@ export const checkArtistCache = async (artistSpotifyId: string, ttlHours = 1) =>
 
   // Check if we need to refresh the cache
   const { data: needsRefresh } = await supabase
-    .rpc('needs_refresh', {
+    .rpc('needs_sync', {
       last_sync: artist.last_synced_at,
       ttl_hours: ttlHours
     });
@@ -79,11 +68,8 @@ export const checkArtistCache = async (artistSpotifyId: string, ttlHours = 1) =>
 
 export const updateArtistCache = async (
   artistData: any,
-  spotifyData: any,
-  shows: TicketmasterEvent[]
+  spotifyData: any
 ) => {
-  console.log('Updating artist cache with shows:', shows.length);
-  
   // First, upsert the artist
   const { data: artist, error: artistError } = await supabase
     .from('artists')
@@ -93,7 +79,7 @@ export const updateArtistCache = async (
       image_url: spotifyData.images?.[0]?.url,
       genres: spotifyData.genres,
       popularity: spotifyData.popularity,
-      spotify_data: spotifyData,
+      metadata: spotifyData,
       last_synced_at: new Date().toISOString()
     })
     .select()
@@ -102,43 +88,6 @@ export const updateArtistCache = async (
   if (artistError) {
     console.error('Error updating artist cache:', artistError);
     throw artistError;
-  }
-
-  if (!artist) {
-    console.error('No artist data returned after upsert');
-    return null;
-  }
-
-  // Process and cache shows
-  for (const show of shows) {
-    const venueData = show._embedded?.venues?.[0];
-    if (!venueData) {
-      console.log('Skipping show, no venue data:', show.id);
-      continue;
-    }
-
-    const showData = {
-      ticketmaster_id: show.id,
-      artist_id: artist.id,
-      name: show.name,
-      date: show.dates.start.dateTime,
-      ticket_url: show.url,
-      venue_name: venueData.name,
-      venue_location: JSON.stringify(venueData),
-      last_synced_at: new Date().toISOString()
-    };
-
-    console.log('Upserting show:', showData.ticketmaster_id);
-    
-    const { error: showError } = await supabase
-      .from('cached_shows')
-      .upsert(showData, {
-        onConflict: 'ticketmaster_id'
-      });
-
-    if (showError) {
-      console.error('Error updating show cache:', showError, showData);
-    }
   }
 
   return artist;

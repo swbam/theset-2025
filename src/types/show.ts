@@ -1,8 +1,7 @@
 
-import type { Artist } from "./artist";
-import type { Venue } from "./venue";
-import type { Setlist } from "./setlist";
-import type { PlatformIdentifier } from "./sync";
+import type { Artist } from './artist';
+import type { Venue } from './venue';
+import type { Setlist } from './setlist';
 
 export interface Show {
   id: string;
@@ -15,5 +14,17 @@ export interface Show {
   artist?: Artist;
   venue?: Venue;
   setlist?: Setlist;
-  platform_identifiers?: PlatformIdentifier[];
+}
+
+export interface CachedShow {
+  id: string;
+  ticketmaster_id: string;
+  artist_id: string;
+  name: string;
+  date: string;
+  venue_name?: string;
+  venue_location?: Record<string, any>;
+  ticket_url?: string;
+  last_synced_at?: string;
+  created_at?: string;
 }

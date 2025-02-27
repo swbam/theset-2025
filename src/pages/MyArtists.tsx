@@ -8,15 +8,11 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingState } from "@/components/shows/LoadingState";
 import { ArtistFollowCard } from "@/components/artists/ArtistFollowCard";
+import type { Artist } from "@/types/artist";
 
-interface FollowedArtist {
-  artists: {
-    id: string;
-    name: string;
-    image_url: string | null;
-    genres: string[] | null;
-  };
+interface UserArtist {
   created_at: string;
+  artist: Artist;
 }
 
 const MyArtists = () => {
@@ -30,7 +26,7 @@ const MyArtists = () => {
         .from("user_artists")
         .select(`
           created_at,
-          artists (
+          artist:artists (
             id,
             name,
             image_url,
@@ -41,7 +37,7 @@ const MyArtists = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as FollowedArtist[];
+      return data as UserArtist[];
     },
     enabled: !!user,
   });
@@ -77,11 +73,11 @@ const MyArtists = () => {
               ) : (
                 followedArtists?.map((item) => (
                   <ArtistFollowCard
-                    key={item.artists.id}
-                    name={item.artists.name}
-                    imageUrl={item.artists.image_url}
+                    key={item.artist.id}
+                    name={item.artist.name}
+                    imageUrl={item.artist.image_url}
                     followingSince={item.created_at}
-                    onClick={() => navigate(`/artist/${item.artists.name.replace(/\s+/g, '-').toLowerCase()}`)}
+                    onClick={() => navigate(`/artist/${item.artist.name.replace(/\s+/g, '-').toLowerCase()}`)}
                   />
                 ))
               )}
