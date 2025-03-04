@@ -17,7 +17,7 @@ async function processArtist(artistData: any) {
       .from('artists')
       .update({
         name: artistData.name,
-        metadata: artistData as Json,
+        metadata: artistData as unknown as Json,
         updated_at: new Date().toISOString()
       })
       .eq('id', identifier.entity_id);
@@ -35,7 +35,7 @@ async function processArtist(artistData: any) {
     .from('artists')
     .insert({
       name: artistData.name,
-      metadata: artistData as Json
+      metadata: artistData as unknown as Json
     })
     .select()
     .single();
@@ -51,7 +51,7 @@ async function processArtist(artistData: any) {
     artist.id,
     'ticketmaster',
     artistData.id,
-    artistData as Json
+    artistData as unknown as Record<string, any>
   );
 
   return artist.id;
@@ -99,7 +99,7 @@ async function processVenue(venueData: TicketmasterVenue) {
     venue.id,
     'ticketmaster',
     venueData.id,
-    venueData as unknown as Json
+    venueData as unknown as Record<string, any>
   );
 
   return venue.id;
@@ -119,7 +119,6 @@ async function processShow(showData: TicketmasterEvent, artistId: string, venueI
         date: showData.dates.start.dateTime,
         status: 'active',
         ticket_url: showData.url,
-        ticketmaster_id: showData.id
       })
       .eq('id', identifier.entity_id);
 
@@ -154,7 +153,7 @@ async function processShow(showData: TicketmasterEvent, artistId: string, venueI
     show.id,
     'ticketmaster',
     showData.id,
-    showData as unknown as Json
+    showData as unknown as Record<string, any>
   );
 
   return show.id;

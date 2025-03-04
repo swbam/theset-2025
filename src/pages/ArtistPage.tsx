@@ -1,3 +1,4 @@
+
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchArtistEvents } from "@/integrations/ticketmaster/client";
@@ -7,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { ArtistHero } from "@/components/artists/ArtistHero";
 import { ArtistShows } from "@/components/artists/ArtistShows";
+import { transformDatabaseArtist, type DatabaseArtist } from "@/types/artist";
 
 export default function ArtistPage() {
   const { artistName } = useParams();
@@ -39,7 +41,7 @@ export default function ArtistPage() {
           });
 
         if (!needsRefresh) {
-          return existingArtist;
+          return transformDatabaseArtist(existingArtist as DatabaseArtist);
         }
         
         console.log('Artist data needs refresh');
@@ -66,7 +68,7 @@ export default function ArtistPage() {
         throw insertError;
       }
 
-      return artist;
+      return transformDatabaseArtist(artist as DatabaseArtist);
     },
     retry: false,
   });

@@ -75,16 +75,17 @@ export interface CachedShow {
   name: string;
   date: string;
   venue_name?: string;
-  venue_location?: Json;
+  venue_location?: Record<string, any>;
   ticket_url?: string;
   last_synced_at?: string;
+  created_at?: string;
 }
 
 export interface CachedVenue {
   id: string;
   ticketmaster_id: string;
   name: string;
-  metadata: Json;
+  metadata: Record<string, any>;
   last_synced_at?: string;
   created_at?: string;
 }
@@ -96,7 +97,7 @@ export interface CachedArtist {
   image_url?: string;
   cover_image_url?: string;
   genres?: string[];
-  metadata?: Json;
+  metadata?: Record<string, any>;
   last_synced_at?: string;
   created_at?: string;
   updated_at?: string;

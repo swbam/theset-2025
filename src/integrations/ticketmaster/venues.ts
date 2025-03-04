@@ -1,162 +1,110 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { callTicketmasterFunction } from "./api";
-import type { TicketmasterVenue, CachedVenue } from "./types";
+import { PlatformClient } from "../platform/client";
+import type { CachedVenue, TicketmasterVenue } from './types';
+import type { Json } from '@/integrations/supabase/types';
 
-export const prepareVenueForCache = (venue: TicketmasterVenue): CachedVenue | null => {
-  if (!venue?.name) {
+export async function cacheVenueData(venue: TicketmasterVenue): Promise<CachedVenue | null> {
+  try {
+    const venueObj = {
+      name: venue.name,
+      address: venue.address?.line1,
+      city: venue.city?.name,
+      state: venue.state?.name || venue.city?.state?.name,
+      country: venue.country?.name,
+      coordinates: null
+    };
+
+    const { data, error } = await supabase
+      .from('venues')
+      .upsert({
+        ticketmaster_id: venue.id,
+        name: venue.name,
+        metadata: venueObj as unknown as Json
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error caching venue:', error);
+      return null;
+    }
+
+    return {
+      ...data,
+      metadata: venueObj
+    };
+  } catch (error) {
+    console.error('Error caching venue:', error);
     return null;
   }
+}
 
-  // Get the best venue image if available
-  const venueImage = venue.images?.find(img => 
-    img.ratio === "16_9" || img.ratio === "4_3"
-  )?.url;
-
-  return {
-    ticketmaster_id: venue.id,
-    name: venue.name,
-    city: venue.city?.name,
-    state: venue.state?.name,
-    country: venue.country?.name,
-    address: venue.address?.line1,
-    location: venue,
-    capacity: venue.capacity,
-    venue_image_url: venueImage || null,
-    last_synced_at: new Date().toISOString()
-  };
-};
-
-export const fetchVenueFromCache = async (venueId: string | null, ttlHours = 24) => {
-  if (!venueId) return null;
+export async function getVenueById(ticketmasterId: string): Promise<CachedVenue | null> {
+  console.log('Getting venue by Ticketmaster ID:', ticketmasterId);
   
-  const { data: venue, error } = await supabase
-    .from('venues')
-    .select('*')
-    .eq('ticketmaster_id', venueId)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Error fetching venue from cache:', error);
-    return null;
-  }
-
-  if (!venue) return null;
-
-  // Check if we need to refresh the cache
-  const { data: needsRefresh } = await supabase
-    .rpc('needs_venue_refresh', { 
-      last_sync: venue.last_synced_at,
-      ttl_hours: ttlHours 
-    });
-
-  return needsRefresh ? null : venue;
-};
-
-export const updateVenuesCache = async (venues: TicketmasterVenue[]) => {
-  if (venues.length === 0) return new Map<string, string>();
-
-  // Deduplicate venues using a Map with ticketmaster_id as key
-  const uniqueVenues = new Map<string, TicketmasterVenue>();
-  venues.forEach(venue => {
-    if (venue && venue.id) {
-      uniqueVenues.set(venue.id, venue);
-    }
-  });
-
-  // Convert unique venues to cache format
-  const venuesToCache = Array.from(uniqueVenues.values())
-    .map(prepareVenueForCache)
-    .filter((v): v is CachedVenue => v !== null);
-
-  if (venuesToCache.length > 0) {
-    console.log(`Upserting ${venuesToCache.length} unique venues`);
-    const { error: venueError } = await supabase
+  try {
+    // First, check the local cache
+    const { data: cachedVenue, error: cacheError } = await supabase
       .from('venues')
-      .upsert(venuesToCache, {
-        onConflict: 'ticketmaster_id',
-        ignoreDuplicates: false
-      });
-
-    if (venueError) {
-      console.error('Error updating venue cache:', venueError);
-      return new Map<string, string>();
-    }
-  }
-
-  // Get venue IDs map
-  const venueIds = new Map<string, string>();
-  for (const venue of venuesToCache) {
-    const { data: venueData } = await supabase
-      .from('venues')
-      .select('id, ticketmaster_id')
-      .eq('ticketmaster_id', venue.ticketmaster_id)
+      .select('*')
+      .eq('ticketmaster_id', ticketmasterId)
       .single();
     
-    if (venueData) {
-      venueIds.set(venue.ticketmaster_id, venueData.id);
-    }
-  }
-
-  return venueIds;
-};
-
-export const fetchVenueEvents = async (venueId: string) => {
-  console.log('Fetching events for venue:', venueId);
-  
-  const cachedVenue = await fetchVenueFromCache(venueId);
-  if (cachedVenue) {
-    console.log('Found cached venue data');
-    const { data: shows } = await supabase
-      .from('cached_shows')
-      .select(`
-        *,
-        venue:venues(*)
-      `)
-      .eq('venue_id', cachedVenue.id)
-      .gte('date', new Date().toISOString())
-      .order('date', { ascending: true });
+    if (cacheError) {
+      console.log('Venue not found in cache, or error occurred:', cacheError);
+      // Fetch from Ticketmaster API via our serverless function
+      const venueData = await fetchVenueData(ticketmasterId);
       
-    if (shows && shows.length > 0) {
-      console.log('Returning cached shows for venue');
-      return shows;
-    }
-  }
-
-  console.log('Fetching fresh venue data from Ticketmaster');
-  const shows = await callTicketmasterFunction('venue', venueId);
-  
-  if (shows.length > 0) {
-    const venues = shows
-      .map(show => show._embedded?.venues?.[0])
-      .filter((v): v is NonNullable<typeof v> => v !== undefined);
-    
-    const venueIds = await updateVenuesCache(venues);
-    
-    // Update shows cache with venue IDs
-    const showsToCache = shows.map(show => ({
-      ticketmaster_id: show.id,
-      name: show.name,
-      date: show.dates.start.dateTime,
-      venue_id: venueIds.get(show._embedded?.venues?.[0]?.id || ''),
-      venue_name: show._embedded?.venues?.[0]?.name,
-      venue_location: show._embedded?.venues?.[0],
-      ticket_url: show.url,
-      last_synced_at: new Date().toISOString()
-    }));
-
-    if (showsToCache.length > 0) {
-      const { error: showsError } = await supabase
-        .from('cached_shows')
-        .upsert(showsToCache, {
-          onConflict: 'ticketmaster_id',
-          ignoreDuplicates: false
-        });
-
-      if (showsError) {
-        console.error('Error updating shows cache:', showsError);
+      if (!venueData) {
+        console.error('Failed to fetch venue data from Ticketmaster');
+        return null;
       }
+      
+      // Cache the venue data
+      return await cacheVenueData(venueData);
     }
+    
+    const needsRefresh = await PlatformClient.needsSync(cachedVenue.last_synced_at as string);
+    
+    if (needsRefresh) {
+      console.log('Venue cache is stale, refreshing...');
+      const venueData = await fetchVenueData(ticketmasterId);
+      
+      if (!venueData) {
+        console.error('Failed to fetch venue data from Ticketmaster for refresh');
+        return cachedVenue as unknown as CachedVenue;
+      }
+      
+      return await cacheVenueData(venueData);
+    }
+    
+    return cachedVenue as unknown as CachedVenue;
+  } catch (error) {
+    console.error('Error in getVenueById:', error);
+    return null;
   }
+}
 
-  return shows;
-};
+async function fetchVenueData(venueId: string): Promise<TicketmasterVenue | null> {
+  console.log('Fetching venue data from Ticketmaster:', venueId);
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('ticketmaster', {
+      body: { 
+        endpoint: 'venues', 
+        venueId 
+      },
+    });
+    
+    if (error) {
+      console.error('Error calling Ticketmaster function for venue:', error);
+      return null;
+    }
+    
+    return data as TicketmasterVenue;
+  } catch (error) {
+    console.error('Error fetching venue data:', error);
+    return null;
+  }
+}

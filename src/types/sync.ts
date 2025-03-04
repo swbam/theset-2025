@@ -1,4 +1,6 @@
 
+import type { Json } from "@/integrations/supabase/types";
+
 export type SyncPlatform = 'spotify' | 'ticketmaster';
 export type EntityType = 'artist' | 'venue' | 'show' | 'song';
 
@@ -46,4 +48,29 @@ export interface CachedSong {
   popularity?: number;
   last_synced_at?: string;
   created_at?: string;
+}
+
+export interface SetlistActivity {
+  id: string;
+  created_at: string;
+  name: string;
+  shows: {
+    artist_name: string;
+    venue: string;
+  };
+}
+
+export interface VoteActivity {
+  id: string;
+  created_at: string;
+  setlist_songs: {
+    song_name: string;
+    setlist: {
+      name: string;
+      shows: {
+        artist_name: string;
+        venue: string;
+      };
+    };
+  };
 }

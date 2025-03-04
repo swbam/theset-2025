@@ -1,7 +1,86 @@
 import { supabase } from "@/integrations/supabase/client";
-import { callTicketmasterFunction } from "./api";
-import { updateVenuesCache } from "./venues";
-import type { TicketmasterEvent, CachedShow } from "./types";
+import { callTicketmasterFunction } from './api';
+import type { CachedShow, TicketmasterEvent } from './types';
+import { processArtist, processVenue, processShow } from './client';
+import type { Json } from '@/integrations/supabase/types';
+
+export async function cacheShowData(show: TicketmasterEvent, artistId: string): Promise<CachedShow | null> {
+  const venue = show._embedded?.venues?.[0];
+  
+  try {
+    const { data, error } = await supabase
+      .from('cached_shows')
+      .upsert({
+        ticketmaster_id: show.id,
+        artist_id: artistId,
+        name: show.name,
+        date: show.dates.start.dateTime,
+        venue_name: venue?.name,
+        venue_location: venue ? (venue as unknown as Json) : null,
+        ticket_url: show.url,
+        last_synced_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error caching show:', error);
+      return null;
+    }
+
+    return data as CachedShow;
+  } catch (error) {
+    console.error('Error caching show:', error);
+    return null;
+  }
+}
+
+export async function importToDatabase(show: TicketmasterEvent) {
+  console.log('Importing show to database:', show.name);
+  
+  try {
+    const artistData = show._embedded?.attractions?.[0];
+    if (!artistData) {
+      console.error('No artist data found for show:', show.name);
+      return null;
+    }
+    
+    const venueData = show._embedded?.venues?.[0];
+    if (!venueData) {
+      console.error('No venue data found for show:', show.name);
+      return null;
+    }
+    
+    const artistId = await processArtist(artistData);
+    if (!artistId) {
+      console.error('Failed to process artist:', artistData.name);
+      return null;
+    }
+    
+    // Cache the show data for quicker access
+    const cachedShow = await cacheShowData(show, artistId);
+    if (!cachedShow) {
+      console.error('Failed to cache show data:', show.name);
+    }
+    
+    const venueId = await processVenue(venueData);
+    if (!venueId) {
+      console.error('Failed to process venue:', venueData.name);
+      return null;
+    }
+    
+    const showId = await processShow(show, artistId, venueId);
+    if (!showId) {
+      console.error('Failed to process show:', show.name);
+      return null;
+    }
+    
+    return showId;
+  } catch (error) {
+    console.error('Error importing show to database:', error);
+    return null;
+  }
+}
 
 export const prepareShowForCache = (show: TicketmasterEvent, artistId?: string | null): CachedShow | null => {
   if (!show.dates?.start?.dateTime) {
