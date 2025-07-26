@@ -42,9 +42,9 @@ CREATE TABLE IF NOT EXISTS secrets (
 
 -- Insert API keys (replace with your actual keys)
 INSERT INTO secrets (key, value) VALUES 
-  ('TICKETMASTER_API_KEY', 'your_ticketmaster_api_key_here'),
-  ('SPOTIFY_CLIENT_ID', 'your_spotify_client_id_here'),
-  ('SPOTIFY_CLIENT_SECRET', 'your_spotify_client_secret_here')
+  ('TICKETMASTER_API_KEY', 'k8GrSAkbFaN0w7qDxGl7ohr8LwdAQm9b'),
+  ('SPOTIFY_CLIENT_ID', '2946864dc822469b9c672292ead45f43'),
+  ('SPOTIFY_CLIENT_SECRET', 'feaf0fc901124b839b11e02f97d18a8d')
 ON CONFLICT (key) DO UPDATE SET 
   value = EXCLUDED.value,
   updated_at = NOW();
