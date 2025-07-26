@@ -62,25 +62,28 @@ Deno.serve(async (req) => {
           console.error(`Error caching venue ${venue.name}:`, venueError);
         }
 
-        // Cache artist
-        const { error: artistError } = await supabaseClient
+        // Cache artist and get the ID
+        const { data: artistData, error: artistError } = await supabaseClient
           .from('artists')
           .upsert({
             ticketmaster_id: artist.id,
             name: artist.name,
             metadata: artist,
             last_synced_at: new Date().toISOString()
-          });
+          })
+          .select('id')
+          .single();
 
         if (artistError) {
           console.error(`Error caching artist ${artist.name}:`, artistError);
         }
 
-        // Cache show
+        // Cache show with artist_id
         const { error: showError } = await supabaseClient
           .from('cached_shows')
           .upsert({
             ticketmaster_id: event.id,
+            artist_id: artistData?.id || null,
             name: event.name,
             date: event.dates?.start?.dateTime,
             venue_name: venue.name,

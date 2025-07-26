@@ -140,7 +140,7 @@ export const createInitialSetlistFromSpotifyTracks = async (showId: string, arti
     const songs = spotifyTracks.slice(0, 10).map((track, index) => ({
       id: `${showId}-${track.id}`,
       song_name: track.name,
-      total_votes: Math.max(10 - index, 1), // Give higher votes to more popular tracks
+      total_votes: 0, // Start with 0 votes - real votes will be counted from user_votes table
       suggested: false,
       spotify_id: track.id,
       album: track.album?.name,
