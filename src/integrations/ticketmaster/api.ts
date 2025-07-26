@@ -115,3 +115,61 @@ export const updateSongsCache = async (songs: any[], artistId: string) => {
 
   return songsToUpsert;
 };
+
+export const createInitialSetlistFromSpotifyTracks = async (showId: string, artistId: string, spotifyTracks: any[]) => {
+  try {
+    // Check if setlist already exists for this show
+    const { data: existingSetlist, error: fetchError } = await supabase
+      .from('setlists')
+      .select('*')
+      .eq('show_id', showId)
+      .maybeSingle();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error checking existing setlist:', fetchError);
+      return null;
+    }
+
+    // If setlist already exists, don't override it
+    if (existingSetlist) {
+      console.log('Setlist already exists for show:', showId);
+      return existingSetlist;
+    }
+
+    // Create songs from Spotify tracks (top 10)
+    const songs = spotifyTracks.slice(0, 10).map((track, index) => ({
+      id: `${showId}-${track.id}`,
+      song_name: track.name,
+      total_votes: Math.max(10 - index, 1), // Give higher votes to more popular tracks
+      suggested: false,
+      spotify_id: track.id,
+      album: track.album?.name,
+      preview_url: track.preview_url,
+      popularity: track.popularity
+    }));
+
+    // Create the setlist
+    const { data: setlist, error: setlistError } = await supabase
+      .from('setlists')
+      .insert({
+        show_id: showId,
+        songs: songs
+      })
+      .select()
+      .single();
+
+    if (setlistError) {
+      console.error('Error creating setlist:', setlistError);
+      return null;
+    }
+
+    // Cache the songs for faster lookup
+    await updateSongsCache(spotifyTracks.slice(0, 10), artistId);
+
+    console.log('Created initial setlist with', songs.length, 'songs for show:', showId);
+    return setlist;
+  } catch (error) {
+    console.error('Error creating initial setlist:', error);
+    return null;
+  }
+};

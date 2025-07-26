@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { callTicketmasterFunction } from './api';
 import type { CachedShow, TicketmasterEvent } from './types';
 import { processArtist, processVenue, processShow } from './client';
+import { updateVenuesCache } from './venues';
 import type { Json } from '@/integrations/supabase/types';
 
 export async function cacheShowData(show: TicketmasterEvent, artistId: string): Promise<CachedShow | null> {
