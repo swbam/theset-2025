@@ -1,0 +1,7 @@
+{
+  "siteId": "0a20fa68-6e6b-417b-96af-879908d15624",
+  "build": {
+    "command": "npm run build",
+    "publish": "dist"
+  }
+}
