@@ -1,6 +1,6 @@
 
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,12 +8,15 @@ import { LoadingState } from "@/components/shows/LoadingState";
 import { EmptyState } from "@/components/shows/EmptyState";
 import { ShowDetails } from "@/components/shows/ShowDetails";
 import { Setlist } from "@/components/shows/Setlist";
+import { getArtistTopTracks, searchArtist } from "@/integrations/spotify/client";
+import { createInitialSetlistFromSpotifyTracks } from "@/integrations/ticketmaster/api";
 
 export default function ShowPage() {
   // Extract the event ID from the URL
   const { eventId } = useParams<{ eventId: string }>();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { data: show, isLoading: showLoading } = useQuery({
     queryKey: ['show', eventId],
@@ -28,6 +31,11 @@ export default function ShowPage() {
             city,
             state,
             country
+          ),
+          artist:artists(
+            id,
+            name,
+            spotify_id
           )
         `)
         .eq('ticketmaster_id', eventId)
@@ -93,20 +101,73 @@ export default function ShowPage() {
         }
       }
 
-      // If no setlist exists, create a new one with default songs
+      // If no setlist exists, create a new one with real Spotify data
       console.log('Creating new setlist for show:', show?.id);
       
-      // For now, return a basic placeholder until we implement song fetching
-      return {
-        id: 'temp-id',
-        songs: [
-          { id: 'song-1', song_name: 'Introduction', total_votes: 0, suggested: false },
-          { id: 'song-2', song_name: 'Greatest Hit', total_votes: 0, suggested: false },
-          { id: 'song-3', song_name: 'Popular Song', total_votes: 0, suggested: false },
-          { id: 'song-4', song_name: 'Fan Favorite', total_votes: 0, suggested: false },
-          { id: 'song-5', song_name: 'Deep Cut', total_votes: 0, suggested: false }
-        ]
-      };
+      try {
+        // Get artist info and Spotify access token
+        const artistName = show?.artist?.name || 'Unknown Artist';
+        const spotifyToken = session?.provider_token;
+        
+        if (!spotifyToken) {
+          console.error('No Spotify access token available');
+          return {
+            id: 'temp-id',
+            songs: []
+          };
+        }
+
+        // Search for artist on Spotify if we don't have spotify_id
+        let artistSpotifyId = show?.artist?.spotify_id;
+        if (!artistSpotifyId) {
+          const spotifyArtist = await searchArtist(spotifyToken, artistName);
+          artistSpotifyId = spotifyArtist?.id;
+        }
+
+        if (!artistSpotifyId) {
+          console.error('Could not find artist on Spotify:', artistName);
+          return {
+            id: 'temp-id',
+            songs: []
+          };
+        }
+
+        // Get artist's top tracks from Spotify
+        const topTracks = await getArtistTopTracks(spotifyToken, artistSpotifyId);
+        
+        if (topTracks.length === 0) {
+          console.error('No top tracks found for artist:', artistName);
+          return {
+            id: 'temp-id',
+            songs: []
+          };
+        }
+
+        // Create setlist with real Spotify data
+        const newSetlist = await createInitialSetlistFromSpotifyTracks(
+          show?.id,
+          show?.artist_id,
+          topTracks
+        );
+
+        if (newSetlist) {
+          return {
+            id: newSetlist.id,
+            songs: newSetlist.songs || []
+          };
+        }
+        
+        return {
+          id: 'temp-id',
+          songs: []
+        };
+      } catch (error) {
+        console.error('Error creating setlist with Spotify data:', error);
+        return {
+          id: 'temp-id',
+          songs: []
+        };
+      }
     },
     enabled: !!show?.id,
   });
@@ -146,26 +207,47 @@ export default function ShowPage() {
       return;
     }
 
-    const { error } = await supabase
-      .from('user_votes')
-      .insert({
-        user_id: user.id,
-        song_id: songId
-      });
+    try {
+      const { error } = await supabase
+        .from('user_votes')
+        .insert({
+          user_id: user.id,
+          song_id: songId
+        });
 
-    if (error) {
+      if (error) {
+        if (error.code === '23505') {
+          toast({
+            title: "Already Voted",
+            description: "You have already voted for this song",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to submit vote",
+            variant: "destructive"
+          });
+        }
+        return;
+      }
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
+      queryClient.invalidateQueries({ queryKey: ['user-votes', setlist?.id] });
+
+      toast({
+        title: "Vote Submitted",
+        description: "Your vote has been recorded"
+      });
+    } catch (error) {
+      console.error('Error submitting vote:', error);
       toast({
         title: "Error",
         description: "Failed to submit vote",
         variant: "destructive"
       });
-      return;
     }
-
-    toast({
-      title: "Vote Submitted",
-      description: "Your vote has been recorded"
-    });
   };
 
   const handleSuggest = () => {

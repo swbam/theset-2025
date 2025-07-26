@@ -64,12 +64,15 @@ Deno.serve(async (req) => {
     });
 
     // Endpoint-specific parameters
+    let apiUrl: string;
+    
     switch (endpoint) {
       case 'search':
         if (query) {
           queryParams.append('keyword', query);
         }
         queryParams.append('sort', 'date,asc');
+        apiUrl = `${BASE_URL}/events.json?${queryParams.toString()}`;
         break;
       case 'artist':
         if (query) {
@@ -77,6 +80,7 @@ Deno.serve(async (req) => {
         }
         queryParams.append('sort', 'date,asc');
         queryParams.append('size', '50');
+        apiUrl = `${BASE_URL}/events.json?${queryParams.toString()}`;
         break;
       case 'events':
         if (params) {
@@ -89,6 +93,19 @@ Deno.serve(async (req) => {
         if (!params?.sort) {
           queryParams.append('sort', 'date,asc');
         }
+        // Set size parameter if not already set
+        if (!queryParams.has('size')) {
+          queryParams.append('size', '20');
+        }
+        apiUrl = `${BASE_URL}/events.json?${queryParams.toString()}`;
+        break;
+      case 'venues':
+        // For venue endpoint, we need venue ID from request body
+        if (!query) {
+          throw new Error('Venue ID is required for venues endpoint');
+        }
+        // Venue details API endpoint
+        apiUrl = `${BASE_URL}/venues/${query}.json?apikey=${secretData.value}`;
         break;
       case 'featured':
         const now = new Date();
@@ -96,17 +113,15 @@ Deno.serve(async (req) => {
         queryParams.append('startDateTime', startDateTime);
         queryParams.append('sort', 'relevance,desc');
         queryParams.append('countryCode', 'US');
+        // Set size parameter if not already set
+        if (!queryParams.has('size')) {
+          queryParams.append('size', '20');
+        }
+        apiUrl = `${BASE_URL}/events.json?${queryParams.toString()}`;
         break;
       default:
         throw new Error('Invalid endpoint');
     }
-
-    // Set size parameter if not already set
-    if (!queryParams.has('size')) {
-      queryParams.append('size', '20');
-    }
-
-    const apiUrl = `${BASE_URL}/events.json?${queryParams.toString()}`;
     console.log('Making request to:', apiUrl);
 
     // Create the request function

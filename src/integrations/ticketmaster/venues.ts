@@ -108,3 +108,34 @@ async function fetchVenueData(venueId: string): Promise<TicketmasterVenue | null
     return null;
   }
 }
+
+export async function updateVenuesCache(venues: TicketmasterVenue[]): Promise<Map<string, string>> {
+  const venueIds = new Map<string, string>();
+
+  for (const venue of venues) {
+    try {
+      const { data, error } = await supabase
+        .from('venues')
+        .upsert({
+          ticketmaster_id: venue.id,
+          name: venue.name,
+          metadata: venue as unknown as Json
+        })
+        .select('id, ticketmaster_id')
+        .single();
+
+      if (error) {
+        console.error('Error upserting venue:', error, venue);
+        continue;
+      }
+
+      if (data) {
+        venueIds.set(venue.id, data.id);
+      }
+    } catch (error) {
+      console.error('Error processing venue:', error, venue);
+    }
+  }
+
+  return venueIds;
+}
