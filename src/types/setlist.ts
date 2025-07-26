@@ -6,6 +6,19 @@ export interface SetlistSong {
   suggested?: boolean;
 }
 
+export interface DatabaseSongRecord {
+  id?: string;
+  name?: string;
+  song_name?: string;
+  votes?: number;
+  total_votes?: number;
+  suggested?: boolean;
+  spotify_id?: string;
+  album?: string;
+  preview_url?: string;
+  popularity?: number;
+}
+
 export interface Setlist {
   id: string;
   name?: string;

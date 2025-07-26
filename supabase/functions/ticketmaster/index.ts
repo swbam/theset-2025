@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
         // Venue details API endpoint
         apiUrl = `${BASE_URL}/venues/${query}.json?apikey=${secretData.value}`;
         break;
-      case 'featured':
+      case 'featured': {
         const now = new Date();
         const startDateTime = now.toISOString().slice(0, 19) + 'Z';
         queryParams.append('startDateTime', startDateTime);
@@ -119,6 +119,7 @@ Deno.serve(async (req) => {
         }
         apiUrl = `${BASE_URL}/events.json?${queryParams.toString()}`;
         break;
+      }
       default:
         throw new Error('Invalid endpoint');
     }

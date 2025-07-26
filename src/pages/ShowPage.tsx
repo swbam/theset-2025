@@ -10,10 +10,12 @@ import { ShowDetails } from "@/components/shows/ShowDetails";
 import { Setlist } from "@/components/shows/Setlist";
 import { getArtistTopTracks, searchArtist } from "@/integrations/spotify/client";
 import { createInitialSetlistFromSpotifyTracks } from "@/integrations/ticketmaster/api";
+import type { DatabaseSongRecord } from "@/types/setlist";
+import { calculateSongVotes } from "@/utils/voteCalculations";
 
 export default function ShowPage() {
-  // Extract the event ID from the URL
-  const { eventId } = useParams<{ eventId: string }>();
+  // Extract the event ID from the URL - parameter is named 'id' in routes
+  const { id: eventId } = useParams<{ id: string }>();
   const { user, session } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -76,27 +78,31 @@ export default function ShowPage() {
         return null;
       }
 
-      // If setlist exists, transform the songs array
+      // If setlist exists, calculate real vote counts
       if (existingSetlist) {
         try {
+          // Calculate real vote counts from user_votes table
+          const songsWithRealVotes = await calculateSongVotes(existingSetlist.id);
+          
+          return {
+            id: existingSetlist.id,
+            songs: songsWithRealVotes
+          };
+        } catch (err) {
+          console.error('Error calculating real vote counts:', err);
+          // Fallback to stored data without real votes
           const songsList = Array.isArray(existingSetlist.songs) 
             ? existingSetlist.songs 
             : [];
             
           return {
             id: existingSetlist.id,
-            songs: songsList.map((song: any) => ({
+            songs: songsList.map((song: DatabaseSongRecord) => ({
               id: song.id || `song-${Math.random().toString(36).substr(2, 9)}`,
               song_name: song.name || song.song_name || 'Unknown Song',
-              total_votes: song.votes || song.total_votes || 0,
+              total_votes: 0, // Start with 0 since real votes couldn't be calculated
               suggested: song.suggested || false
             }))
-          };
-        } catch (err) {
-          console.error('Error parsing setlist songs:', err);
-          return {
-            id: existingSetlist.id,
-            songs: []
           };
         }
       }
