@@ -34,17 +34,15 @@ const App = () => (
               <Route path="/shows" element={<Shows />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/artist/:artistName" element={<ArtistPage />} />
-              <Route path="/show/:artistSlug/:date/:city/:venue/:id" element={<ShowPage />} />
-              <Route path="/show/:id" element={<ShowPage />} />
+              <Route path="/show/:eventId" element={<ShowPage />} />
               
               {/* Dashboard pages with sidebar */}
               <Route path="/dashboard" element={<Dashboard />}>
-                <Route path="/dashboard/my-artists" element={<MyArtists />} />
-                <Route path="/dashboard/my-activity" element={<Index />} />
-                <Route path="/dashboard/profile" element={<Index />} />
-                <Route path="/dashboard/settings" element={<Index />} />
+                <Route path="my-artists" element={<MyArtists />} />
+                <Route path="my-activity" element={<Index />} />
+                <Route path="profile" element={<Index />} />
+                <Route path="settings" element={<Index />} />
               </Route>
-              <Route path="/show/:eventId" element={<ShowPage />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

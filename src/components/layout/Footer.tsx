@@ -10,9 +10,8 @@ export function Footer() {
           {/* TheSet Section */}
           <div>
             <h3 className="text-white font-semibold mb-4">TheSet</h3>
-            <p className="text-zinc-400 text-sm mb-4">
-              A platform for fans to preview concert setlists through voting, connecting artists with 
-              their audience.
+            <p className="text-zinc-400 text-sm leading-relaxed">
+              A platform for fans to preview concert setlists through voting, connecting artists with their audience.
             </p>
           </div>
 
@@ -22,25 +21,25 @@ export function Footer() {
             <div className="space-y-2">
               <button 
                 onClick={() => navigate('/')}
-                className="block text-zinc-400 hover:text-white text-sm transition-colors"
+                className="block text-zinc-400 hover:text-white text-sm transition-colors text-left"
               >
                 Home
               </button>
               <button 
                 onClick={() => navigate('/artists')}
-                className="block text-zinc-400 hover:text-white text-sm transition-colors"
+                className="block text-zinc-400 hover:text-white text-sm transition-colors text-left"
               >
                 Artists
               </button>
               <button 
                 onClick={() => navigate('/shows')}
-                className="block text-zinc-400 hover:text-white text-sm transition-colors"
+                className="block text-zinc-400 hover:text-white text-sm transition-colors text-left"
               >
                 Shows
               </button>
               <button 
                 onClick={() => navigate('/how-it-works')}
-                className="block text-zinc-400 hover:text-white text-sm transition-colors"
+                className="block text-zinc-400 hover:text-white text-sm transition-colors text-left"
               >
                 How It Works
               </button>
