@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +9,7 @@ import { LoadingState } from "@/components/shows/LoadingState";
 import { EmptyState } from "@/components/shows/EmptyState";
 import { ShowDetails } from "@/components/shows/ShowDetails";
 import { Setlist } from "@/components/shows/Setlist";
+import { SongSuggestionDialog } from "@/components/shows/SongSuggestionDialog";
 import { getArtistTopTracks, searchArtist } from "@/integrations/spotify/client";
 import { createInitialSetlistFromSpotifyTracks } from "@/integrations/ticketmaster/api";
 import type { DatabaseSongRecord } from "@/types/setlist";
@@ -19,6 +21,7 @@ export default function ShowPage() {
   const { user, session } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
   
   const { data: show, isLoading: showLoading } = useQuery({
     queryKey: ['show', eventId],
@@ -111,42 +114,35 @@ export default function ShowPage() {
       console.log('Creating new setlist for show:', show?.id);
       
       try {
-        // Get artist info and Spotify access token
+        // Get artist info
         const artistName = show?.artist?.name || 'Unknown Artist';
-        const spotifyToken = session?.provider_token;
         
-        if (!spotifyToken) {
-          console.error('No Spotify access token available');
-          return {
-            id: 'temp-id',
-            songs: []
-          };
-        }
-
         // Search for artist on Spotify if we don't have spotify_id
         let artistSpotifyId = show?.artist?.spotify_id;
         if (!artistSpotifyId) {
-          const spotifyArtist = await searchArtist(spotifyToken, artistName);
+          const spotifyArtist = await searchArtist(artistName);
           artistSpotifyId = spotifyArtist?.id;
+          
+          // Update artist with Spotify ID if found
+          if (artistSpotifyId && show?.artist?.id) {
+            await supabase
+              .from('artists')
+              .update({ spotify_id: artistSpotifyId })
+              .eq('id', show.artist.id);
+          }
         }
 
         if (!artistSpotifyId) {
           console.error('Could not find artist on Spotify:', artistName);
-          return {
-            id: 'temp-id',
-            songs: []
-          };
+          throw new Error(`Artist "${artistName}" not found on Spotify. Please ensure the artist name is correct.`);
         }
 
-        // Get artist's top tracks from Spotify
-        const topTracks = await getArtistTopTracks(spotifyToken, artistSpotifyId);
+        // Get artist's top tracks from Spotify using Edge Function
+        const topTracks = await getArtistTopTracks(artistSpotifyId);
         
-        if (topTracks.length === 0) {
+        if (!topTracks || topTracks.length === 0) {
           console.error('No top tracks found for artist:', artistName);
-          return {
-            id: 'temp-id',
-            songs: []
-          };
+          throw new Error(`No songs found for artist "${artistName}" on Spotify.`);
         }
 
         // Create setlist with real Spotify data
@@ -165,10 +161,7 @@ export default function ShowPage() {
 
       } catch (error) {
         console.error('Error creating setlist from Spotify:', error);
-        return {
-          id: 'temp-id',
-          songs: []
-        };
+        throw error; // Propagate error to show proper error state
       }
     },
     enabled: !!show?.id,
@@ -253,10 +246,20 @@ export default function ShowPage() {
   };
 
   const handleSuggest = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Song suggestions will be available soon!"
-    });
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to suggest songs",
+        variant: "destructive"
+      });
+      return;
+    }
+    setShowSuggestionDialog(true);
+  };
+
+  const handleSongAdded = () => {
+    // Invalidate queries to refresh the setlist
+    queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
   };
 
   if (showLoading || setlistLoading) {
@@ -291,6 +294,15 @@ export default function ShowPage() {
           />
         </div>
       </div>
+      
+      {setlist?.id && (
+        <SongSuggestionDialog
+          open={showSuggestionDialog}
+          onOpenChange={setShowSuggestionDialog}
+          setlistId={setlist.id}
+          onSongAdded={handleSongAdded}
+        />
+      )}
     </div>
   );
 }
