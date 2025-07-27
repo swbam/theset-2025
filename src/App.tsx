@@ -9,6 +9,9 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import ArtistPage from "./pages/ArtistPage";
 import ShowPage from "./pages/ShowPage";
+import Artists from "./pages/Artists";
+import Shows from "./pages/Shows";
+import HowItWorks from "./pages/HowItWorks";
 import NotFound from "./pages/NotFound";
 import MyArtists from "./pages/MyArtists";
 
@@ -23,16 +26,26 @@ const App = () => (
             <Toaster />
             <Sonner />
             <Routes>
-              <Route path="/" element={<Dashboard />}>
-                <Route index element={<Index />} />
-                <Route path="/artist/:artistName" element={<ArtistPage />} />
-                <Route path="/show/:artistSlug/:date/:city/:venue/:id" element={<ShowPage />} />
-                <Route path="/show/:id" element={<ShowPage />} /> {/* Keep old route for backwards compatibility */}
-                <Route path="/my-artists" element={<MyArtists />} />
-                <Route path="/my-activity" element={<Index />} />
-                <Route path="/profile" element={<Index />} />
-                <Route path="/settings" element={<Index />} />
+              {/* Landing page without sidebar */}
+              <Route path="/" element={<Index />} />
+              
+              {/* Public pages without sidebar */}
+              <Route path="/artists" element={<Artists />} />
+              <Route path="/shows" element={<Shows />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/artist/:artistName" element={<ArtistPage />} />
+              <Route path="/show/:artistSlug/:date/:city/:venue/:id" element={<ShowPage />} />
+              <Route path="/show/:id" element={<ShowPage />} />
+              
+              {/* Dashboard pages with sidebar */}
+              <Route path="/dashboard" element={<Dashboard />}>
+                <Route path="/dashboard/my-artists" element={<MyArtists />} />
+                <Route path="/dashboard/my-activity" element={<Index />} />
+                <Route path="/dashboard/profile" element={<Index />} />
+                <Route path="/dashboard/settings" element={<Index />} />
               </Route>
+              <Route path="/show/:eventId" element={<ShowPage />} />
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

@@ -3,8 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Music2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SearchBar } from "@/components/search/SearchBar";
-import { PopularTours } from "@/components/shows/PopularTours";
+import { FeaturedArtists } from "@/components/artists/FeaturedArtists";
+import { UpcomingShows } from "@/components/shows/UpcomingShows";
 import { Button } from "@/components/ui/button";
+import { TopNavigation } from "@/components/layout/TopNavigation";
+import { Footer } from "@/components/layout/Footer";
 
 const Index = () => {
   const { user, signInWithSpotify } = useAuth();
@@ -16,14 +19,15 @@ const Index = () => {
 
   return (
     <div className="min-h-full bg-black">
+      <TopNavigation />
       {/* Hero Section */}
-      <div className="relative py-20">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h1 className="text-6xl md:text-8xl font-bold tracking-tight mb-6 text-white">
+      <div className="relative py-24">
+        <div className="max-w-5xl mx-auto px-6 text-center">
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-8 text-white leading-tight">
             Vote on the setlists<br />
             you want to hear
           </h1>
-          <p className="text-xl text-zinc-400 mb-12 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-zinc-400 mb-12 max-w-3xl mx-auto leading-relaxed">
             Discover upcoming concerts and help shape the perfect show by voting for your favorite songs.
           </p>
           <SearchBar onArtistClick={handleArtistClick} />
@@ -33,16 +37,16 @@ const Index = () => {
       <div className="max-w-7xl mx-auto px-6 space-y-16">
         {/* Personalized Recommendations */}
         {!user && (
-          <section className="text-center py-16">
+          <section className="text-center py-12">
             <div className="flex flex-col items-center gap-6">
-              <Music2 className="w-16 h-16 text-white" />
-              <h2 className="text-2xl font-bold text-white">Personalized Recommendations</h2>
-              <p className="text-zinc-400 max-w-md">
+              <Music2 className="w-12 h-12 text-white" />
+              <h2 className="text-xl font-semibold text-white">Personalized Recommendations</h2>
+              <p className="text-zinc-400 max-w-md text-sm">
                 Connect your Spotify account to get personalized artist recommendations and upcoming shows.
               </p>
               <Button 
                 onClick={signInWithSpotify} 
-                className="bg-green-500 hover:bg-green-600 text-black font-semibold px-8 py-3 rounded-full"
+                className="bg-green-500 hover:bg-green-600 text-black font-semibold px-6 py-2 rounded-full text-sm"
               >
                 Connect Spotify
               </Button>
@@ -52,42 +56,42 @@ const Index = () => {
 
         {/* Trending Shows */}
         <section className="py-8">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-3xl font-bold text-white mb-2">Trending Shows</h2>
-              <p className="text-zinc-400">Shows with the most active voting right now</p>
+              <h2 className="text-2xl font-bold text-white mb-1">Trending Shows</h2>
+              <p className="text-zinc-400 text-sm">Shows with the most active voting right now</p>
             </div>
-            <Button variant="outline" onClick={() => navigate('/shows')} className="text-white border-zinc-700">
+            <Button variant="outline" onClick={() => navigate('/shows')} className="text-white border-zinc-700 text-sm">
               View all →
             </Button>
           </div>
           <div className="text-center py-8">
-            <p className="text-zinc-500">No trending shows found</p>
+            <p className="text-zinc-500 text-sm">No trending shows found</p>
           </div>
         </section>
 
         {/* Featured Artists */}
         <section className="py-8">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-3xl font-bold text-white mb-2">Featured Artists</h2>
-              <p className="text-zinc-400">Top artists with upcoming shows to vote on</p>
+              <h2 className="text-2xl font-bold text-white mb-1">Featured Artists</h2>
+              <p className="text-zinc-400 text-sm">Top artists with upcoming shows to vote on</p>
             </div>
-            <Button variant="outline" onClick={() => navigate('/artists')} className="text-white border-zinc-700">
+            <Button variant="outline" onClick={() => navigate('/artists')} className="text-white border-zinc-700 text-sm">
               View all →
             </Button>
           </div>
-          <PopularTours onArtistClick={handleArtistClick} />
+          <FeaturedArtists onArtistClick={handleArtistClick} />
         </section>
 
         {/* Upcoming Shows */}
         <section className="py-8">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-3xl font-bold text-white mb-2">Upcoming Shows</h2>
-              <p className="text-zinc-400">Browse and vote on setlists for upcoming concerts</p>
+              <h2 className="text-2xl font-bold text-white mb-1">Upcoming Shows</h2>
+              <p className="text-zinc-400 text-sm">Browse and vote on setlists for upcoming concerts</p>
             </div>
-            <Button variant="outline" onClick={() => navigate('/shows')} className="text-white border-zinc-700">
+            <Button variant="outline" onClick={() => navigate('/shows')} className="text-white border-zinc-700 text-sm">
               View all →
             </Button>
           </div>
@@ -106,7 +110,7 @@ const Index = () => {
             ))}
           </div>
           
-          <PopularTours onArtistClick={handleArtistClick} />
+          <UpcomingShows onArtistClick={handleArtistClick} />
         </section>
 
         {/* How TheSet Works */}
@@ -151,6 +155,7 @@ const Index = () => {
           </div>
         </section>
       </div>
+      <Footer />
     </div>
   );
 };

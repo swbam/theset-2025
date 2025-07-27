@@ -8,6 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { ArtistHero } from "@/components/artists/ArtistHero";
 import { ArtistShows } from "@/components/artists/ArtistShows";
+import { TopNavigation } from "@/components/layout/TopNavigation";
+import { Footer } from "@/components/layout/Footer";
 import { transformDatabaseArtist, type DatabaseArtist } from "@/types/artist";
 
 export default function ArtistPage() {
@@ -185,6 +187,7 @@ export default function ArtistPage() {
 
   return (
     <div className="min-h-screen bg-black">
+      <TopNavigation />
       <ArtistHero 
         artist={artist}
         artistName={decodedArtistName}
@@ -193,6 +196,7 @@ export default function ArtistPage() {
         onFollowClick={handleFollowClick}
       />
       <ArtistShows shows={shows} />
+      <Footer />
     </div>
   );
 }

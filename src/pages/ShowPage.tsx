@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/shows/EmptyState";
 import { ShowDetails } from "@/components/shows/ShowDetails";
 import { Setlist } from "@/components/shows/Setlist";
 import { SongSuggestionDialog } from "@/components/shows/SongSuggestionDialog";
+import { TopNavigation } from "@/components/layout/TopNavigation";
+import { Footer } from "@/components/layout/Footer";
 import { getArtistTopTracks, searchArtist } from "@/integrations/spotify/client";
 import { createInitialSetlistFromSpotifyTracks } from "@/integrations/ticketmaster/api";
 import type { DatabaseSongRecord } from "@/types/setlist";
@@ -278,6 +280,7 @@ export default function ShowPage() {
 
   return (
     <div className="min-h-screen bg-black">
+      <TopNavigation />
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="space-y-8">
           <ShowDetails
@@ -303,6 +306,7 @@ export default function ShowPage() {
           onSongAdded={handleSongAdded}
         />
       )}
+      <Footer />
     </div>
   );
 }
