@@ -6,6 +6,14 @@ export interface SetlistSong {
   suggested?: boolean;
 }
 
+export interface DatabaseSongRecord {
+  id: string;
+  name?: string;
+  song_name: string;
+  total_votes: number;
+  suggested?: boolean;
+}
+
 export interface Setlist {
   id: string;
   name?: string;

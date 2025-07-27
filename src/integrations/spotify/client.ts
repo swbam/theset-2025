@@ -11,6 +11,22 @@ export interface SpotifyArtist {
   }>;
 }
 
+export interface SpotifyTrack {
+  id: string;
+  name: string;
+  artists: SpotifyArtist[];
+  album: {
+    name: string;
+    images?: Array<{
+      url: string;
+      height: number;
+      width: number;
+    }>;
+  };
+  popularity: number;
+  preview_url?: string;
+}
+
 export const getTopArtists = async (accessToken: string): Promise<SpotifyArtist[]> => {
   const response = await fetch(`${SPOTIFY_API_URL}/me/top/artists?limit=10&time_range=short_term`, {
     headers: {
@@ -42,5 +58,18 @@ export const searchArtist = async (accessToken: string, artistName: string): Pro
   );
   const data = await response.json();
   return data.artists?.items?.[0] || null;
+};
+
+export const getArtistTopTracks = async (accessToken: string, artistId: string): Promise<SpotifyTrack[]> => {
+  const response = await fetch(
+    `${SPOTIFY_API_URL}/artists/${artistId}/top-tracks?market=US`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  const data = await response.json();
+  return data.tracks || [];
 };
 

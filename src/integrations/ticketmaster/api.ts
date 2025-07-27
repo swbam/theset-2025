@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import type { CachedShow, CachedSong } from "@/types/sync";
+import type { SpotifyTrack } from "@/integrations/spotify/client";
 
 export const callTicketmasterFunction = async (endpoint: string, query?: string, params?: Record<string, string>) => {
   console.log(`Calling Ticketmaster API - ${endpoint}:`, { query, params });
@@ -15,6 +16,40 @@ export const callTicketmasterFunction = async (endpoint: string, query?: string,
   }
 
   return data?._embedded?.events || [];
+};
+
+export const createInitialSetlistFromSpotifyTracks = async (
+  showId: string, 
+  spotifyTracks: SpotifyTrack[]
+): Promise<string> => {
+  // Create songs array from Spotify tracks
+  const songs = spotifyTracks.map((track, index) => ({
+    id: `song-${track.id}`,
+    name: track.name,
+    song_name: track.name,
+    spotify_id: track.id,
+    total_votes: 0,
+    suggested: false,
+    order: index
+  }));
+
+  // Create new setlist with real Spotify data
+  const { data: setlist, error } = await supabase
+    .from('setlists')
+    .insert({
+      show_id: showId,
+      songs: songs,
+      created_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating setlist:', error);
+    throw error;
+  }
+
+  return setlist.id;
 };
 
 export const fetchFromCache = async (artistId: string | null, ttlHours = 24) => {

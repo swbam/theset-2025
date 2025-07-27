@@ -14,8 +14,8 @@ import type { DatabaseSongRecord } from "@/types/setlist";
 import { calculateSongVotes } from "@/utils/voteCalculations";
 
 export default function ShowPage() {
-  // Extract the event ID from the URL
-  const { eventId } = useParams<{ eventId: string }>();
+  // Extract the event ID from the URL - parameter is named 'id' in routes
+  const { id: eventId } = useParams<{ id: string }>();
   const { user, session } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -97,7 +97,7 @@ export default function ShowPage() {
             
           return {
             id: existingSetlist.id,
-            songs: songsList.map((song: any) => ({
+            songs: songsList.map((song: DatabaseSongRecord) => ({
               id: song.id || `song-${Math.random().toString(36).substr(2, 9)}`,
               song_name: song.name || song.song_name || 'Unknown Song',
               total_votes: 0, // Start with 0 since real votes couldn't be calculated
@@ -150,21 +150,25 @@ export default function ShowPage() {
         }
 
         // Create setlist with real Spotify data
-        const setlistId = await createInitialSetlistFromSpotifyTracks(show?.id, topTracks);
-        
-        // Return the newly created setlist with songs
-        return {
-          id: setlistId,
-          songs: topTracks.map((track, index) => ({
-            id: `song-${track.id}`,
-            song_name: track.name,
-            total_votes: 0,
-            suggested: false
-          }))
-        };
+        const newSetlist = await createInitialSetlistFromSpotifyTracks(
+          show?.id,
+          show?.artist_id,
+          topTracks
+        );
 
+        if (newSetlist) {
+          return {
+            id: newSetlist.id,
+            songs: newSetlist.songs || []
+          };
+        }
+        
+        return {
+          id: 'temp-id',
+          songs: []
+        };
       } catch (error) {
-        console.error('Error creating setlist from Spotify:', error);
+        console.error('Error creating setlist with Spotify data:', error);
         return {
           id: 'temp-id',
           songs: []
@@ -269,8 +273,8 @@ export default function ShowPage() {
 
   const venueInfo = show.venue_name ? {
     name: show.venue_name,
-    city: (show.venue_location as any)?.city?.name,
-    state: (show.venue_location as any)?.state?.name
+    city: show.venue_location?.city?.name,
+    state: show.venue_location?.state?.name
   } : undefined;
 
   return (
