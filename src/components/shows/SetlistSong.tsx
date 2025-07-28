@@ -1,6 +1,5 @@
-
-import { ThumbsUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ThumbsUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface SetlistSongProps {
   id: string;
@@ -11,13 +10,13 @@ interface SetlistSongProps {
   hasVoted?: boolean;
 }
 
-export const SetlistSong = ({ 
-  id, 
-  songName, 
-  totalVotes, 
-  suggested, 
-  onVote, 
-  hasVoted 
+export const SetlistSong = ({
+  id,
+  songName,
+  totalVotes,
+  suggested,
+  onVote,
+  hasVoted,
 }: SetlistSongProps) => (
   <div className="flex items-center justify-between bg-white/5 p-4 rounded-lg hover:bg-white/10 transition-colors">
     <div className="space-y-1">
@@ -29,7 +28,9 @@ export const SetlistSong = ({
       )}
     </div>
     <div className="flex items-center gap-3">
-      <span className="text-white/60 min-w-[2rem] text-right">{totalVotes || 0}</span>
+      <span className="text-white/60 min-w-[2rem] text-right">
+        {totalVotes || 0}
+      </span>
       <Button
         variant="outline"
         size="icon"

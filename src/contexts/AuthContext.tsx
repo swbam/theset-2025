@@ -1,8 +1,7 @@
-
-import { createContext, useContext, useEffect, useState } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { createContext, useContext, useEffect, useState } from 'react';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   session: Session | null;
@@ -39,14 +38,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithSpotify = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: "spotify",
+        provider: 'spotify',
         options: {
-          scopes: "user-read-email user-read-private user-top-read user-follow-read",
+          scopes:
+            'user-read-email user-read-private user-top-read user-follow-read',
         },
       });
       if (error) throw error;
     } catch (error) {
-      console.error("Error signing in with Spotify:", error);
+      console.error('Error signing in with Spotify:', error);
       throw error;
     }
   };
@@ -55,9 +55,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      navigate("/");
+      navigate('/');
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error('Error signing out:', error);
       throw error;
     }
   };
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

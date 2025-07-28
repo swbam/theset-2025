@@ -1,5 +1,21 @@
-
 import type { Json } from '@/integrations/supabase/types';
+
+export interface TicketmasterArtist {
+  id: string;
+  name: string;
+  images?: Array<{
+    url: string;
+    ratio?: string;
+    width?: number;
+    height?: number;
+  }>;
+  classifications?: Array<{
+    primary: boolean;
+    segment: {
+      name: string;
+    };
+  }>;
+}
 
 export interface TicketmasterVenue {
   id: string;

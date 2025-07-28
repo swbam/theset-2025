@@ -1,5 +1,4 @@
-
-import type { Json } from "@/integrations/supabase/types";
+import type { Json } from '@/integrations/supabase/types';
 
 export type SyncPlatform = 'spotify' | 'ticketmaster';
 export type EntityType = 'artist' | 'venue' | 'show' | 'song';

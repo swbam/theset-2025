@@ -1,8 +1,7 @@
-
-import type { Artist } from "@/types/artist";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import type { Artist } from '@/types/artist';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 interface ArtistHeroProps {
   artist: Artist | null;
@@ -12,20 +11,20 @@ interface ArtistHeroProps {
   onFollowClick: () => void;
 }
 
-export const ArtistHero = ({ 
-  artist, 
-  artistName, 
-  isFollowing, 
-  isFollowActionPending, 
-  onFollowClick 
+export const ArtistHero = ({
+  artist,
+  artistName,
+  isFollowing,
+  isFollowActionPending,
+  onFollowClick,
 }: ArtistHeroProps) => {
   return (
-    <div 
+    <div
       className="h-[400px] relative bg-cover bg-center"
-      style={{ 
-        backgroundImage: artist?.cover_image_url 
-          ? `url(${artist.cover_image_url})` 
-          : 'linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.8))'
+      style={{
+        backgroundImage: artist?.cover_image_url
+          ? `url(${artist.cover_image_url})`
+          : 'linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.8))',
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black" />
@@ -42,7 +41,7 @@ export const ArtistHero = ({
             <div className="flex items-center gap-4 mb-4">
               <h1 className="text-5xl font-bold text-white">{artistName}</h1>
               <Button
-                variant={isFollowing ? "secondary" : "default"}
+                variant={isFollowing ? 'secondary' : 'default'}
                 onClick={onFollowClick}
                 disabled={isFollowActionPending}
               >
@@ -55,8 +54,8 @@ export const ArtistHero = ({
             {artist?.genres && Array.isArray(artist.genres) && (
               <div className="flex gap-2">
                 {artist.genres.slice(0, 3).map((genre: string) => (
-                  <span 
-                    key={genre} 
+                  <span
+                    key={genre}
                     className="text-xs px-3 py-1 rounded-full bg-white/10 text-white font-medium"
                   >
                     {genre}

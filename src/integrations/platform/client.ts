@@ -1,9 +1,16 @@
-
-import { supabase } from "@/integrations/supabase/client";
-import type { EntityType, PlatformIdentifier, SyncPlatform } from "@/types/sync";
+import { supabase } from '@/integrations/supabase/client';
+import type {
+  EntityType,
+  PlatformIdentifier,
+  SyncPlatform,
+} from '@/types/sync';
 
 export class PlatformClient {
-  static async getIdentifier(platform: SyncPlatform, platformId: string, entityType: EntityType): Promise<PlatformIdentifier | null> {
+  static async getIdentifier(
+    platform: SyncPlatform,
+    platformId: string,
+    entityType: EntityType
+  ): Promise<PlatformIdentifier | null> {
     const { data, error } = await supabase
       .from('platform_identifiers')
       .select('*')
@@ -35,7 +42,7 @@ export class PlatformClient {
         platform,
         platform_id: platformId,
         metadata,
-        last_synced_at: new Date().toISOString()
+        last_synced_at: new Date().toISOString(),
       })
       .select()
       .maybeSingle();
@@ -53,26 +60,27 @@ export class PlatformClient {
     success: boolean,
     errorMessage?: string
   ): Promise<void> {
-    const { error } = await supabase
-      .rpc('update_sync_metrics', {
-        p_platform: platform,
-        p_success: success,
-        p_error_message: errorMessage
-      });
+    const { error } = await supabase.rpc('update_sync_metrics', {
+      p_platform: platform,
+      p_success: success,
+      p_error_message: errorMessage,
+    });
 
     if (error) {
       console.error('Error updating sync metrics:', error);
     }
   }
 
-  static async needsSync(lastSync: string | null, ttlHours = 24): Promise<boolean> {
+  static async needsSync(
+    lastSync: string | null,
+    ttlHours = 24
+  ): Promise<boolean> {
     if (!lastSync) return true;
 
-    const { data, error } = await supabase
-      .rpc('needs_sync', {
-        last_sync: lastSync,
-        ttl_hours: ttlHours
-      });
+    const { data, error } = await supabase.rpc('needs_sync', {
+      last_sync: lastSync,
+      ttl_hours: ttlHours,
+    });
 
     if (error) {
       console.error('Error checking sync status:', error);

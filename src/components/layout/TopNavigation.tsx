@@ -1,8 +1,8 @@
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
-import { useState } from "react";
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Menu } from 'lucide-react';
+import { useState } from 'react';
 
 export function TopNavigation() {
   const navigate = useNavigate();
@@ -10,10 +10,10 @@ export function TopNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navigationItems = [
-    { label: "Home", path: "/" },
-    { label: "Artists", path: "/artists" },
-    { label: "Upcoming Shows", path: "/shows" },
-    { label: "How It Works", path: "/how-it-works" },
+    { label: 'Home', path: '/' },
+    { label: 'Artists', path: '/artists' },
+    { label: 'Upcoming Shows', path: '/shows' },
+    { label: 'How It Works', path: '/how-it-works' },
   ];
 
   return (
@@ -21,9 +21,9 @@ export function TopNavigation() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div 
+          <div
             className="text-xl font-bold text-white cursor-pointer"
-            onClick={() => navigate("/")}
+            onClick={() => navigate('/')}
           >
             TheSet
           </div>
@@ -48,7 +48,7 @@ export function TopNavigation() {
                 {user.email}
               </Button>
             ) : (
-              <Button 
+              <Button
                 onClick={signInWithSpotify}
                 className="bg-white text-black hover:bg-zinc-200"
               >
@@ -83,11 +83,14 @@ export function TopNavigation() {
                 </button>
               ))}
               {user ? (
-                <Button variant="outline" className="text-white border-zinc-700 w-fit">
+                <Button
+                  variant="outline"
+                  className="text-white border-zinc-700 w-fit"
+                >
                   {user.email}
                 </Button>
               ) : (
-                <Button 
+                <Button
                   onClick={signInWithSpotify}
                   className="bg-white text-black hover:bg-zinc-200 w-fit"
                 >

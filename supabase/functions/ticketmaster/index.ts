@@ -1,7 +1,7 @@
 // World-class Ticketmaster API proxy with enterprise-grade features
 // Supports intelligent rate limiting, circuit breakers, and comprehensive error handling
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import { handleCorsPreFlight, createCorsResponse } from '../_shared/cors.ts';
 import { 
   RateLimiter, 
@@ -117,7 +117,7 @@ class RequestQueue {
 const requestQueue = new RequestQueue();
 
 // Enhanced API Key Management
-async function getApiKey(supabaseClient: any): Promise<string> {
+async function getApiKey(supabaseClient: SupabaseClient): Promise<string> {
   const endTimer = performanceMonitor.startTimer('get_api_key');
   
   try {
@@ -282,7 +282,7 @@ async function makeTicketmasterRequest(
 }
 
 // Data Transformation and Validation
-function validateAndTransformResponse(data: any, endpoint: string): any {
+function validateAndTransformResponse(data: any, endpoint: string): unknown {
   if (!data) {
     throw new Error('Empty response from Ticketmaster API');
   }
@@ -309,7 +309,7 @@ function validateAndTransformResponse(data: any, endpoint: string): any {
 }
 
 // Health Check Endpoint
-async function performHealthCheck(supabaseClient: any): Promise<ApiResponse> {
+async function performHealthCheck(supabaseClient: SupabaseClient): Promise<ApiResponse> {
   const endTimer = performanceMonitor.startTimer('health_check');
   
   try {
@@ -341,7 +341,7 @@ async function performHealthCheck(supabaseClient: any): Promise<ApiResponse> {
 }
 
 // Main Request Handler
-async function handleTicketmasterRequest(request: TicketmasterRequest, supabaseClient: any): Promise<ApiResponse> {
+async function handleTicketmasterRequest(request: TicketmasterRequest, supabaseClient: SupabaseClient): Promise<ApiResponse> {
   const endTimer = performanceMonitor.startTimer(`endpoint_${request.endpoint}`);
   
   try {

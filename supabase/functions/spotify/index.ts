@@ -13,21 +13,18 @@ import {
   sleep
 } from '../_shared/utils.ts';
 
-// Configuration
 const SPOTIFY_RATE_LIMIT = {
   maxRequests: 100,
-  windowMs: 60000, // 1 minute
+  windowMs: 60000,
   retryAfterMs: 1000
 };
 
-// Global instances
 const logger = Logger.getInstance().setContext('SPOTIFY_API');
 const performanceMonitor = new PerformanceMonitor();
 const retryHandler = new RetryHandler(3, 2000, 60000);
 const circuitBreaker = new CircuitBreaker(3, 120000);
 const spotifyRateLimiter = new RateLimiter(SPOTIFY_RATE_LIMIT);
 
-// Spotify Token Manager
 class SpotifyTokenManager {
   private cachedToken: string | null = null;
   private tokenExpiry: number = 0;
@@ -40,12 +37,10 @@ class SpotifyTokenManager {
   }
 
   async getAccessToken(): Promise<string> {
-    // Return cached token if still valid
     if (this.cachedToken && Date.now() < this.tokenExpiry) {
       return this.cachedToken;
     }
 
-    // Get new token
     await this.refreshAccessToken();
     
     if (!this.cachedToken) {
@@ -98,28 +93,23 @@ class SpotifyTokenManager {
   }
 }
 
-// Main handler
 Deno.serve(async (req: Request): Promise<Response> => {
   const startTime = performance.now();
 
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return handleCorsPreFlight();
   }
 
   try {
-    // Get request body
     const { action, params } = await req.json();
 
     logger.info('Spotify API request', { action, params });
 
-    // Create Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get Spotify credentials from database
     const { data: credentials, error: credError } = await supabaseClient
       .from('secrets')
       .select('key, value')
@@ -136,11 +126,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       throw new Error('Spotify credentials not found in database');
     }
 
-    // Initialize token manager
     const tokenManager = new SpotifyTokenManager(clientId, clientSecret);
     const accessToken = await tokenManager.getAccessToken();
 
-    // Handle different actions
     let result;
     switch (action) {
       case 'searchArtist':
@@ -303,7 +291,7 @@ async function getArtistDetails(accessToken: string, artistId: string) {
 
       if (!response.ok) {
         if (response.status === 404) {
-          return null; // Artist not found
+          return null;
         }
         const errorText = await response.text();
         throw new Error(`Spotify API error: ${response.status} - ${errorText}`);

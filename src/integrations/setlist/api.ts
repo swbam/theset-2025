@@ -1,10 +1,15 @@
-import { supabase } from "@/integrations/supabase/client";
-import { syncArtistSongs } from "@/integrations/spotify/api";
+import { supabase } from '@/integrations/supabase/client';
+import { syncArtistSongs } from '@/integrations/spotify/api';
+import type { StoredSetlistSong } from '@/types/setlist';
 
-export const createSetlistForShow = async (showId: string, artistId: string, artistName: string) => {
+export const createSetlistForShow = async (
+  showId: string,
+  artistId: string,
+  artistName: string
+) => {
   try {
     console.log('Creating setlist for show:', showId);
-    
+
     // Check if setlist already exists
     const { data: existingSetlist } = await supabase
       .from('setlists')
@@ -32,23 +37,24 @@ export const createSetlistForShow = async (showId: string, artistId: string, art
     }
 
     // Create setlist songs array
-    const setlistSongs = cachedSongs?.map((song, index) => ({
-      id: song.id,
-      song_name: song.name,
-      spotify_id: song.spotify_id,
-      album: song.album,
-      preview_url: song.preview_url,
-      total_votes: 0,
-      suggested: false,
-      order: index + 1
-    })) || [];
+    const setlistSongs =
+      cachedSongs?.map((song, index) => ({
+        id: song.id,
+        song_name: song.name,
+        spotify_id: song.spotify_id,
+        album: song.album,
+        preview_url: song.preview_url,
+        total_votes: 0,
+        suggested: false,
+        order: index + 1,
+      })) || [];
 
     // Create the setlist
     const { data: newSetlist, error } = await supabase
       .from('setlists')
       .insert({
         show_id: showId,
-        songs: setlistSongs
+        songs: setlistSongs,
       })
       .select()
       .single();
@@ -58,7 +64,11 @@ export const createSetlistForShow = async (showId: string, artistId: string, art
       throw error;
     }
 
-    console.log('Successfully created setlist with', setlistSongs.length, 'songs');
+    console.log(
+      'Successfully created setlist with',
+      setlistSongs.length,
+      'songs'
+    );
     return newSetlist;
   } catch (error) {
     console.error('Error creating setlist for show:', error);
@@ -66,10 +76,14 @@ export const createSetlistForShow = async (showId: string, artistId: string, art
   }
 };
 
-export const addSongToSetlist = async (setlistId: string, songName: string, artistId: string) => {
+export const addSongToSetlist = async (
+  setlistId: string,
+  songName: string,
+  artistId: string
+) => {
   try {
     console.log('Adding song to setlist:', songName);
-    
+
     // Get current setlist
     const { data: setlist, error: fetchError } = await supabase
       .from('setlists')
@@ -84,10 +98,10 @@ export const addSongToSetlist = async (setlistId: string, songName: string, arti
 
     // Parse existing songs
     const existingSongs = Array.isArray(setlist.songs) ? setlist.songs : [];
-    
+
     // Check if song already exists
-    const songExists = existingSongs.some((song: any) => 
-      song.song_name.toLowerCase() === songName.toLowerCase()
+    const songExists = existingSongs.some(
+      (song: StoredSetlistSong) => song.song_name?.toLowerCase() === songName.toLowerCase()
     );
 
     if (songExists) {
@@ -100,7 +114,7 @@ export const addSongToSetlist = async (setlistId: string, songName: string, arti
       song_name: songName,
       total_votes: 0,
       suggested: true,
-      order: existingSongs.length + 1
+      order: existingSongs.length + 1,
     };
 
     const updatedSongs = [...existingSongs, newSong];
@@ -109,7 +123,7 @@ export const addSongToSetlist = async (setlistId: string, songName: string, arti
     const { error: updateError } = await supabase
       .from('setlists')
       .update({
-        songs: updatedSongs
+        songs: updatedSongs,
       })
       .eq('id', setlistId);
 
@@ -125,10 +139,14 @@ export const addSongToSetlist = async (setlistId: string, songName: string, arti
   }
 };
 
-export const voteForSong = async (songId: string, userId: string, showId: string) => {
+export const voteForSong = async (
+  songId: string,
+  userId: string,
+  showId: string
+) => {
   try {
     console.log('Voting for song:', songId);
-    
+
     // Check if user already voted for this song
     const { data: existingVote } = await supabase
       .from('user_votes')
@@ -142,12 +160,10 @@ export const voteForSong = async (songId: string, userId: string, showId: string
     }
 
     // Cast vote
-    const { error: voteError } = await supabase
-      .from('user_votes')
-      .insert({
-        song_id: songId,
-        user_id: userId
-      });
+    const { error: voteError } = await supabase.from('user_votes').insert({
+      song_id: songId,
+      user_id: userId,
+    });
 
     if (voteError) {
       console.error('Error casting vote:', voteError);
@@ -167,7 +183,7 @@ export const voteForSong = async (songId: string, userId: string, showId: string
     }
 
     const songs = Array.isArray(setlist.songs) ? setlist.songs : [];
-    const updatedSongs = songs.map((song: any) => {
+    const updatedSongs = songs.map((song: StoredSetlistSong & { total_votes?: number }) => {
       if (song.id === songId) {
         return { ...song, total_votes: (song.total_votes || 0) + 1 };
       }

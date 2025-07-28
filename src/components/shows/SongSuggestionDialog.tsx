@@ -1,13 +1,18 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Music, Loader2 } from "lucide-react";
-import { searchTracks } from "@/integrations/spotify/client";
-import type { SpotifyTrack } from "@/integrations/spotify/client";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Search, Music, Loader2 } from 'lucide-react';
+import { searchTracks } from '@/integrations/spotify/client';
+import type { SpotifyTrack } from '@/integrations/spotify/client';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 interface SongSuggestionDialogProps {
   open: boolean;
@@ -20,9 +25,9 @@ export function SongSuggestionDialog({
   open,
   onOpenChange,
   setlistId,
-  onSongAdded
+  onSongAdded,
 }: SongSuggestionDialogProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -36,11 +41,11 @@ export function SongSuggestionDialog({
       const results = await searchTracks(searchQuery);
       setSearchResults(results);
     } catch (error) {
-      console.error("Error searching tracks:", error);
+      console.error('Error searching tracks:', error);
       toast({
-        title: "Search Failed",
-        description: "Failed to search for songs. Please try again.",
-        variant: "destructive"
+        title: 'Search Failed',
+        description: 'Failed to search for songs. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsSearching(false);
@@ -50,7 +55,6 @@ export function SongSuggestionDialog({
   const handleAddSong = async (track: SpotifyTrack) => {
     setIsAdding(true);
     try {
-      // Get current setlist
       const { data: setlist, error: fetchError } = await supabase
         .from('setlists')
         .select('songs')
@@ -59,7 +63,6 @@ export function SongSuggestionDialog({
 
       if (fetchError) throw fetchError;
 
-      // Add new song to the setlist
       const currentSongs = Array.isArray(setlist.songs) ? setlist.songs : [];
       const newSong = {
         id: `song-${track.id}`,
@@ -67,12 +70,11 @@ export function SongSuggestionDialog({
         spotify_id: track.id,
         total_votes: 0,
         suggested: true,
-        order: currentSongs.length
+        order: currentSongs.length,
       };
 
       const updatedSongs = [...currentSongs, newSong];
 
-      // Update setlist
       const { error: updateError } = await supabase
         .from('setlists')
         .update({ songs: updatedSongs })
@@ -81,21 +83,20 @@ export function SongSuggestionDialog({
       if (updateError) throw updateError;
 
       toast({
-        title: "Song Added",
-        description: `"${track.name}" has been added to the setlist!`
+        title: 'Song Added',
+        description: `"${track.name}" has been added to the setlist!`,
       });
 
-      // Reset and close
-      setSearchQuery("");
+      setSearchQuery('');
       setSearchResults([]);
       onOpenChange(false);
       onSongAdded();
     } catch (error) {
-      console.error("Error adding song:", error);
+      console.error('Error adding song:', error);
       toast({
-        title: "Error",
-        description: "Failed to add song to setlist. Please try again.",
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to add song to setlist. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setIsAdding(false);
@@ -108,7 +109,7 @@ export function SongSuggestionDialog({
         <DialogHeader>
           <DialogTitle className="text-2xl">Suggest a Song</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div className="flex gap-2">
             <Input
@@ -118,8 +119,8 @@ export function SongSuggestionDialog({
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               className="flex-1"
             />
-            <Button 
-              onClick={handleSearch} 
+            <Button
+              onClick={handleSearch}
               disabled={isSearching || !searchQuery.trim()}
             >
               {isSearching ? (
@@ -143,7 +144,8 @@ export function SongSuggestionDialog({
                       <div>
                         <p className="font-medium">{track.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {track.artists.map(a => a.name).join(', ')} • {track.album.name}
+                          {track.artists.map((a) => a.name).join(', ')} •{' '}
+                          {track.album.name}
                         </p>
                       </div>
                     </div>
@@ -155,7 +157,7 @@ export function SongSuggestionDialog({
                       {isAdding ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        "Add"
+                        'Add'
                       )}
                     </Button>
                   </div>

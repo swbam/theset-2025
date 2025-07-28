@@ -1,7 +1,6 @@
-
-import { Button } from "@/components/ui/button";
-import { SetlistSong } from "./SetlistSong";
-import type { User } from "@supabase/supabase-js";
+import { Button } from '@/components/ui/button';
+import { SetlistSong } from './SetlistSong';
+import type { User } from '@supabase/supabase-js';
 
 interface SetlistProps {
   setlist: {
@@ -19,7 +18,13 @@ interface SetlistProps {
   onSuggest: () => void;
 }
 
-export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest }: SetlistProps) => (
+export const Setlist = ({
+  setlist,
+  userVotes,
+  user,
+  onVote,
+  onSuggest,
+}: SetlistProps) => (
   <div className="space-y-6">
     <div className="flex items-center justify-between">
       <h2 className="text-2xl font-semibold text-white">Setlist</h2>
@@ -33,7 +38,7 @@ export const Setlist = ({ setlist, userVotes, user, onVote, onSuggest }: Setlist
         </Button>
       )}
     </div>
-    
+
     {setlist ? (
       <div className="space-y-2">
         {setlist.songs?.map((song) => (

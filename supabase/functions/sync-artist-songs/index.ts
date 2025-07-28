@@ -1,7 +1,7 @@
 // Enterprise-grade Spotify Artist Songs Sync with advanced rate limiting and batch optimization
 // Handles intelligent caching, token management, and comprehensive error recovery
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import { handleCorsPreFlight, createCorsResponse } from '../_shared/cors.ts';
 import {
   BatchProcessor,
@@ -56,7 +56,7 @@ class SpotifyTokenManager {
   private clientId: string | null = null;
   private clientSecret: string | null = null;
 
-  constructor(private supabaseClient: any) {}
+  constructor(private supabaseClient: SupabaseClient) {}
 
   async initialize(): Promise<void> {
     const endTimer = performanceMonitor.startTimer('spotify_credentials_fetch');
@@ -341,7 +341,7 @@ class SpotifyApiClient {
 
 // Database Operations Manager
 class SongsDatabaseManager {
-  constructor(private supabaseClient: any) {}
+  constructor(private supabaseClient: SupabaseClient) {}
 
   async getArtistsNeedingSync(): Promise<DatabaseArtist[]> {
     const endTimer = performanceMonitor.startTimer('get_artists_needing_sync');
@@ -517,7 +517,7 @@ class ArtistSongsSync {
   private spotifyClient: SpotifyApiClient;
   private tokenManager: SpotifyTokenManager;
 
-  constructor(private supabaseClient: any) {
+  constructor(private supabaseClient: SupabaseClient) {
     this.dbManager = new SongsDatabaseManager(supabaseClient);
     this.tokenManager = new SpotifyTokenManager(supabaseClient);
     this.spotifyClient = new SpotifyApiClient(this.tokenManager);

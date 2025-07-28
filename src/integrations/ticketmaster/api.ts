@@ -1,11 +1,15 @@
+import { supabase } from '@/integrations/supabase/client';
+import type { CachedShow, CachedSong } from '@/types/sync';
+import type { SpotifyTrack, SpotifyArtist } from '@/integrations/spotify/client';
+import type { TicketmasterArtist } from './types';
 
-import { supabase } from "@/integrations/supabase/client";
-import type { CachedShow, CachedSong } from "@/types/sync";
-import type { SpotifyTrack } from "@/integrations/spotify/client";
-
-export const callTicketmasterFunction = async (endpoint: string, query?: string, params?: Record<string, string>) => {
+export const callTicketmasterFunction = async (
+  endpoint: string,
+  query?: string,
+  params?: Record<string, string>
+) => {
   console.log(`Calling Ticketmaster API - ${endpoint}:`, { query, params });
-  
+
   const { data, error } = await supabase.functions.invoke('ticketmaster', {
     body: { endpoint, query, params },
   });
@@ -19,7 +23,7 @@ export const callTicketmasterFunction = async (endpoint: string, query?: string,
 };
 
 export const createInitialSetlistFromSpotifyTracks = async (
-  showId: string, 
+  showId: string,
   spotifyTracks: SpotifyTrack[]
 ): Promise<string> => {
   // Create songs array from Spotify tracks
@@ -30,7 +34,7 @@ export const createInitialSetlistFromSpotifyTracks = async (
     spotify_id: track.id,
     total_votes: 0,
     suggested: false,
-    order: index
+    order: index,
   }));
 
   // Create new setlist with real Spotify data
@@ -39,7 +43,7 @@ export const createInitialSetlistFromSpotifyTracks = async (
     .insert({
       show_id: showId,
       songs: songs,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     })
     .select()
     .single();
@@ -52,9 +56,12 @@ export const createInitialSetlistFromSpotifyTracks = async (
   return setlist.id;
 };
 
-export const fetchFromCache = async (artistId: string | null, ttlHours = 24) => {
+export const fetchFromCache = async (
+  artistId: string | null,
+  ttlHours = 24
+) => {
   if (!artistId) return [];
-  
+
   const { data: shows, error } = await supabase
     .from('cached_shows')
     .select('*')
@@ -68,16 +75,18 @@ export const fetchFromCache = async (artistId: string | null, ttlHours = 24) => 
   }
 
   // Check if we need to refresh the cache
-  const { data: needsRefresh } = await supabase
-    .rpc('needs_sync', { 
-      last_sync: shows?.[0]?.last_synced_at,
-      ttl_hours: ttlHours 
-    });
+  const { data: needsRefresh } = await supabase.rpc('needs_sync', {
+    last_sync: shows?.[0]?.last_synced_at,
+    ttl_hours: ttlHours,
+  });
 
   return needsRefresh ? null : shows;
 };
 
-export const checkArtistCache = async (artistSpotifyId: string, ttlHours = 1) => {
+export const checkArtistCache = async (
+  artistSpotifyId: string,
+  ttlHours = 1
+) => {
   const { data: artist, error } = await supabase
     .from('artists')
     .select('*')
@@ -92,19 +101,15 @@ export const checkArtistCache = async (artistSpotifyId: string, ttlHours = 1) =>
   if (!artist) return null;
 
   // Check if we need to refresh the cache
-  const { data: needsRefresh } = await supabase
-    .rpc('needs_sync', {
-      last_sync: artist.last_synced_at,
-      ttl_hours: ttlHours
-    });
+  const { data: needsRefresh } = await supabase.rpc('needs_sync', {
+    last_sync: artist.last_synced_at,
+    ttl_hours: ttlHours,
+  });
 
   return needsRefresh ? null : artist;
 };
 
-export const updateArtistCache = async (
-  artistData: any,
-  spotifyData: any
-) => {
+export const updateArtistCache = async (artistData: TicketmasterArtist, spotifyData: SpotifyArtist) => {
   // First, upsert the artist
   const { data: artist, error: artistError } = await supabase
     .from('artists')
@@ -115,7 +120,7 @@ export const updateArtistCache = async (
       genres: spotifyData.genres,
       popularity: spotifyData.popularity,
       metadata: spotifyData,
-      last_synced_at: new Date().toISOString()
+      last_synced_at: new Date().toISOString(),
     })
     .select()
     .maybeSingle();
@@ -128,20 +133,18 @@ export const updateArtistCache = async (
   return artist;
 };
 
-export const updateSongsCache = async (songs: any[], artistId: string) => {
-  const songsToUpsert = songs.map(song => ({
+export const updateSongsCache = async (songs: SpotifyTrack[], artistId: string) => {
+  const songsToUpsert = songs.map((song) => ({
     spotify_id: song.id,
     artist_id: artistId,
     name: song.name,
     album: song.album?.name,
     preview_url: song.preview_url,
     popularity: song.popularity,
-    last_synced_at: new Date().toISOString()
+    last_synced_at: new Date().toISOString(),
   }));
 
-  const { error } = await supabase
-    .from('cached_songs')
-    .upsert(songsToUpsert);
+  const { error } = await supabase.from('cached_songs').upsert(songsToUpsert);
 
   if (error) {
     console.error('Error updating songs cache:', error);

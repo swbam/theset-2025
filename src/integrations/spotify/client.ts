@@ -1,7 +1,6 @@
+import { supabase } from '@/integrations/supabase/client';
 
-import { supabase } from "@/integrations/supabase/client";
-
-const SPOTIFY_API_URL = "https://api.spotify.com/v1";
+const SPOTIFY_API_URL = 'https://api.spotify.com/v1';
 
 export interface SpotifyArtist {
   id: string;
@@ -11,6 +10,8 @@ export interface SpotifyArtist {
     height: number;
     width: number;
   }>;
+  genres?: string[];
+  popularity?: number;
 }
 
 export interface SpotifyTrack {
@@ -30,9 +31,12 @@ export interface SpotifyTrack {
 }
 
 // Call the Spotify Edge Function for server-side API calls
-const callSpotifyFunction = async (action: string, params: Record<string, any>) => {
+const callSpotifyFunction = async (
+  action: string,
+  params: Record<string, any>
+) => {
   console.log(`Calling Spotify Edge Function - ${action}:`, params);
-  
+
   const { data, error } = await supabase.functions.invoke('spotify', {
     body: { action, params },
   });
@@ -46,28 +50,40 @@ const callSpotifyFunction = async (action: string, params: Record<string, any>) 
 };
 
 // User-specific functions (still use direct API with user's token)
-export const getTopArtists = async (accessToken: string): Promise<SpotifyArtist[]> => {
-  const response = await fetch(`${SPOTIFY_API_URL}/me/top/artists?limit=10&time_range=short_term`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+export const getTopArtists = async (
+  accessToken: string
+): Promise<SpotifyArtist[]> => {
+  const response = await fetch(
+    `${SPOTIFY_API_URL}/me/top/artists?limit=10&time_range=short_term`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
   const data = await response.json();
   return data.items || [];
 };
 
-export const getFollowedArtists = async (accessToken: string): Promise<SpotifyArtist[]> => {
-  const response = await fetch(`${SPOTIFY_API_URL}/me/following?type=artist&limit=10`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+export const getFollowedArtists = async (
+  accessToken: string
+): Promise<SpotifyArtist[]> => {
+  const response = await fetch(
+    `${SPOTIFY_API_URL}/me/following?type=artist&limit=10`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
   const data = await response.json();
   return data.artists?.items || [];
 };
 
 // Server-side functions (use Edge Function to avoid CORS)
-export const searchArtist = async (artistName: string): Promise<SpotifyArtist | null> => {
+export const searchArtist = async (
+  artistName: string
+): Promise<SpotifyArtist | null> => {
   try {
     return await callSpotifyFunction('searchArtist', { artistName });
   } catch (error) {
@@ -76,7 +92,9 @@ export const searchArtist = async (artistName: string): Promise<SpotifyArtist | 
   }
 };
 
-export const getArtistTopTracks = async (artistId: string): Promise<SpotifyTrack[]> => {
+export const getArtistTopTracks = async (
+  artistId: string
+): Promise<SpotifyTrack[]> => {
   try {
     return await callSpotifyFunction('getArtistTopTracks', { artistId });
   } catch (error) {
@@ -93,4 +111,3 @@ export const searchTracks = async (query: string): Promise<SpotifyTrack[]> => {
     return [];
   }
 };
-

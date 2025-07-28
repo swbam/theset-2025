@@ -1,10 +1,11 @@
 // Real vote calculations from Supabase database - NO MOCK DATA
-import { supabase } from "@/integrations/supabase/client";
-import type { DatabaseSongRecord } from "@/types/setlist";
+import { supabase } from '@/integrations/supabase/client';
+import type { DatabaseSongRecord, StoredSetlistSong } from '@/types/setlist';
 
-export async function calculateSongVotes(setlistId: string): Promise<DatabaseSongRecord[]> {
+export async function calculateSongVotes(
+  setlistId: string
+): Promise<DatabaseSongRecord[]> {
   try {
-    // Get all songs in this setlist from the setlists.songs JSON column
     const { data: setlistData, error: setlistError } = await supabase
       .from('setlists')
       .select('songs')
@@ -16,12 +17,10 @@ export async function calculateSongVotes(setlistId: string): Promise<DatabaseSon
       return [];
     }
 
-    const songs = Array.isArray(setlistData.songs) ? setlistData.songs : [];
+    const songs = Array.isArray(setlistData.songs) ? setlistData.songs as StoredSetlistSong[] : [];
 
-    // Calculate real votes for each song
     const songsWithVotes = await Promise.all(
-      songs.map(async (song: any) => {
-        // Count real votes from user_votes table
+      songs.map(async (song: StoredSetlistSong) => {
         const { count, error: voteError } = await supabase
           .from('user_votes')
           .select('*', { count: 'exact', head: true })
@@ -34,24 +33,24 @@ export async function calculateSongVotes(setlistId: string): Promise<DatabaseSon
         return {
           id: song.id || `song-${Math.random().toString(36).substr(2, 9)}`,
           song_name: song.name || song.song_name || 'Unknown Song',
-          total_votes: count || 0, // Real vote count from database
-          suggested: song.suggested || false
+          total_votes: count || 0,
+          suggested: song.suggested || false,
         };
       })
     );
 
-    // Sort by vote count descending
     return songsWithVotes.sort((a, b) => b.total_votes - a.total_votes);
-
   } catch (error) {
     console.error('Error in calculateSongVotes:', error);
     return [];
   }
 }
 
-export async function getUserVoteCount(userId: string, setlistId: string): Promise<number> {
+export async function getUserVoteCount(
+  userId: string,
+  setlistId: string
+): Promise<number> {
   try {
-    // Get songs in this setlist
     const { data: setlistData, error: setlistError } = await supabase
       .from('setlists')
       .select('songs')
@@ -62,14 +61,13 @@ export async function getUserVoteCount(userId: string, setlistId: string): Promi
       return 0;
     }
 
-    const songs = Array.isArray(setlistData.songs) ? setlistData.songs : [];
-    const songIds = songs.map((song: any) => song.id).filter(Boolean);
+    const songs = Array.isArray(setlistData.songs) ? setlistData.songs as StoredSetlistSong[] : [];
+    const songIds = songs.map((song: StoredSetlistSong) => song.id).filter(Boolean);
 
     if (songIds.length === 0) {
       return 0;
     }
 
-    // Count user's votes for songs in this setlist
     const { count, error } = await supabase
       .from('user_votes')
       .select('*', { count: 'exact', head: true })
