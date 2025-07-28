@@ -1,4 +1,3 @@
-
 interface ShowDetailsProps {
   name: string;
   date: string;
@@ -17,18 +16,22 @@ export const ShowDetails = ({ name, date, venue }: ShowDetailsProps) => (
         <>
           <p>{venue.name}</p>
           {venue.city && venue.state && (
-            <p>{venue.city}, {venue.state}</p>
+            <p>
+              {venue.city}, {venue.state}
+            </p>
           )}
         </>
       )}
-      <p>{new Date(date).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric'
-      })}</p>
+      <p>
+        {new Date(date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+        })}
+      </p>
     </div>
   </div>
 );

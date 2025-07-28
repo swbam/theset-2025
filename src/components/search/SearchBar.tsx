@@ -1,9 +1,8 @@
-
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Search, Loader2 } from "lucide-react";
-import { searchArtists } from "@/integrations/ticketmaster/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Search, Loader2 } from 'lucide-react';
+import { searchArtists } from '@/integrations/ticketmaster/client';
+import { useToast } from '@/components/ui/use-toast';
 
 interface SearchResult {
   name: string;
@@ -16,7 +15,7 @@ interface SearchBarProps {
 }
 
 export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const { toast } = useToast();
@@ -33,9 +32,9 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
       setSearchResults(results);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to search for artists",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to search for artists',
+        variant: 'destructive',
       });
     } finally {
       setIsSearching(false);
@@ -72,7 +71,7 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
               >
                 <div className="flex items-center gap-3">
                   {result.image && (
-                    <div 
+                    <div
                       className="w-12 h-12 rounded-full bg-cover bg-center"
                       style={{ backgroundImage: `url(${result.image})` }}
                     />
@@ -80,9 +79,7 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
                   <div>
                     <h4 className="font-medium">{result.name}</h4>
                     <p className="text-sm text-muted-foreground">
-                      {result.venue && (
-                        <span>Next show: {result.venue}</span>
-                      )}
+                      {result.venue && <span>Next show: {result.venue}</span>}
                     </p>
                   </div>
                 </div>

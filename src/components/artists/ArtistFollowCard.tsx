@@ -1,6 +1,5 @@
-
-import { Calendar, MapPin } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Calendar, MapPin } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 
 interface ArtistFollowCardProps {
   name: string;
@@ -21,14 +20,14 @@ export const ArtistFollowCard = ({
   followingSince,
   showCount,
   nextShow,
-  onClick
+  onClick,
 }: ArtistFollowCardProps) => (
-  <Card 
+  <Card
     className="hover:bg-accent/50 transition-colors cursor-pointer overflow-hidden"
     onClick={onClick}
   >
     {imageUrl && (
-      <div 
+      <div
         className="w-full h-32 bg-cover bg-center"
         style={{
           backgroundImage: `url(${imageUrl})`,
@@ -36,7 +35,7 @@ export const ArtistFollowCard = ({
       />
     )}
     <div className="p-6 flex flex-row items-center gap-4">
-      <div 
+      <div
         className="w-16 h-16 rounded-full bg-cover bg-center flex-shrink-0 border border-border"
         style={{
           backgroundImage: imageUrl ? `url(${imageUrl})` : undefined,
@@ -46,10 +45,9 @@ export const ArtistFollowCard = ({
       <div className="flex flex-col">
         <h3 className="text-lg font-semibold">{name}</h3>
         <p className="text-sm text-muted-foreground">
-          {showCount !== undefined ? 
-            `${showCount} upcoming ${showCount === 1 ? 'show' : 'shows'}` :
-            `Following since ${new Date(followingSince).toLocaleDateString()}`
-          }
+          {showCount !== undefined
+            ? `${showCount} upcoming ${showCount === 1 ? 'show' : 'shows'}`
+            : `Following since ${new Date(followingSince).toLocaleDateString()}`}
         </p>
       </div>
     </div>
@@ -60,7 +58,7 @@ export const ArtistFollowCard = ({
           {new Date(nextShow.date).toLocaleDateString(undefined, {
             weekday: 'long',
             month: 'long',
-            day: 'numeric'
+            day: 'numeric',
           })}
         </div>
         <div className="flex items-center text-sm text-muted-foreground">

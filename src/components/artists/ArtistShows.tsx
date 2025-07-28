@@ -1,14 +1,18 @@
-
-import { ShowCard } from "@/components/shows/ShowCard";
-import type { TicketmasterEvent } from "@/integrations/ticketmaster/types";
+import { ShowCard } from '@/components/shows/ShowCard';
+import type { TicketmasterEvent } from '@/integrations/ticketmaster/types';
 
 interface ArtistShowsProps {
   shows?: TicketmasterEvent[];
 }
 
 export const ArtistShows = ({ shows }: ArtistShowsProps) => {
-  const validShows = shows?.filter(show => show.dates?.start?.dateTime)
-    .sort((a, b) => new Date(a.dates.start.dateTime).getTime() - new Date(b.dates.start.dateTime).getTime());
+  const validShows = shows
+    ?.filter((show) => show.dates?.start?.dateTime)
+    .sort(
+      (a, b) =>
+        new Date(a.dates.start.dateTime).getTime() -
+        new Date(b.dates.start.dateTime).getTime()
+    );
 
   return (
     <div className="max-w-7xl mx-auto p-6">

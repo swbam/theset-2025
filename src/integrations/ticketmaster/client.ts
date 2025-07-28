@@ -1,16 +1,19 @@
-
-import { supabase } from "@/integrations/supabase/client";
-import { PlatformClient } from "../platform/client";
-import type { TicketmasterEvent, TicketmasterVenue } from './types';
+import { supabase } from '@/integrations/supabase/client';
+import { PlatformClient } from '../platform/client';
+import type { TicketmasterEvent, TicketmasterVenue, TicketmasterArtist } from './types';
 import { searchArtists, fetchArtistEvents, fetchPopularTours } from './artists';
 import type { Json } from '@/integrations/supabase/types';
 
-async function processArtist(artistData: any) {
+async function processArtist(artistData: TicketmasterArtist) {
   console.log('Processing artist:', artistData.name);
 
   // First, check if we have an existing platform identifier
-  const identifier = await PlatformClient.getIdentifier('ticketmaster', artistData.id, 'artist');
-  
+  const identifier = await PlatformClient.getIdentifier(
+    'ticketmaster',
+    artistData.id,
+    'artist'
+  );
+
   if (identifier) {
     // Update the existing artist
     const { error: updateError } = await supabase
@@ -18,7 +21,7 @@ async function processArtist(artistData: any) {
       .update({
         name: artistData.name,
         metadata: artistData as unknown as Json,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', identifier.entity_id);
 
@@ -35,7 +38,7 @@ async function processArtist(artistData: any) {
     .from('artists')
     .insert({
       name: artistData.name,
-      metadata: artistData as unknown as Json
+      metadata: artistData as unknown as Json,
     })
     .select()
     .single();
@@ -51,7 +54,7 @@ async function processArtist(artistData: any) {
     artist.id,
     'ticketmaster',
     artistData.id,
-    artistData as unknown as Record<string, any>
+    artistData
   );
 
   return artist.id;
@@ -60,14 +63,18 @@ async function processArtist(artistData: any) {
 async function processVenue(venueData: TicketmasterVenue) {
   console.log('Processing venue:', venueData.name);
 
-  const identifier = await PlatformClient.getIdentifier('ticketmaster', venueData.id, 'venue');
+  const identifier = await PlatformClient.getIdentifier(
+    'ticketmaster',
+    venueData.id,
+    'venue'
+  );
 
   if (identifier) {
     const { error: updateError } = await supabase
       .from('venues')
       .update({
         name: venueData.name,
-        metadata: venueData as unknown as Json
+        metadata: venueData as unknown as Json,
       })
       .eq('id', identifier.entity_id);
 
@@ -84,7 +91,7 @@ async function processVenue(venueData: TicketmasterVenue) {
     .insert({
       name: venueData.name,
       ticketmaster_id: venueData.id,
-      metadata: venueData as unknown as Json
+      metadata: venueData as unknown as Json,
     })
     .select()
     .single();
@@ -99,16 +106,24 @@ async function processVenue(venueData: TicketmasterVenue) {
     venue.id,
     'ticketmaster',
     venueData.id,
-    venueData as unknown as Record<string, any>
+    venueData
   );
 
   return venue.id;
 }
 
-async function processShow(showData: TicketmasterEvent, artistId: string, venueId: string) {
+async function processShow(
+  showData: TicketmasterEvent,
+  artistId: string,
+  venueId: string
+) {
   console.log('Processing show:', showData.name);
 
-  const identifier = await PlatformClient.getIdentifier('ticketmaster', showData.id, 'show');
+  const identifier = await PlatformClient.getIdentifier(
+    'ticketmaster',
+    showData.id,
+    'show'
+  );
 
   if (identifier) {
     const { error: updateError } = await supabase
@@ -138,7 +153,7 @@ async function processShow(showData: TicketmasterEvent, artistId: string, venueI
       date: showData.dates.start.dateTime,
       status: 'active',
       ticket_url: showData.url,
-      ticketmaster_id: showData.id
+      ticketmaster_id: showData.id,
     })
     .select()
     .single();
@@ -153,18 +168,18 @@ async function processShow(showData: TicketmasterEvent, artistId: string, venueI
     show.id,
     'ticketmaster',
     showData.id,
-    showData as unknown as Record<string, any>
+    showData
   );
 
   return show.id;
 }
 
-export { 
-  processArtist, 
-  processVenue, 
+export {
+  processArtist,
+  processVenue,
   processShow,
   searchArtists,
   fetchArtistEvents,
-  fetchPopularTours
+  fetchPopularTours,
 };
-export type { TicketmasterEvent, TicketmasterVenue };
+export type { TicketmasterEvent, TicketmasterVenue, TicketmasterArtist };

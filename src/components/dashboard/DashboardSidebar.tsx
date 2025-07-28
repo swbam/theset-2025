@@ -1,4 +1,3 @@
-
 import {
   Sidebar,
   SidebarContent,
@@ -10,12 +9,12 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-} from "@/components/ui/sidebar";
-import { Home, Music, User, Settings, Activity } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
+} from '@/components/ui/sidebar';
+import { Home, Music, User, Settings, Activity } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 export function DashboardSidebar() {
   const navigate = useNavigate();
@@ -23,16 +22,16 @@ export function DashboardSidebar() {
   const { user, signInWithSpotify, signOut } = useAuth();
 
   const authenticatedMenuItems = [
-    { title: "Home", icon: Home, path: "/" },
-    { title: "My Artists", icon: Music, path: "/my-artists" },
-    { title: "My Activity", icon: Activity, path: "/my-activity" },
-    { title: "Profile", icon: User, path: "/profile" },
-    { title: "Settings", icon: Settings, path: "/settings" },
+    { title: 'Home', icon: Home, path: '/' },
+    { title: 'My Artists', icon: Music, path: '/my-artists' },
+    { title: 'My Activity', icon: Activity, path: '/my-activity' },
+    { title: 'Profile', icon: User, path: '/profile' },
+    { title: 'Settings', icon: Settings, path: '/settings' },
   ];
 
   const publicMenuItems = [
-    { title: "Home", icon: Home, path: "/" },
-    { title: "Artists", icon: Music, path: "/artists" },
+    { title: 'Home', icon: Home, path: '/' },
+    { title: 'Artists', icon: Music, path: '/artists' },
   ];
 
   const menuItems = user ? authenticatedMenuItems : publicMenuItems;
@@ -45,7 +44,7 @@ export function DashboardSidebar() {
             <Avatar>
               <AvatarImage src={user?.user_metadata?.avatar_url} />
               <AvatarFallback>
-                {user?.user_metadata?.name?.[0]?.toUpperCase() || "U"}
+                {user?.user_metadata?.name?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
@@ -63,7 +62,7 @@ export function DashboardSidebar() {
           </Button>
         )}
       </SidebarHeader>
-      
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Menu</SidebarGroupLabel>

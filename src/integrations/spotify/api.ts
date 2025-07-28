@@ -1,8 +1,12 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
 
-export const callSpotifyFunction = async (action: string, query?: string, artistId?: string) => {
+export const callSpotifyFunction = async (
+  action: string,
+  query?: string,
+  artistId?: string
+) => {
   console.log(`Calling Spotify API - ${action}:`, { query, artistId });
-  
+
   const { data, error } = await supabase.functions.invoke('spotify', {
     body: { action, query, artistId },
   });
@@ -20,32 +24,39 @@ export const searchSpotifyArtist = async (artistName: string) => {
   return data.artists?.items?.[0] || null;
 };
 
-export const getArtistTopTracks = async (artistName: string, spotifyId?: string) => {
-  const data = await callSpotifyFunction('artist-top-tracks', artistName, spotifyId);
+export const getArtistTopTracks = async (
+  artistName: string,
+  spotifyId?: string
+) => {
+  const data = await callSpotifyFunction(
+    'artist-top-tracks',
+    artistName,
+    spotifyId
+  );
   return data.tracks || [];
 };
 
 export const syncArtistSongs = async (artistId: string, artistName: string) => {
   try {
     console.log('Syncing songs for artist:', artistName);
-    
+
     // Get artist's top tracks from Spotify
     const tracks = await getArtistTopTracks(artistName);
-    
+
     if (!tracks || tracks.length === 0) {
       console.log('No tracks found for artist:', artistName);
       return [];
     }
 
     // Prepare songs for caching
-    const songsToCache = tracks.slice(0, 10).map((track: any) => ({
+    const songsToCache = tracks.slice(0, 10).map((track: SpotifyTrack) => ({
       spotify_id: track.id,
       artist_id: artistId,
       name: track.name,
       album: track.album?.name,
       preview_url: track.preview_url,
       popularity: track.popularity,
-      last_synced_at: new Date().toISOString()
+      last_synced_at: new Date().toISOString(),
     }));
 
     // Cache songs in database
@@ -53,7 +64,7 @@ export const syncArtistSongs = async (artistId: string, artistName: string) => {
       .from('cached_songs')
       .upsert(songsToCache, {
         onConflict: 'spotify_id,artist_id',
-        ignoreDuplicates: false
+        ignoreDuplicates: false,
       })
       .select();
 
@@ -70,13 +81,16 @@ export const syncArtistSongs = async (artistId: string, artistName: string) => {
   }
 };
 
-export const updateArtistWithSpotifyData = async (artistId: string, artistName: string) => {
+export const updateArtistWithSpotifyData = async (
+  artistId: string,
+  artistName: string
+) => {
   try {
     console.log('Updating artist with Spotify data:', artistName);
-    
+
     // Search for artist on Spotify
     const spotifyArtist = await searchSpotifyArtist(artistName);
-    
+
     if (!spotifyArtist) {
       console.log('Artist not found on Spotify:', artistName);
       return null;
@@ -90,7 +104,7 @@ export const updateArtistWithSpotifyData = async (artistId: string, artistName: 
         image_url: spotifyArtist.images?.[0]?.url,
         genres: spotifyArtist.genres,
         metadata: spotifyArtist,
-        last_synced_at: new Date().toISOString()
+        last_synced_at: new Date().toISOString(),
       })
       .eq('id', artistId)
       .select()

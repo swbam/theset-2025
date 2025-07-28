@@ -294,23 +294,23 @@ export class Logger {
     return this;
   }
 
-  info(message: string, data?: any): void {
+  info(message: string, data?: unknown): void {
     this.log('INFO', message, data);
   }
 
-  warn(message: string, data?: any): void {
+  warn(message: string, data?: unknown): void {
     this.log('WARN', message, data);
   }
 
-  error(message: string, data?: any): void {
+  error(message: string, data?: unknown): void {
     this.log('ERROR', message, data);
   }
 
-  debug(message: string, data?: any): void {
+  debug(message: string, data?: unknown): void {
     this.log('DEBUG', message, data);
   }
 
-  private log(level: string, message: string, data?: any): void {
+  private log(level: string, message: string, data?: unknown): void {
     const timestamp = new Date().toISOString();
     const contextStr = this.context ? `[${this.context}] ` : '';
     const logMessage = `${timestamp} ${level} ${contextStr}${message}`;
@@ -327,23 +327,25 @@ export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function isRetryableError(error: any): boolean {
-  if (!error) return false;
+export function isRetryableError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  
+  const err = error as any; // Safe cast after type check
   
   // Network errors
-  if (error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') {
+  if (err.code === 'ECONNRESET' || err.code === 'ENOTFOUND') {
     return true;
   }
   
   // HTTP errors that are retryable
-  if (error.status >= 500 || error.status === 429) {
+  if (err.status >= 500 || err.status === 429) {
     return true;
   }
   
   return false;
 }
 
-export function sanitizeErrorForLogging(error: any): any {
+export function sanitizeErrorForLogging(error: unknown): unknown {
   if (error instanceof Error) {
     return {
       name: error.name,

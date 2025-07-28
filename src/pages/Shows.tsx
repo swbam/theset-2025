@@ -1,8 +1,8 @@
-import { TopNavigation } from "@/components/layout/TopNavigation";
-import { PopularTours } from "@/components/shows/PopularTours";
-import { Button } from "@/components/ui/button";
-import { Footer } from "@/components/layout/Footer";
-import { useNavigate } from "react-router-dom";
+import { TopNavigation } from '@/components/layout/TopNavigation';
+import { PopularTours } from '@/components/shows/PopularTours';
+import { Button } from '@/components/ui/button';
+import { Footer } from '@/components/layout/Footer';
+import { useNavigate } from 'react-router-dom';
 
 export default function Shows() {
   const navigate = useNavigate();
@@ -24,18 +24,26 @@ export default function Shows() {
 
         {/* Genre filters */}
         <div className="flex gap-2 mb-8 flex-wrap">
-          {['All Genres', 'Rock', 'Pop', 'Electronic', 'R&B', 'Folk', 'Country'].map((genre) => (
-            <Button 
-              key={genre} 
-              variant="outline" 
-              size="sm" 
+          {[
+            'All Genres',
+            'Rock',
+            'Pop',
+            'Electronic',
+            'R&B',
+            'Folk',
+            'Country',
+          ].map((genre) => (
+            <Button
+              key={genre}
+              variant="outline"
+              size="sm"
               className="text-sm text-zinc-400 border-zinc-700 hover:bg-zinc-800"
             >
               {genre}
             </Button>
           ))}
         </div>
-        
+
         <PopularTours onArtistClick={handleArtistClick} />
       </div>
       <Footer />

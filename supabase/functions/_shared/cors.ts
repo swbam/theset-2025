@@ -14,7 +14,7 @@ export const corsHeaders = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
 };
 
-export function createCorsResponse(data?: any, status: number = 200): Response {
+export function createCorsResponse(data?: unknown, status: number = 200): Response {
   return new Response(
     data ? JSON.stringify(data) : null,
     {

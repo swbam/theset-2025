@@ -1,7 +1,7 @@
 // Enterprise-grade Popular Tours Sync with intelligent batching and optimization
 // Handles concurrent data processing with fault tolerance and performance monitoring
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import { handleCorsPreFlight, createCorsResponse } from '../_shared/cors.ts';
 import {
   BatchProcessor,
@@ -69,7 +69,7 @@ interface SyncState {
 
 // Database Operations Manager
 class DatabaseManager {
-  constructor(private supabaseClient: any) {}
+  constructor(private supabaseClient: SupabaseClient) {}
 
   // Batch upsert artists with conflict resolution
   async batchUpsertArtists(artists: Partial<DatabaseArtist>[]): Promise<DatabaseArtist[]> {
@@ -313,7 +313,7 @@ class PopularToursSync {
   private state: SyncState;
   private dbManager: DatabaseManager;
 
-  constructor(private supabaseClient: any) {
+  constructor(private supabaseClient: SupabaseClient) {
     this.dbManager = new DatabaseManager(supabaseClient);
     this.state = {
       totalEvents: 0,

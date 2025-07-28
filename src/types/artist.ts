@@ -1,6 +1,5 @@
-
-import type { PlatformIdentifier } from "./sync";
-import type { Json } from "@/integrations/supabase/types";
+import type { PlatformIdentifier } from './sync';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface Artist {
   id: string;
@@ -36,6 +35,6 @@ export function transformDatabaseArtist(dbArtist: DatabaseArtist): Artist {
   return {
     ...dbArtist,
     genres: Array.isArray(dbArtist.genres) ? dbArtist.genres : [],
-    metadata: dbArtist.metadata as unknown as Record<string, any>
+    metadata: dbArtist.metadata as unknown as Record<string, any>,
   };
 }

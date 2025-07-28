@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from 'react-router-dom';
 
 export function Footer() {
   const navigate = useNavigate();
@@ -11,7 +11,8 @@ export function Footer() {
           <div>
             <h3 className="text-white font-semibold mb-4">TheSet</h3>
             <p className="text-zinc-400 text-sm leading-relaxed">
-              A platform for fans to preview concert setlists through voting, connecting artists with their audience.
+              A platform for fans to preview concert setlists through voting,
+              connecting artists with their audience.
             </p>
           </div>
 
@@ -19,25 +20,25 @@ export function Footer() {
           <div>
             <h3 className="text-white font-semibold mb-4">Navigation</h3>
             <div className="space-y-2">
-              <button 
+              <button
                 onClick={() => navigate('/')}
                 className="block text-zinc-400 hover:text-white text-sm transition-colors text-left"
               >
                 Home
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/artists')}
                 className="block text-zinc-400 hover:text-white text-sm transition-colors text-left"
               >
                 Artists
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/shows')}
                 className="block text-zinc-400 hover:text-white text-sm transition-colors text-left"
               >
                 Shows
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/how-it-works')}
                 className="block text-zinc-400 hover:text-white text-sm transition-colors text-left"
               >
@@ -50,20 +51,20 @@ export function Footer() {
           <div>
             <h3 className="text-white font-semibold mb-4">Legal</h3>
             <div className="space-y-2">
-              <a 
-                href="#" 
+              <a
+                href="#"
                 className="block text-zinc-400 hover:text-white text-sm transition-colors"
               >
                 Privacy Policy
               </a>
-              <a 
-                href="#" 
+              <a
+                href="#"
                 className="block text-zinc-400 hover:text-white text-sm transition-colors"
               >
                 Terms of Service
               </a>
-              <a 
-                href="#" 
+              <a
+                href="#"
                 className="block text-zinc-400 hover:text-white text-sm transition-colors"
               >
                 About

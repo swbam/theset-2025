@@ -1,5 +1,4 @@
-
-import type { PlatformIdentifier } from "./sync";
+import type { PlatformIdentifier } from './sync';
 
 export interface Venue {
   id: string;

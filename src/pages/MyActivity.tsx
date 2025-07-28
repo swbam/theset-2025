@@ -1,25 +1,23 @@
-
-// Create a new file for MyActivity with proper type handling
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Music } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { SetlistActivity, VoteActivity } from "@/types/sync";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Loader2, Music } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { SetlistActivity, VoteActivity } from '@/types/sync';
 
 export default function MyActivity() {
   const { user } = useAuth();
 
-  // Fetch setlist activities
   const { data: setlistActivities, isLoading: isLoadingSetlists } = useQuery({
     queryKey: ['setlistActivities', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      
+
       try {
         const { data, error } = await supabase
           .from('setlists')
-          .select(`
+          .select(
+            `
             id,
             created_at,
             title:name,
@@ -27,19 +25,19 @@ export default function MyActivity() {
               artist_name:artists(name),
               venue:venues(name)
             )
-          `)
+          `
+          )
           .limit(5)
           .order('created_at', { ascending: false });
-        
+
         if (error) {
           console.error('Error fetching setlist activities:', error);
           return [];
         }
-        
-        // Transform and validate the data
+
         const activities: SetlistActivity[] = [];
-        
-        data?.forEach(item => {
+
+        data?.forEach((item) => {
           if (item && item.id) {
             activities.push({
               id: item.id,
@@ -47,12 +45,12 @@ export default function MyActivity() {
               name: item.title || 'Unnamed Setlist',
               shows: {
                 artist_name: item.shows?.artist_name?.name || 'Unknown Artist',
-                venue: item.shows?.venue?.name || 'Unknown Venue'
-              }
+                venue: item.shows?.venue?.name || 'Unknown Venue',
+              },
             });
           }
         });
-        
+
         return activities;
       } catch (err) {
         console.error('Error fetching setlist activities:', err);
@@ -62,16 +60,16 @@ export default function MyActivity() {
     enabled: !!user,
   });
 
-  // Fetch vote activities
   const { data: voteActivities, isLoading: isLoadingVotes } = useQuery({
     queryKey: ['voteActivities', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      
+
       try {
         const { data, error } = await supabase
           .from('user_votes')
-          .select(`
+          .select(
+            `
             id,
             created_at,
             songs:song_id (
@@ -82,20 +80,20 @@ export default function MyActivity() {
                 venue:venues(name)
               )
             )
-          `)
+          `
+          )
           .eq('user_id', user.id)
           .limit(5)
           .order('created_at', { ascending: false });
-        
+
         if (error) {
           console.error('Error fetching vote activities:', error);
           return [];
         }
-        
-        // Transform and validate the data
+
         const activities: VoteActivity[] = [];
-        
-        data?.forEach(item => {
+
+        data?.forEach((item) => {
           if (item && item.id && item.songs) {
             activities.push({
               id: item.id,
@@ -105,15 +103,16 @@ export default function MyActivity() {
                 setlist: {
                   name: item.songs?.setlist?.name || 'Unknown Setlist',
                   shows: {
-                    artist_name: item.songs?.setlist?.artist?.name || 'Unknown Artist',
-                    venue: item.songs?.setlist?.venue?.name || 'Unknown Venue'
-                  }
-                }
-              }
+                    artist_name:
+                      item.songs?.setlist?.artist?.name || 'Unknown Artist',
+                    venue: item.songs?.setlist?.venue?.name || 'Unknown Venue',
+                  },
+                },
+              },
             });
           }
         });
-        
+
         return activities;
       } catch (err) {
         console.error('Error fetching vote activities:', err);
@@ -141,8 +140,9 @@ export default function MyActivity() {
     );
   }
 
-  const hasActivity = (setlistActivities && setlistActivities.length > 0) || 
-                     (voteActivities && voteActivities.length > 0);
+  const hasActivity =
+    (setlistActivities && setlistActivities.length > 0) ||
+    (voteActivities && voteActivities.length > 0);
 
   if (!hasActivity) {
     return (
@@ -150,7 +150,9 @@ export default function MyActivity() {
         <Music className="w-16 h-16" />
         <div className="text-center">
           <h3 className="text-xl font-medium text-white">No activity yet</h3>
-          <p className="mt-1">Follow artists and vote on setlists to see your activity here</p>
+          <p className="mt-1">
+            Follow artists and vote on setlists to see your activity here
+          </p>
         </div>
       </div>
     );
@@ -164,19 +166,28 @@ export default function MyActivity() {
         <div className="space-y-4">
           {voteActivities && voteActivities.length > 0 && (
             <>
-              <h3 className="text-xl font-semibold text-white/80">Song Votes</h3>
+              <h3 className="text-xl font-semibold text-white/80">
+                Song Votes
+              </h3>
               <div className="grid grid-cols-1 gap-4">
                 {voteActivities.map((activity) => (
-                  <Card key={activity.id} className="bg-black/20 border-white/10">
+                  <Card
+                    key={activity.id}
+                    className="bg-black/20 border-white/10"
+                  >
                     <CardContent className="p-4">
                       <div className="text-sm text-white/60">
                         {new Date(activity.created_at).toLocaleDateString()}
                       </div>
                       <div className="mt-2 text-white font-medium">
-                        Voted for <span className="text-green-400">{activity.setlist_songs.song_name}</span>
+                        Voted for{' '}
+                        <span className="text-green-400">
+                          {activity.setlist_songs.song_name}
+                        </span>
                       </div>
                       <div className="mt-1 text-white/80">
-                        {activity.setlist_songs.setlist.shows.artist_name} at {activity.setlist_songs.setlist.shows.venue}
+                        {activity.setlist_songs.setlist.shows.artist_name} at{' '}
+                        {activity.setlist_songs.setlist.shows.venue}
                       </div>
                     </CardContent>
                   </Card>
@@ -187,16 +198,24 @@ export default function MyActivity() {
 
           {setlistActivities && setlistActivities.length > 0 && (
             <>
-              <h3 className="text-xl font-semibold text-white/80 mt-8">Setlists</h3>
+              <h3 className="text-xl font-semibold text-white/80 mt-8">
+                Setlists
+              </h3>
               <div className="grid grid-cols-1 gap-4">
                 {setlistActivities.map((activity) => (
-                  <Card key={activity.id} className="bg-black/20 border-white/10">
+                  <Card
+                    key={activity.id}
+                    className="bg-black/20 border-white/10"
+                  >
                     <CardContent className="p-4">
                       <div className="text-sm text-white/60">
                         {new Date(activity.created_at).toLocaleDateString()}
                       </div>
                       <div className="mt-2 text-white font-medium">
-                        Created setlist for <span className="text-green-400">{activity.shows.artist_name}</span>
+                        Created setlist for{' '}
+                        <span className="text-green-400">
+                          {activity.shows.artist_name}
+                        </span>
                       </div>
                       <div className="mt-1 text-white/80">
                         {activity.shows.venue}

@@ -1,10 +1,9 @@
-
-import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
-import { format } from "date-fns";
-import { Card, CardContent } from "@/components/ui/card";
-import type { TicketmasterEvent } from "@/integrations/ticketmaster/types";
-import { useNavigate } from "react-router-dom";
+import { Button } from '@/components/ui/button';
+import { Calendar } from 'lucide-react';
+import { format } from 'date-fns';
+import { Card, CardContent } from '@/components/ui/card';
+import type { TicketmasterEvent } from '@/integrations/ticketmaster/types';
+import { useNavigate } from 'react-router-dom';
 
 interface ShowCardProps {
   show: TicketmasterEvent;
@@ -15,18 +14,21 @@ export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
   const navigate = useNavigate();
   const venue = show._embedded?.venues?.[0];
   const showDate = new Date(show.dates.start.dateTime);
-  const cityState = venue?.city?.name && venue?.state?.name ? 
-    `${venue.city.name}, ${venue.state.name}` : 
-    venue?.city?.name || '';
+  const cityState =
+    venue?.city?.name && venue?.state?.name
+      ? `${venue.city.name}, ${venue.state.name}`
+      : venue?.city?.name || '';
 
   const generateSeoUrl = () => {
-    const cityPart = venue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
+    const cityPart =
+      venue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
     const datePart = format(showDate, 'MM-dd-yyyy');
-    const artistPart = show.name.toLowerCase()
+    const artistPart = show.name
+      .toLowerCase()
       .normalize('NFD') // Normalize accented characters
       .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
       .replace(/[^a-z0-9]+/g, '-'); // Replace non-alphanumeric with hyphens
-    
+
     return `/show/${artistPart}-${cityPart}-tickets-${datePart}/event/${show.id}`;
   };
 
@@ -36,7 +38,9 @@ export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
         <div className="flex flex-col space-y-4">
           <div className="flex justify-between items-start">
             <div className="flex-1">
-              <h3 className="text-xl font-semibold mb-2 text-white">{show.name}</h3>
+              <h3 className="text-xl font-semibold mb-2 text-white">
+                {show.name}
+              </h3>
               <div className="space-y-1">
                 <p className="text-white/60">{venue?.name}</p>
                 {cityState && <p className="text-white/60">{cityState}</p>}
@@ -51,13 +55,13 @@ export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
               </div>
             </div>
           </div>
-          
+
           <div className="text-sm text-white/60">
             {format(showDate, 'EEEE')} • {format(showDate, 'h:mm a')}
           </div>
 
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="w-full"
             onClick={(e) => {
               e.stopPropagation();
