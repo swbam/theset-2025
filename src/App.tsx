@@ -16,6 +16,7 @@ import MyArtists from './pages/MyArtists';
 import MyActivity from './pages/MyActivity';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import Admin from './pages/Admin';
 import Auth from './pages/Auth';
 import DashboardHome from './pages/DashboardHome';
 
@@ -31,6 +32,7 @@ const App = () => (
             <Sonner />
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/admin" element={<Admin />} />
               <Route path="/auth" element={<Auth />} />
 
               <Route path="/artists" element={<Artists />} />

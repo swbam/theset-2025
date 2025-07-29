@@ -14,6 +14,7 @@ export function TopNavigation() {
     { label: 'Artists', path: '/artists' },
     { label: 'Upcoming Shows', path: '/shows' },
     { label: 'How It Works', path: '/how-it-works' },
+    { label: 'Admin', path: '/admin' },
   ];
 
   return (
