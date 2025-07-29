@@ -1,76 +1,99 @@
-import { Button } from '@/components/ui/button';
-import { Calendar } from 'lucide-react';
-import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
-import type { TicketmasterEvent } from '@/integrations/ticketmaster/types';
-import { useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, MapPin, Users } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface ShowCardProps {
-  show: TicketmasterEvent;
-  onArtistClick?: (artistName: string) => void;
+  show: any; // Use any for flexibility with different show data structures
+  onClick: () => void;
 }
 
-export const ShowCard = ({ show, onArtistClick }: ShowCardProps) => {
-  const navigate = useNavigate();
-  const venue = show._embedded?.venues?.[0];
-  const showDate = new Date(show.dates.start.dateTime);
-  const cityState =
-    venue?.city?.name && venue?.state?.name
-      ? `${venue.city.name}, ${venue.state.name}`
-      : venue?.city?.name || '';
-
-  const generateSeoUrl = () => {
-    const cityPart =
-      venue?.city?.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '';
-    const datePart = format(showDate, 'MM-dd-yyyy');
-    const artistPart = show.name
-      .toLowerCase()
-      .normalize('NFD') // Normalize accented characters
-      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-      .replace(/[^a-z0-9]+/g, '-'); // Replace non-alphanumeric with hyphens
-
-    return `/show/${artistPart}-${cityPart}-tickets-${datePart}/event/${show.id}`;
+export const ShowCard = ({ show, onClick }: ShowCardProps) => {
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'MMM dd, yyyy');
+    } catch {
+      return 'Date TBA';
+    }
   };
 
+  const formatTime = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'h:mm a');
+    } catch {
+      return '';
+    }
+  };
+
+  // Handle different show data structures
+  const showName = show.name || show.title || 'Untitled Show';
+  const showDate = show.date || show.dates?.start?.dateTime || show.dates?.start?.localDate;
+  const venueName = show.venue_name || show._embedded?.venues?.[0]?.name || show.venue?.name;
+  const artistName = show.artist?.name || show._embedded?.attractions?.[0]?.name;
+  const showImage = show.image || show.images?.[0]?.url || show._embedded?.venues?.[0]?.images?.[0]?.url;
+  const ticketUrl = show.ticket_url || show.url;
+
   return (
-    <Card className="bg-black/30 hover:bg-black/40 transition-colors border-white/10">
-      <CardContent className="p-6">
-        <div className="flex flex-col space-y-4">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <h3 className="text-xl font-semibold mb-2 text-white">
-                {show.name}
-              </h3>
-              <div className="space-y-1">
-                <p className="text-white/60">{venue?.name}</p>
-                {cityState && <p className="text-white/60">{cityState}</p>}
+    <Card 
+      className="group cursor-pointer transition-all duration-300 hover:scale-105 bg-zinc-900 border-zinc-800 hover:bg-zinc-800"
+      onClick={onClick}
+    >
+      <CardContent className="p-0">
+        {showImage && (
+          <div 
+            className="w-full h-48 bg-cover bg-center rounded-t-lg"
+            style={{ backgroundImage: `url(${showImage})` }}
+          />
+        )}
+        <div className="p-4 space-y-3">
+          <div>
+            <h3 className="text-lg font-semibold text-white group-hover:text-primary transition-colors line-clamp-2">
+              {showName}
+            </h3>
+            {artistName && (
+              <p className="text-sm text-zinc-400 mt-1">{artistName}</p>
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            {showDate && (
+              <div className="flex items-center gap-2 text-sm text-zinc-400">
+                <Calendar className="w-4 h-4" />
+                <span>{formatDate(showDate)}</span>
+                {formatTime(showDate) && (
+                  <>
+                    <span>•</span>
+                    <span>{formatTime(showDate)}</span>
+                  </>
+                )}
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-white">
-                {format(showDate, 'MMM')}
+            )}
+            
+            {venueName && (
+              <div className="flex items-center gap-2 text-sm text-zinc-400">
+                <MapPin className="w-4 h-4" />
+                <span className="truncate">{venueName}</span>
               </div>
-              <div className="text-4xl font-bold text-white">
-                {format(showDate, 'd')}
-              </div>
-            </div>
+            )}
           </div>
 
-          <div className="text-sm text-white/60">
-            {format(showDate, 'EEEE')} • {format(showDate, 'h:mm a')}
+          <div className="flex items-center justify-between pt-2">
+            <Badge variant="secondary" className="text-xs">
+              <Users className="w-3 h-3 mr-1" />
+              Vote on setlist
+            </Badge>
+            {ticketUrl && (
+              <a 
+                href={ticketUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Get tickets
+              </a>
+            )}
           </div>
-
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(generateSeoUrl());
-            }}
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            View Setlist
-          </Button>
         </div>
       </CardContent>
     </Card>

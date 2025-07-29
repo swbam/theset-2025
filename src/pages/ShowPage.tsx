@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,7 @@ export default function ShowPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const { user, session } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
   const [guestActionsUsed, setGuestActionsUsed] = useState(0);
@@ -319,7 +320,24 @@ export default function ShowPage() {
   }
 
   if (!show) {
-    return <EmptyState />;
+    return (
+      <div className="min-h-screen bg-black">
+        <TopNavigation />
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-white mb-4">Show Not Found</h1>
+            <p className="text-zinc-400 mb-6">The show you're looking for doesn't exist or hasn't been synced yet.</p>
+            <button 
+              onClick={() => navigate('/')}
+              className="bg-primary text-black px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
   }
 
   const venueInfo = show.venue_name

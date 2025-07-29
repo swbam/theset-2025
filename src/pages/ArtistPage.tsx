@@ -1,188 +1,135 @@
-import { useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchArtistEvents } from '@/integrations/ticketmaster/client';
-import { Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/components/ui/use-toast';
-import { ArtistHero } from '@/components/artists/ArtistHero';
-import { ArtistShows } from '@/components/artists/ArtistShows';
+import { useToast } from '@/hooks/use-toast';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
-import { transformDatabaseArtist, type DatabaseArtist } from '@/types/artist';
+import { ArtistHero } from '@/components/artists/ArtistHero';
+import { ArtistShows } from '@/components/artists/ArtistShows';
+import { ArtistFollowCard } from '@/components/artists/ArtistFollowCard';
+import { LoadingState } from '@/components/shows/LoadingState';
+import { fetchArtistEvents } from '@/integrations/ticketmaster/artists';
+import { searchArtist, getArtistTopTracks } from '@/integrations/spotify/client';
 
 export default function ArtistPage() {
-  const { artistName } = useParams();
-  const decodedArtistName = artistName
-    ? decodeURIComponent(artistName).replace(/-/g, ' ')
-    : '';
-  const { user } = useAuth();
+  const { artistName } = useParams<{ artistName: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [isLoadingShows, setIsLoadingShows] = useState(true);
 
-  const { data: artist, isLoading: isLoadingArtist } = useQuery({
+  const decodedArtistName = artistName ? decodeURIComponent(artistName) : '';
+
+  // Query for artist data from our database
+  const { data: artistData, isLoading: artistLoading } = useQuery({
     queryKey: ['artist', decodedArtistName],
     queryFn: async () => {
-      if (!decodedArtistName) throw new Error('Artist name is required');
+      if (!decodedArtistName) return null;
 
+      // First check if artist exists in our database
       const { data: existingArtist } = await supabase
         .from('artists')
         .select('*')
-        .eq('name', decodedArtistName)
+        .ilike('name', decodedArtistName)
         .maybeSingle();
 
       if (existingArtist) {
-        console.log('Found existing artist:', existingArtist);
+        return existingArtist;
+      }
 
-        const { data: needsRefresh } = await supabase.rpc(
-          'needs_artist_refresh',
-          {
-            last_sync: existingArtist.last_synced_at,
-            ttl_hours: 1,
-          }
-        );
-
-        if (!needsRefresh) {
-          return transformDatabaseArtist(existingArtist as DatabaseArtist);
+      // If not in database, search Spotify and create artist record
+      try {
+        const spotifyArtist = await searchArtist(decodedArtistName);
+        if (!spotifyArtist) {
+          throw new Error('Artist not found on Spotify');
         }
 
-        console.log('Artist data needs refresh');
+        // Create artist record in our database
+        const { data: newArtist, error } = await supabase
+          .from('artists')
+          .insert({
+            name: spotifyArtist.name,
+            spotify_id: spotifyArtist.id,
+            image_url: spotifyArtist.images?.[0]?.url,
+            genres: spotifyArtist.genres || [],
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating artist:', error);
+          return spotifyArtist;
+        }
+
+        return newArtist;
+      } catch (error) {
+        console.error('Error fetching artist:', error);
+        throw error;
       }
-
-      console.log('Creating/updating artist:', decodedArtistName);
-      const { data: artist, error: insertError } = await supabase
-        .from('artists')
-        .upsert(
-          {
-            name: decodedArtistName,
-            // We'll update these fields later when we integrate Spotify
-            spotify_id: decodedArtistName
-              .toLowerCase()
-              .replace(/[^a-z0-9]/g, ''),
-            last_synced_at: new Date().toISOString(),
-          },
-          {
-            onConflict: 'name',
-            ignoreDuplicates: false,
-          }
-        )
-        .select()
-        .maybeSingle();
-
-      if (insertError) {
-        console.error('Error creating/updating artist:', insertError);
-        throw insertError;
-      }
-
-      return transformDatabaseArtist(artist as DatabaseArtist);
-    },
-    retry: false,
-  });
-
-  const { data: isFollowing } = useQuery({
-    queryKey: ['following', artist?.id],
-    queryFn: async () => {
-      if (!user || !artist) return false;
-      const { data } = await supabase
-        .from('user_artists')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('artist_id', artist.id)
-        .maybeSingle();
-      return !!data;
-    },
-    enabled: !!user && !!artist,
-  });
-
-  const followMutation = useMutation({
-    mutationFn: async () => {
-      if (!user || !artist) throw new Error('Not authenticated or no artist');
-      const { error } = await supabase.from('user_artists').insert({
-        user_id: user.id,
-        artist_id: artist.id,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['following', artist?.id] });
-      queryClient.invalidateQueries({ queryKey: ['followedArtists'] });
-      toast({
-        title: 'Success',
-        description: `You are now following ${artist?.name}`,
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error',
-        description: 'Failed to follow artist. Please try again.',
-        variant: 'destructive',
-      });
-      console.error('Follow error:', error);
-    },
-  });
-
-  const unfollowMutation = useMutation({
-    mutationFn: async () => {
-      if (!user || !artist) throw new Error('Not authenticated or no artist');
-      const { error } = await supabase
-        .from('user_artists')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('artist_id', artist.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['following', artist?.id] });
-      queryClient.invalidateQueries({ queryKey: ['followedArtists'] });
-      toast({
-        title: 'Success',
-        description: `You have unfollowed ${artist?.name}`,
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error',
-        description: 'Failed to unfollow artist. Please try again.',
-        variant: 'destructive',
-      });
-      console.error('Unfollow error:', error);
-    },
-  });
-
-  const handleFollowClick = () => {
-    if (!user) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please sign in to follow artists',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (isFollowing) {
-      unfollowMutation.mutate();
-    } else {
-      followMutation.mutate();
-    }
-  };
-
-  const { data: shows, isLoading: isLoadingShows } = useQuery({
-    queryKey: ['artistShows', decodedArtistName],
-    queryFn: async () => {
-      // Fetch artist events from our current API
-      const response = await fetchArtistEvents(decodedArtistName || '');
-      
-      // Return all shows for this artist
-      return response || [];
     },
     enabled: !!decodedArtistName,
   });
 
-  const isLoading = isLoadingArtist || isLoadingShows;
+  // Query for artist shows
+  const { data: shows, isLoading: showsLoading } = useQuery({
+    queryKey: ['artist-shows', decodedArtistName],
+    queryFn: async () => {
+      if (!decodedArtistName) return [];
+      
+      setIsLoadingShows(true);
+      try {
+        const events = await fetchArtistEvents(decodedArtistName);
+        return events || [];
+      } catch (error) {
+        console.error('Error fetching artist shows:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load shows for this artist',
+          variant: 'destructive',
+        });
+        return [];
+      } finally {
+        setIsLoadingShows(false);
+      }
+    },
+    enabled: !!decodedArtistName,
+  });
 
-  if (isLoading) {
+  const handleShowClick = (show: any) => {
+    if (show.ticketmaster_id) {
+      navigate(`/show/${show.ticketmaster_id}`);
+    } else {
+      toast({
+        title: 'Show Not Available',
+        description: 'This show cannot be viewed at the moment',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  if (artistLoading) {
+    return <LoadingState />;
+  }
+
+  if (!artistData) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="min-h-screen bg-black">
+        <TopNavigation />
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-white mb-4">Artist Not Found</h1>
+            <p className="text-zinc-400 mb-6">
+              The artist "{decodedArtistName}" could not be found.
+            </p>
+            <button 
+              onClick={() => navigate('/')}
+              className="bg-primary text-black px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+        <Footer />
       </div>
     );
   }
@@ -190,16 +137,42 @@ export default function ArtistPage() {
   return (
     <div className="min-h-screen bg-black">
       <TopNavigation />
-      <ArtistHero
-        artist={artist}
-        artistName={decodedArtistName}
-        isFollowing={isFollowing}
-        isFollowActionPending={
-          followMutation.isPending || unfollowMutation.isPending
-        }
-        onFollowClick={handleFollowClick}
-      />
-      <ArtistShows shows={shows} />
+      
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-8">
+            <ArtistHero
+              artist={artistData as any}
+              artistName={artistData.name}
+              isFollowing={false}
+              isFollowActionPending={false}
+              onFollowClick={() => {}}
+            />
+            
+            <ArtistShows
+              shows={shows || []}
+              isLoading={showsLoading || isLoadingShows}
+              onShowClick={handleShowClick}
+            />
+          </div>
+
+          {/* Sidebar */}
+          <div className="lg:col-span-1">
+            <ArtistFollowCard
+              name={artistData.name}
+              imageUrl={
+                'image_url' in artistData 
+                  ? artistData.image_url 
+                  : (artistData as any).images?.[0]?.url || null
+              }
+              followingSince={new Date().toISOString()}
+              showCount={shows?.length || 0}
+            />
+          </div>
+        </div>
+      </div>
+      
       <Footer />
     </div>
   );
