@@ -62,29 +62,12 @@ class SpotifyTokenManager {
     const endTimer = performanceMonitor.startTimer('spotify_credentials_fetch');
     
     try {
-      // Fetch credentials in parallel
-      const [clientIdResult, clientSecretResult] = await Promise.all([
-        this.supabaseClient
-          .from('secrets')
-          .select('value')
-          .eq('key', 'SPOTIFY_CLIENT_ID')
-          .single(),
-        this.supabaseClient
-          .from('secrets')
-          .select('value')
-          .eq('key', 'SPOTIFY_CLIENT_SECRET')
-          .single()
-      ]);
-
-      if (clientIdResult.error || clientSecretResult.error) {
-        throw new Error('Failed to fetch Spotify credentials from secrets table');
-      }
-
-      this.clientId = clientIdResult.data?.value;
-      this.clientSecret = clientSecretResult.data?.value;
+      // Get credentials from environment variables (Supabase secrets)
+      this.clientId = Deno.env.get('SPOTIFY_CLIENT_ID');
+      this.clientSecret = Deno.env.get('SPOTIFY_CLIENT_SECRET');
 
       if (!this.clientId || !this.clientSecret) {
-        throw new Error('Spotify credentials not found in secrets table');
+        throw new Error('Spotify credentials not found in environment variables');
       }
 
       logger.info('Spotify credentials initialized successfully');
@@ -377,21 +360,57 @@ class SongsDatabaseManager {
     try {
       logger.debug(`Batch upserting ${songs.length} songs`);
       
-      const { data, error } = await this.supabaseClient
-        .from('cached_songs')
-        .upsert(songs, {
-          onConflict: 'spotify_id',
-          ignoreDuplicates: false
-        })
-        .select('id, spotify_id, artist_id, name');
+      // Prepare data for both tables
+      const cachedSongs = songs.map(song => ({
+        spotify_id: song.spotify_id,
+        artist_id: song.artist_id,
+        name: song.name,
+        album: song.album,
+        popularity: song.popularity,
+        preview_url: song.preview_url,
+        last_synced_at: song.last_synced_at
+      }));
 
-      if (error) {
-        logger.error('Failed to batch upsert songs', { error, count: songs.length });
-        throw error;
+      const mainSongs = songs.map(song => ({
+        spotify_id: song.spotify_id,
+        artist_id: song.artist_id,
+        title: song.name
+      }));
+
+      // Insert to both tables in parallel
+      const [cachedResult, mainResult] = await Promise.allSettled([
+        this.supabaseClient
+          .from('cached_songs')
+          .upsert(cachedSongs, {
+            onConflict: 'spotify_id,artist_id',
+            ignoreDuplicates: false
+          })
+          .select('id, spotify_id, artist_id, name'),
+        this.supabaseClient
+          .from('songs')
+          .upsert(mainSongs, {
+            onConflict: 'spotify_id,artist_id',
+            ignoreDuplicates: false
+          })
+          .select('id, spotify_id, artist_id, title')
+      ]);
+
+      let finalData: any[] = [];
+      
+      if (cachedResult.status === 'fulfilled' && !cachedResult.value.error) {
+        finalData = cachedResult.value.data || [];
+      } else if (cachedResult.status === 'rejected') {
+        logger.error('Failed to upsert cached songs', { error: cachedResult.reason, count: songs.length });
       }
 
-      logger.debug(`Successfully upserted ${data?.length || 0} songs`);
-      return data || [];
+      if (mainResult.status === 'rejected') {
+        logger.warn('Failed to upsert main songs table', { error: mainResult.reason });
+      } else {
+        logger.debug('Successfully upserted to main songs table');
+      }
+
+      logger.debug(`Successfully upserted ${finalData.length} songs`);
+      return finalData;
     } finally {
       endTimer();
     }

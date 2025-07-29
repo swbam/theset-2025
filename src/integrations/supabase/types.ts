@@ -586,6 +586,14 @@ export type Database = {
           error_rate: number
         }[]
       }
+      migrate_cached_shows_to_shows: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      migrate_cached_songs_to_songs: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       needs_artist_refresh: {
         Args: { last_sync: string; ttl_hours?: number }
         Returns: boolean

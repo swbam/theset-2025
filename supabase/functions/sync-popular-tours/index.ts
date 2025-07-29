@@ -81,8 +81,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
         
         processedArtists.push(upsertedArtist);
         
-        // Process show
-        const showData = {
+        // First ensure venue exists
+        const venueData = {
+          ticketmaster_id: venue.id || `venue_${venue.name}_${venue.city?.name || 'unknown'}`,
+          name: venue.name,
+          city: venue.city?.name,
+          state: venue.state?.name,
+          country: venue.country?.name,
+          metadata: {
+            address: venue.address?.line1,
+            timezone: venue.timezone,
+            capacity: venue.capacity
+          },
+          last_synced_at: new Date().toISOString()
+        };
+
+        const { data: upsertedVenue, error: venueError } = await supabaseClient
+          .from('venues')
+          .upsert(venueData, { onConflict: 'ticketmaster_id' })
+          .select('id')
+          .single();
+
+        if (venueError) {
+          console.error('Error upserting venue:', venueError);
+          continue;
+        }
+
+        // Process show for cached_shows
+        const cachedShowData = {
           ticketmaster_id: event.id,
           artist_id: upsertedArtist.id,
           name: event.name,
@@ -97,19 +123,39 @@ Deno.serve(async (req: Request): Promise<Response> => {
           last_synced_at: new Date().toISOString()
         };
         
-        // Upsert show
-        const { data: upsertedShow, error: showError } = await supabaseClient
-          .from('cached_shows')
-          .upsert(showData, { onConflict: 'ticketmaster_id' })
-          .select()
-          .single();
+        // Process show for main shows table
+        const mainShowData = {
+          ticketmaster_id: event.id,
+          artist_id: upsertedArtist.id,
+          venue_id: upsertedVenue.id,
+          date: event.dates.start.dateTime,
+          status: new Date(event.dates.start.dateTime) < new Date() ? 'completed' : 'upcoming',
+          ticket_url: event.url
+        };
+
+        // Upsert to both tables
+        const [cachedShowResult, mainShowResult] = await Promise.allSettled([
+          supabaseClient
+            .from('cached_shows')
+            .upsert(cachedShowData, { onConflict: 'ticketmaster_id' })
+            .select()
+            .single(),
+          supabaseClient
+            .from('shows')
+            .upsert(mainShowData, { onConflict: 'ticketmaster_id' })
+            .select()
+            .single()
+        ]);
           
-        if (showError) {
-          console.error('Error upserting show:', showError);
-          continue;
+        if (cachedShowResult.status === 'fulfilled' && !cachedShowResult.value.error) {
+          processedShows.push(cachedShowResult.value.data);
+        } else {
+          console.error('Error upserting cached show:', cachedShowResult.status === 'rejected' ? cachedShowResult.reason : cachedShowResult.value.error);
         }
-        
-        processedShows.push(upsertedShow);
+
+        if (mainShowResult.status === 'rejected') {
+          console.error('Error upserting main show:', mainShowResult.reason);
+        }
         
       } catch (error) {
         console.error('Error processing event:', error);
