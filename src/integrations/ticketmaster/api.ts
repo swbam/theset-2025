@@ -20,7 +20,7 @@ export const callTicketmasterFunction = async (
     throw error;
   }
 
-  return data?._embedded?.events || [];
+  return data;
 };
 
 export const createInitialSetlistFromSpotifyTracks = async (

@@ -119,8 +119,8 @@ function buildApiUrl(endpoint: string, query?: string, params?: Record<string, a
       
     case 'featured':
       const now = new Date();
-      // Remove milliseconds for Ticketmaster API compatibility
-      const startDateTime = now.toISOString().split('.')[0] + 'Z';
+      // Ticketmaster requires exact format: YYYY-MM-DDTHH:mm:ssZ (no milliseconds)
+      const startDateTime = now.toISOString().replace(/\.\d{3}Z$/, 'Z');
       queryParams.append('startDateTime', startDateTime);
       queryParams.append('classificationName', 'music');
       queryParams.append('sort', 'relevance,desc');
