@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { SpotifyTrack } from './client';
 
 export const callSpotifyFunction = async (
   action: string,

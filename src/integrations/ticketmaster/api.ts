@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { CachedShow, CachedSong } from '@/types/sync';
 import type { SpotifyTrack, SpotifyArtist } from '@/integrations/spotify/client';
 import type { TicketmasterArtist } from './types';
+import type { Json } from '@/integrations/supabase/types';
 
 export const callTicketmasterFunction = async (
   endpoint: string,
@@ -119,7 +120,7 @@ export const updateArtistCache = async (artistData: TicketmasterArtist, spotifyD
       image_url: spotifyData.images?.[0]?.url,
       genres: spotifyData.genres,
       popularity: spotifyData.popularity,
-      metadata: spotifyData,
+      metadata: spotifyData as unknown as Json,
       last_synced_at: new Date().toISOString(),
     })
     .select()

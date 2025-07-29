@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { syncArtistSongs } from '@/integrations/spotify/api';
 import type { StoredSetlistSong } from '@/types/setlist';
+import type { Json } from '@/integrations/supabase/types';
 
 export const createSetlistForShow = async (
   showId: string,
@@ -54,7 +55,7 @@ export const createSetlistForShow = async (
       .from('setlists')
       .insert({
         show_id: showId,
-        songs: setlistSongs,
+        songs: setlistSongs as unknown as Json,
       })
       .select()
       .single();
@@ -101,7 +102,10 @@ export const addSongToSetlist = async (
 
     // Check if song already exists
     const songExists = existingSongs.some(
-      (song: StoredSetlistSong) => song.song_name?.toLowerCase() === songName.toLowerCase()
+      (song) => {
+        const typedSong = song as unknown as StoredSetlistSong;
+        return typedSong.song_name?.toLowerCase() === songName.toLowerCase();
+      }
     );
 
     if (songExists) {
@@ -123,7 +127,7 @@ export const addSongToSetlist = async (
     const { error: updateError } = await supabase
       .from('setlists')
       .update({
-        songs: updatedSongs,
+        songs: updatedSongs as unknown as Json,
       })
       .eq('id', setlistId);
 
@@ -183,17 +187,18 @@ export const voteForSong = async (
     }
 
     const songs = Array.isArray(setlist.songs) ? setlist.songs : [];
-    const updatedSongs = songs.map((song: StoredSetlistSong & { total_votes?: number }) => {
-      if (song.id === songId) {
-        return { ...song, total_votes: (song.total_votes || 0) + 1 };
+    const updatedSongs = songs.map((song) => {
+      const typedSong = song as unknown as StoredSetlistSong & { total_votes?: number };
+      if (typedSong.id === songId) {
+        return { ...typedSong, total_votes: (typedSong.total_votes || 0) + 1 };
       }
-      return song;
+      return typedSong;
     });
 
     // Update setlist with new vote count
     await supabase
       .from('setlists')
-      .update({ songs: updatedSongs })
+      .update({ songs: updatedSongs as unknown as Json })
       .eq('show_id', showId);
 
     console.log('Successfully voted for song');

@@ -32,7 +32,7 @@ export const FeaturedArtists = ({ onArtistClick }: FeaturedArtistsProps) => {
       const existingArtist = artistMap.get(artist.name) || {
         name: artist.name,
         image: artist.images?.[0]?.url || show.images?.[0]?.url,
-        genre: artist.classifications?.[0]?.genre?.name || 'Music',
+        genre: artist.classifications?.[0]?.segment?.name || 'Music',
         showCount: 0,
       };
 
