@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
 import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
+import { PopularTours } from '@/components/shows/PopularTours';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
@@ -213,6 +214,11 @@ const Index = () => {
           </div>
 
           <UpcomingShows onArtistClick={handleArtistClick} shows={popularShows.slice(6)} isLoading={isLoading} />
+          
+          {/* Popular Tours Component */}
+          <div className="py-8">
+            <PopularTours onArtistClick={handleArtistClick} />
+          </div>
         </section>
 
         {/* How TheSet Works */}

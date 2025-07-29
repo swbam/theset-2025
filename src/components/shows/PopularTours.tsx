@@ -1,157 +1,210 @@
-import { useQuery } from '@tanstack/react-query';
-import { Card } from '@/components/ui/card';
-import { Calendar, MapPin } from 'lucide-react';
-import {
-  fetchPopularTours,
-  type TicketmasterEvent,
-} from '@/integrations/ticketmaster/client';
+import { useState, useEffect } from 'react';
+import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Music, MapPin, Calendar, Users, TrendingUp } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
+
+interface Show {
+  id: string;
+  name: string;
+  images?: Array<{ url: string }>;
+  dates: {
+    start: {
+      localDate: string;
+      localTime?: string;
+    };
+  };
+  _embedded?: {
+    venues?: Array<{
+      name: string;
+      city?: { name: string };
+      state?: { name: string };
+    }>;
+    attractions?: Array<{
+      name: string;
+      id: string;
+    }>;
+  };
+  info?: string;
+  priceRanges?: Array<{
+    min: number;
+    max: number;
+    currency: string;
+  }>;
+}
 
 interface PopularToursProps {
-  onArtistClick: (artistName: string) => void;
+  onArtistClick?: (artistName: string) => void;
 }
 
-interface ArtistInfo {
-  name: string;
-  image?: string;
-  showCount: number;
-  nextShow?: {
-    date: string;
-    venue: string;
-    location: string;
-  };
-}
+export const PopularTours = ({ onArtistClick }: PopularToursProps = {}) => {
+  const [shows, setShows] = useState<Show[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-export const PopularTours = ({ onArtistClick }: PopularToursProps) => {
-  const { data: shows = [], isLoading } = useQuery({
-    queryKey: ['popularTours'],
-    queryFn: fetchPopularTours,
-  });
-
-  const processShows = (shows: TicketmasterEvent[]): ArtistInfo[] => {
-    const artistMap = new Map<string, ArtistInfo>();
-
-    shows.forEach((show) => {
-      const artist = show._embedded?.attractions?.[0];
-      if (!artist?.name) return;
-
-      const existingArtist = artistMap.get(artist.name) || {
-        name: artist.name,
-        image: artist.images?.[0]?.url || show.images?.[0]?.url,
-        showCount: 0,
-      };
-
-      existingArtist.showCount++;
-
-      // Update next show if this is the first one or if it's earlier than the current next show
-      const showDate = new Date(show.dates.start.dateTime);
-      const currentNextShow = existingArtist.nextShow
-        ? new Date(existingArtist.nextShow.date)
-        : null;
-
-      if (!currentNextShow || showDate < currentNextShow) {
-        const venue = show._embedded?.venues?.[0];
-        existingArtist.nextShow = {
-          date: show.dates.start.dateTime,
-          venue: venue?.name || '',
-          location:
-            venue?.city?.name && venue?.state?.name
-              ? `${venue.city.name}, ${venue.state.name}`
-              : venue?.city?.name || venue?.state?.name || '',
-        };
+  useEffect(() => {
+    const loadPopularTours = async () => {
+      try {
+        const data = await fetchPopularTours();
+        setShows(data || []);
+      } catch (error) {
+        console.error('Error loading popular tours:', error);
+        toast({
+          title: 'Loading Error',
+          description: 'Failed to load popular tours. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      artistMap.set(artist.name, existingArtist);
-    });
+    loadPopularTours();
+  }, [toast]);
 
-    return Array.from(artistMap.values())
-      .sort((a, b) => b.showCount - a.showCount)
-      .slice(0, 6);
+  const handleShowClick = (show: Show) => {
+    const artist = show._embedded?.attractions?.[0];
+    if (artist?.name) {
+      if (onArtistClick) {
+        onArtistClick(artist.name);
+      } else {
+        navigate(`/artist/${encodeURIComponent(artist.name)}`);
+      }
+    }
+  };
+
+  const formatDate = (dateStr: string, timeStr?: string) => {
+    const date = new Date(dateStr);
+    const options: Intl.DateTimeFormatOptions = { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    };
+    
+    let formatted = date.toLocaleDateString('en-US', options);
+    if (timeStr) {
+      formatted += ` • ${timeStr}`;
+    }
+    return formatted;
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-semibold tracking-tight">
-          Popular Artist Tours
-        </h2>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {Array(6)
-            .fill(0)
-            .map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <div className="p-6 flex flex-row items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-accent" />
-                  <div className="space-y-2">
-                    <div className="h-4 w-24 bg-accent rounded" />
-                    <div className="h-3 w-32 bg-accent rounded" />
-                  </div>
-                </div>
-                <div className="px-6 pb-6">
-                  <div className="h-3 w-40 bg-accent rounded" />
-                </div>
-              </Card>
-            ))}
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, i) => (
+          <Card key={i} className="bg-gray-900 border-gray-800 animate-pulse">
+            <div className="h-48 bg-gray-800 rounded-t-lg" />
+            <CardContent className="p-4 space-y-3">
+              <div className="h-4 bg-gray-800 rounded" />
+              <div className="h-3 bg-gray-800 rounded w-3/4" />
+              <div className="h-3 bg-gray-800 rounded w-1/2" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
 
-  const artists = processShows(shows);
+  if (shows.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Music className="w-16 h-16 mx-auto text-gray-600 mb-4" />
+        <h3 className="text-xl font-semibold text-white mb-2">No Tours Found</h3>
+        <p className="text-gray-400">Check back later for the latest popular tours and concerts.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-semibold tracking-tight">
-        Popular Artist Tours
-      </h2>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {artists.map((artist) => (
-          <Card
-            key={artist.name}
-            className="hover:bg-accent/50 transition-colors cursor-pointer"
-            onClick={() => onArtistClick(artist.name)}
-          >
-            <div className="p-6 flex flex-row items-center gap-4">
-              <div
-                className="w-16 h-16 rounded-full bg-cover bg-center flex-shrink-0"
-                style={{
-                  backgroundImage: artist.image
-                    ? `url(${artist.image})`
-                    : undefined,
-                  backgroundColor: !artist.image
-                    ? 'rgba(255,255,255,0.1)'
-                    : undefined,
-                }}
-              />
-              <div className="flex flex-col">
-                <h3 className="text-lg font-semibold">{artist.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {artist.showCount} upcoming{' '}
-                  {artist.showCount === 1 ? 'show' : 'shows'}
-                </p>
-              </div>
-            </div>
-            {artist.nextShow && (
-              <div className="px-6 pb-6 space-y-2">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  {new Date(artist.nextShow.date).toLocaleDateString(
-                    undefined,
-                    {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                    }
+      <div className="flex items-center gap-2">
+        <TrendingUp className="w-5 h-5 text-green-500" />
+        <span className="text-sm text-gray-400">Most popular tours right now</span>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {shows.slice(0, 9).map((show) => {
+          const venue = show._embedded?.venues?.[0];
+          const artist = show._embedded?.attractions?.[0];
+          const priceRange = show.priceRanges?.[0];
+
+          return (
+            <Card 
+              key={show.id} 
+              className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-all duration-300 cursor-pointer group"
+              onClick={() => handleShowClick(show)}
+            >
+              {show.images?.[0]?.url && (
+                <div 
+                  className="h-48 bg-cover bg-center rounded-t-lg group-hover:scale-105 transition-transform duration-300"
+                  style={{ backgroundImage: `url(${show.images[0].url})` }}
+                />
+              )}
+              
+              <CardContent className="p-4 space-y-3">
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-white group-hover:text-green-400 transition-colors line-clamp-2">
+                    {show.name}
+                  </h3>
+                  
+                  {artist && (
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-300">{artist.name}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-300">
+                      {formatDate(show.dates.start.localDate, show.dates.start.localTime)}
+                    </span>
+                  </div>
+                  
+                  {venue && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-300 truncate">
+                        {venue.name}
+                        {venue.city && ` • ${venue.city.name}`}
+                        {venue.state && `, ${venue.state.name}`}
+                      </span>
+                    </div>
                   )}
                 </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  {artist.nextShow.venue}
-                  {artist.nextShow.location && `, ${artist.nextShow.location}`}
+                
+                <div className="flex items-center justify-between pt-2">
+                  {priceRange && (
+                    <Badge variant="outline" className="text-green-400 border-green-400">
+                      ${priceRange.min} - ${priceRange.max}
+                    </Badge>
+                  )}
+                  
+                  <Button 
+                    size="sm" 
+                    className="bg-green-500 hover:bg-green-600 text-black font-medium"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShowClick(show);
+                    }}
+                  >
+                    Vote on Setlist
+                  </Button>
                 </div>
-              </div>
-            )}
-          </Card>
-        ))}
+                
+                {show.info && (
+                  <p className="text-xs text-gray-400 mt-2 line-clamp-2">
+                    {show.info}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

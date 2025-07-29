@@ -118,13 +118,16 @@ function buildApiUrl(endpoint: string, query?: string, params?: Record<string, a
       return `${TICKETMASTER_BASE_URL}/venues/${query}.json?apikey=${apiKey}`;
       
     case 'featured':
-      // Use a fixed future date to avoid date formatting issues
-      const futureDate = '2025-07-30T00:00:00Z';
-      queryParams.append('startDateTime', futureDate);
+      // Get featured/popular events with proper date handling
       queryParams.append('classificationName', 'music');
       queryParams.append('sort', 'relevance,desc');
-      queryParams.append('countryCode', 'US');
-      queryParams.append('size', '50');
+      queryParams.append('countryCode', params?.countryCode?.toString() || 'US');
+      queryParams.append('size', params?.size?.toString() || '50');
+      // Use dynamic future date range
+      const now = new Date();
+      const future = new Date(now.getTime() + (180 * 24 * 60 * 60 * 1000)); // 6 months
+      queryParams.append('startDateTime', now.toISOString().replace(/\.\d{3}Z$/, 'Z'));
+      queryParams.append('endDateTime', future.toISOString().replace(/\.\d{3}Z$/, 'Z'));
       url = `${TICKETMASTER_BASE_URL}/events.json`;
       break;
       
