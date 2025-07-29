@@ -96,21 +96,24 @@ export const fetchPopularTours = async () => {
   console.log('Fetching popular tours');
   
   try {
-    const shows = await callTicketmasterFunction('featured', undefined, {
+    const response = await callTicketmasterFunction('featured', undefined, {
       size: '50',
       countryCode: 'US'
     });
 
+    // Extract events from the API response
+    const events = response.data?._embedded?.events || [];
+    
     // Start background import for popular tours
-    if (shows.length > 0) {
+    if (events.length > 0) {
       supabase.functions.invoke('sync-popular-tours', {
-        body: { shows }
+        body: { shows: events }
       }).catch(error => {
         console.error('Background popular tours sync failed:', error);
       });
     }
 
-    return shows;
+    return events;
   } catch (error) {
     console.error('Error fetching popular tours:', error);
     return [];
