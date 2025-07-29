@@ -1,7 +1,9 @@
 // Enterprise-grade CORS configuration with security best practices
 
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*', // In production, replace with specific domains
+  'Access-Control-Allow-Origin': process.env.NODE_ENV === 'production' 
+    ? 'https://nxeokwzotcrumtywdnvd.supabase.co,https://app.lovable.dev'
+    : '*',
   'Access-Control-Allow-Headers': 
     'authorization, x-client-info, apikey, content-type, x-requested-with, accept, origin, referer, user-agent',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',

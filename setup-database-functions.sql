@@ -9,6 +9,8 @@ CREATE OR REPLACE FUNCTION cast_vote(
 )
 RETURNS VOID AS $$
 BEGIN
+  -- Set secure search path to prevent schema-poisoning attacks
+  SET search_path = public, pg_temp;
   -- Check if user has already voted for this song
   IF p_user_id IS NOT NULL AND EXISTS (
     SELECT 1 FROM user_votes 
@@ -33,6 +35,8 @@ RETURNS TABLE(
   error_rate NUMERIC
 ) AS $$
 BEGIN
+  -- Set secure search path to prevent schema-poisoning attacks
+  SET search_path = public, pg_temp;
   RETURN QUERY
   SELECT 
     CASE 
@@ -63,6 +67,8 @@ CREATE OR REPLACE FUNCTION needs_artist_refresh(
 )
 RETURNS BOOLEAN AS $$
 BEGIN
+  -- Set secure search path to prevent schema-poisoning attacks
+  SET search_path = public, pg_temp;
   IF last_sync IS NULL THEN
     RETURN TRUE;
   END IF;
@@ -78,6 +84,8 @@ CREATE OR REPLACE FUNCTION needs_sync(
 )
 RETURNS BOOLEAN AS $$
 BEGIN
+  -- Set secure search path to prevent schema-poisoning attacks
+  SET search_path = public, pg_temp;
   IF last_sync IS NULL THEN
     RETURN TRUE;
   END IF;
@@ -93,6 +101,8 @@ CREATE OR REPLACE FUNCTION needs_venue_refresh(
 )
 RETURNS BOOLEAN AS $$
 BEGIN
+  -- Set secure search path to prevent schema-poisoning attacks
+  SET search_path = public, pg_temp;
   IF last_sync IS NULL THEN
     RETURN TRUE;
   END IF;
@@ -109,6 +119,8 @@ CREATE OR REPLACE FUNCTION update_sync_metrics(
 )
 RETURNS VOID AS $$
 BEGIN
+  -- Set secure search path to prevent schema-poisoning attacks
+  SET search_path = public, pg_temp;
   -- Insert or update sync metrics
   INSERT INTO sync_metrics (platform, success_count, error_count, last_sync_time)
   VALUES (

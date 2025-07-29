@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Search, Loader2, Music } from 'lucide-react';
 import { searchArtists } from '@/integrations/ticketmaster/artists';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeSearchInput, validateArtistName } from '@/utils/inputValidation';
 
 interface SearchResult {
   name: string;
@@ -29,12 +30,23 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
       return;
     }
 
+    // Sanitize and validate input
+    const sanitizedQuery = sanitizeSearchInput(query);
+    if (!validateArtistName(sanitizedQuery)) {
+      toast({
+        title: 'Invalid search',
+        description: 'Please enter a valid artist name.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSearching(true);
     setHasSearched(true);
     
     try {
-      console.log('Searching for artists:', query);
-      const results = await searchArtists(query);
+      console.log('Searching for artists:', sanitizedQuery);
+      const results = await searchArtists(sanitizedQuery);
       console.log('Search results:', results);
       setSearchResults(results);
     } catch (error) {
@@ -51,7 +63,7 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const value = sanitizeSearchInput(e.target.value);
     setSearchQuery(value);
     
     // Debounce search with cleanup
