@@ -1,741 +1,137 @@
-// Enterprise-grade Popular Tours Sync with intelligent batching and optimization
-// Handles concurrent data processing with fault tolerance and performance monitoring
-
-import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+// Simple data loading test function for sync-popular-tours
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import { handleCorsPreFlight, createCorsResponse } from '../_shared/cors.ts';
-import {
-  BatchProcessor,
-  Logger,
-  PerformanceMonitor,
-  RetryHandler,
-  CircuitBreaker,
-  createApiResponse,
-  sleep
-} from '../_shared/utils.ts';
-import type {
-  TicketmasterEvent,
-  TicketmasterVenue,
-  TicketmasterArtist,
-  DatabaseArtist,
-  DatabaseVenue,
-  DatabaseShow,
-  SyncMetrics,
-  SyncJobConfig,
-  ApiResponse
-} from '../_shared/types.ts';
 
-// Configuration
-const SYNC_CONFIG: SyncJobConfig = {
-  batchSize: 20,
-  maxConcurrency: 5,
-  retryAttempts: 3,
-  retryDelayMs: 1000,
-  timeoutMs: 300000 // 5 minutes
-};
-
-const MAX_EVENTS_TO_PROCESS = 500;
-const POPULARITY_THRESHOLD = 10; // Minimum popularity score
-
-// Global instances
-const logger = Logger.getInstance().setContext('POPULAR_TOURS_SYNC');
-const performanceMonitor = new PerformanceMonitor();
-const retryHandler = new RetryHandler(3, 1000, 30000);
-const circuitBreaker = new CircuitBreaker(5, 60000);
-
-// Enhanced Data Structures
-interface ProcessingResult {
-  eventId: string;
-  success: boolean;
-  error?: string;
-  artistId?: string;
-  venueId?: string;
-  showId?: string;
-  executionTime: number;
-}
-
-interface SyncState {
-  totalEvents: number;
-  processedEvents: number;
-  successfulEvents: number;
-  failedEvents: number;
-  skippedEvents: number;
-  artistsCreated: number;
-  venuesCreated: number;
-  showsCreated: number;
-  errors: string[];
-  startTime: string;
-  currentPhase: 'fetching' | 'processing_artists' | 'processing_venues' | 'processing_shows' | 'complete';
-}
-
-// Database Operations Manager
-class DatabaseManager {
-  constructor(private supabaseClient: SupabaseClient) {}
-
-  // Batch upsert artists with conflict resolution
-  async batchUpsertArtists(artists: Partial<DatabaseArtist>[]): Promise<DatabaseArtist[]> {
-    if (artists.length === 0) return [];
-    
-    const endTimer = performanceMonitor.startTimer('batch_upsert_artists');
-    
-    try {
-      logger.debug(`Batch upserting ${artists.length} artists`);
-      
-      const { data, error } = await this.supabaseClient
-        .from('artists')
-        .upsert(artists, {
-          onConflict: 'ticketmaster_id',
-          ignoreDuplicates: false
-        })
-        .select('*');
-
-      if (error) {
-        logger.error('Failed to batch upsert artists', { error, count: artists.length });
-        throw error;
-      }
-
-      logger.info(`Successfully upserted ${data?.length || 0} artists`);
-      return data || [];
-    } finally {
-      endTimer();
-    }
-  }
-
-  // Batch upsert venues with enhanced data
-  async batchUpsertVenues(venues: Partial<DatabaseVenue>[]): Promise<DatabaseVenue[]> {
-    if (venues.length === 0) return [];
-    
-    const endTimer = performanceMonitor.startTimer('batch_upsert_venues');
-    
-    try {
-      logger.debug(`Batch upserting ${venues.length} venues`);
-      
-      const { data, error } = await this.supabaseClient
-        .from('venues')
-        .upsert(venues, {
-          onConflict: 'ticketmaster_id',
-          ignoreDuplicates: false
-        })
-        .select('*');
-
-      if (error) {
-        logger.error('Failed to batch upsert venues', { error, count: venues.length });
-        throw error;
-      }
-
-      logger.info(`Successfully upserted ${data?.length || 0} venues`);
-      return data || [];
-    } finally {
-      endTimer();
-    }
-  }
-
-  // Batch upsert shows with proper relationships
-  async batchUpsertShows(shows: Partial<DatabaseShow>[]): Promise<DatabaseShow[]> {
-    if (shows.length === 0) return [];
-    
-    const endTimer = performanceMonitor.startTimer('batch_upsert_shows');
-    
-    try {
-      logger.debug(`Batch upserting ${shows.length} shows`);
-      
-      const { data, error } = await this.supabaseClient
-        .from('cached_shows')
-        .upsert(shows, {
-          onConflict: 'ticketmaster_id',
-          ignoreDuplicates: false
-        })
-        .select('*');
-
-      if (error) {
-        logger.error('Failed to batch upsert shows', { error, count: shows.length });
-        throw error;
-      }
-
-      logger.info(`Successfully upserted ${data?.length || 0} shows`);
-      return data || [];
-    } finally {
-      endTimer();
-    }
-  }
-
-  // Update sync metrics in real-time
-  async updateSyncMetrics(metrics: Partial<SyncMetrics>): Promise<void> {
-    try {
-      await this.supabaseClient
-        .from('sync_events')
-        .insert({
-          event_type: 'popular_tours_sync',
-          status: metrics.errors && metrics.errors > 0 ? 'failed' : 'success',
-          metadata: metrics,
-          created_at: new Date().toISOString()
-        });
-    } catch (error) {
-      logger.warn('Failed to update sync metrics', { error });
-    }
-  }
-}
-
-// Data Transformer and Validator
-class DataTransformer {
-  static validateAndTransformArtist(artist: TicketmasterArtist): Partial<DatabaseArtist> | null {
-    if (!artist.id || !artist.name) {
-      logger.warn('Invalid artist data - missing required fields', { artist });
-      return null;
-    }
-
-    // Extract Spotify ID from external links if available
-    const spotifyUrl = artist.externalLinks?.spotify?.[0]?.url;
-    const spotifyId = spotifyUrl ? this.extractSpotifyId(spotifyUrl) : undefined;
-
-    // Extract genre information
-    const genres = artist.classifications?.map(c => c.genre?.name).filter(Boolean) || [];
-
-    return {
-      ticketmaster_id: artist.id,
-      name: artist.name.trim(),
-      spotify_id: spotifyId,
-      image_url: artist.images?.[0]?.url,
-      genres: genres.length > 0 ? genres : undefined,
-      metadata: {
-        ticketmaster: artist,
-        classifications: artist.classifications,
-        images: artist.images
-      },
-      last_synced_at: new Date().toISOString()
-    };
-  }
-
-  static validateAndTransformVenue(venue: TicketmasterVenue): Partial<DatabaseVenue> | null {
-    if (!venue.id || !venue.name) {
-      logger.warn('Invalid venue data - missing required fields', { venue });
-      return null;
-    }
-
-    return {
-      ticketmaster_id: venue.id,
-      name: venue.name.trim(),
-      city: venue.city?.name,
-      state: venue.state?.name || venue.state?.stateCode,
-      country: venue.country?.name || venue.country?.countryCode,
-      metadata: {
-        ticketmaster: venue,
-        address: venue.address,
-        location: venue.location
-      },
-      last_synced_at: new Date().toISOString()
-    };
-  }
-
-  static validateAndTransformShow(
-    event: TicketmasterEvent,
-    artistId?: string,
-    venueId?: string
-  ): Partial<DatabaseShow> | null {
-    if (!event.id || !event.name || !event.dates?.start?.dateTime) {
-      logger.warn('Invalid event data - missing required fields', { event });
-      return null;
-    }
-
-    const venue = event._embedded?.venues?.[0];
-
-    return {
-      ticketmaster_id: event.id,
-      artist_id: artistId,
-      venue_id: venueId,
-      name: event.name.trim(),
-      date: event.dates.start.dateTime,
-      venue_name: venue?.name,
-      venue_location: venue ? {
-        city: venue.city?.name,
-        state: venue.state?.name,
-        country: venue.country?.name,
-        address: venue.address
-      } : undefined,
-      ticket_url: event.url,
-      last_synced_at: new Date().toISOString()
-    };
-  }
-
-  private static extractSpotifyId(url: string): string | null {
-    const match = url.match(/spotify\.com\/artist\/([a-zA-Z0-9]+)/);
-    return match ? match[1] : null;
-  }
-}
-
-// Event Quality Assessor
-class EventQualityAssessor {
-  static calculateEventScore(event: TicketmasterEvent): number {
-    let score = 0;
-
-    // Base score for having an event
-    score += 10;
-
-    // Artist information quality
-    const artist = event._embedded?.attractions?.[0];
-    if (artist) {
-      score += 20;
-      if (artist.images && artist.images.length > 0) score += 5;
-      if (artist.classifications && artist.classifications.length > 0) score += 5;
-      if (artist.externalLinks?.spotify) score += 10;
-    }
-
-    // Venue information quality
-    const venue = event._embedded?.venues?.[0];
-    if (venue) {
-      score += 15;
-      if (venue.city) score += 5;
-      if (venue.address) score += 5;
-    }
-
-    // Event timing
-    const eventDate = new Date(event.dates.start.dateTime);
-    const now = new Date();
-    const daysFromNow = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    
-    if (daysFromNow > 0 && daysFromNow < 365) {
-      score += 10; // Future event within a year
-    }
-
-    // Event URL quality
-    if (event.url) score += 5;
-
-    return score;
-  }
-
-  static isEventWorthProcessing(event: TicketmasterEvent): boolean {
-    const score = this.calculateEventScore(event);
-    return score >= POPULARITY_THRESHOLD;
-  }
-}
-
-// Main Sync Orchestrator
-class PopularToursSync {
-  private state: SyncState;
-  private dbManager: DatabaseManager;
-
-  constructor(private supabaseClient: SupabaseClient) {
-    this.dbManager = new DatabaseManager(supabaseClient);
-    this.state = {
-      totalEvents: 0,
-      processedEvents: 0,
-      successfulEvents: 0,
-      failedEvents: 0,
-      skippedEvents: 0,
-      artistsCreated: 0,
-      venuesCreated: 0,
-      showsCreated: 0,
-      errors: [],
-      startTime: new Date().toISOString(),
-      currentPhase: 'fetching'
-    };
-  }
-
-  async execute(): Promise<ApiResponse<SyncMetrics>> {
-    const startTime = performance.now();
-    logger.info('Starting popular tours sync job');
-
-    try {
-      // Phase 1: Fetch popular events
-      this.state.currentPhase = 'fetching';
-      const events = await this.fetchPopularEvents();
-      this.state.totalEvents = events.length;
-
-      if (events.length === 0) {
-        logger.warn('No events fetched from Ticketmaster API');
-        return createApiResponse(false, undefined, 'No events available to sync');
-      }
-
-      logger.info(`Fetched ${events.length} events for processing`);
-
-      // Filter events by quality
-      const qualityEvents = events.filter(event => EventQualityAssessor.isEventWorthProcessing(event));
-      logger.info(`${qualityEvents.length} events passed quality assessment`);
-
-      // Phase 2: Process events in batches
-      await this.processEventsInBatches(qualityEvents);
-
-      // Phase 3: Create setlists for new shows
-      await this.createSetlistsForNewShows();
-
-      // Phase 3: Update final metrics
-      const executionTime = performance.now() - startTime;
-      this.state.currentPhase = 'complete';
-
-      const metrics: SyncMetrics = {
-        processed: this.state.processedEvents,
-        errors: this.state.failedEvents,
-        skipped: this.state.skippedEvents,
-        total: this.state.totalEvents,
-        startTime: this.state.startTime,
-        endTime: new Date().toISOString(),
-        executionTimeMs: Math.round(executionTime)
-      };
-
-      await this.dbManager.updateSyncMetrics(metrics);
-
-      logger.info('Popular tours sync completed successfully', metrics);
-
-      return createApiResponse(true, metrics, undefined, {
-        artistsCreated: this.state.artistsCreated,
-        venuesCreated: this.state.venuesCreated,
-        showsCreated: this.state.showsCreated,
-        qualityScore: qualityEvents.length / events.length
-      });
-
-    } catch (error) {
-      const executionTime = performance.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      logger.error('Popular tours sync failed', {
-        error: errorMessage,
-        executionTime: Math.round(executionTime),
-        state: this.state
-      });
-
-      const metrics: SyncMetrics = {
-        processed: this.state.processedEvents,
-        errors: this.state.failedEvents + 1,
-        skipped: this.state.skippedEvents,
-        total: this.state.totalEvents,
-        startTime: this.state.startTime,
-        endTime: new Date().toISOString(),
-        executionTimeMs: Math.round(executionTime)
-      };
-
-      await this.dbManager.updateSyncMetrics(metrics);
-
-      return createApiResponse(false, metrics, errorMessage);
-    }
-  }
-
-  private async fetchPopularEvents(): Promise<TicketmasterEvent[]> {
-    const endTimer = performanceMonitor.startTimer('fetch_popular_events');
-
-    try {
-      const { data, error } = await this.supabaseClient.functions.invoke('ticketmaster', {
-        body: {
-          endpoint: 'featured',
-          params: {
-            size: MAX_EVENTS_TO_PROCESS.toString(),
-            sort: 'relevance,desc',
-            countryCode: 'US'
-          }
-        }
-      });
-
-      if (error) {
-        logger.error('Failed to fetch events from Ticketmaster function', { error });
-        throw new Error(`Ticketmaster API error: ${error.message}`);
-      }
-
-      const events = data?.data?._embedded?.events || [];
-      logger.info(`Successfully fetched ${events.length} events from Ticketmaster`);
-
-      return events;
-    } finally {
-      endTimer();
-    }
-  }
-
-  private async processEventsInBatches(events: TicketmasterEvent[]): Promise<void> {
-    const batchProcessor = new BatchProcessor<TicketmasterEvent, ProcessingResult>(SYNC_CONFIG);
-
-    const results = await batchProcessor.processBatch(
-      events,
-      (event) => this.processEvent(event),
-      (processed, total) => {
-        this.state.processedEvents = processed;
-        if (processed % 50 === 0) {
-          logger.info(`Progress: ${processed}/${total} events processed`);
-        }
-      }
-    );
-
-    // Aggregate results
-    const successful = results.filter(r => r.result?.success);
-    const failed = results.filter(r => r.error || !r.result?.success);
-
-    this.state.successfulEvents = successful.length;
-    this.state.failedEvents = failed.length;
-
-    // Log any persistent errors
-    failed.forEach(failure => {
-      const errorMsg = failure.error?.message || failure.result?.error || 'Unknown error';
-      this.state.errors.push(errorMsg);
-      if (this.state.errors.length <= 10) { // Limit error logging
-        logger.warn('Event processing failed', {
-          eventId: failure.item.id,
-          eventName: failure.item.name,
-          error: errorMsg
-        });
-      }
-    });
-  }
-
-  private async processEvent(event: TicketmasterEvent): Promise<ProcessingResult> {
-    const startTime = performance.now();
-    const eventId = event.id;
-
-    try {
-      // Extract and validate components
-      const artist = event._embedded?.attractions?.[0];
-      const venue = event._embedded?.venues?.[0];
-
-      if (!artist || !venue) {
-        return {
-          eventId,
-          success: false,
-          error: 'Missing required artist or venue data',
-          executionTime: performance.now() - startTime
-        };
-      }
-
-      // Transform data
-      const artistData = DataTransformer.validateAndTransformArtist(artist);
-      const venueData = DataTransformer.validateAndTransformVenue(venue);
-
-      if (!artistData || !venueData) {
-        return {
-          eventId,
-          success: false,
-          error: 'Data transformation failed',
-          executionTime: performance.now() - startTime
-        };
-      }
-
-      // Process with circuit breaker protection
-      return await circuitBreaker.execute(async () => {
-        // Upsert artist
-        const [upsertedArtist] = await this.dbManager.batchUpsertArtists([artistData]);
-        if (upsertedArtist?.id) this.state.artistsCreated++;
-
-        // Upsert venue
-        const [upsertedVenue] = await this.dbManager.batchUpsertVenues([venueData]);
-        if (upsertedVenue?.id) this.state.venuesCreated++;
-
-        // Create show data
-        const showData = DataTransformer.validateAndTransformShow(
-          event,
-          upsertedArtist?.id,
-          upsertedVenue?.id
-        );
-
-        if (!showData) {
-          throw new Error('Show data transformation failed');
-        }
-
-        // Upsert show
-        const [upsertedShow] = await this.dbManager.batchUpsertShows([showData]);
-        if (upsertedShow?.id) this.state.showsCreated++;
-
-        return {
-          eventId,
-          success: true,
-          artistId: upsertedArtist?.id,
-          venueId: upsertedVenue?.id,
-          showId: upsertedShow?.id,
-          executionTime: performance.now() - startTime
-        };
-      });
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown processing error';
-      logger.debug('Event processing failed', { eventId, error: errorMessage });
-
-      return {
-        eventId,
-        success: false,
-        error: errorMessage,
-        executionTime: performance.now() - startTime
-      };
-    }
-  }
-
-  // Create setlists for new shows with 5 random songs from artist's catalog
-  private async createSetlistsForNewShows(): Promise<void> {
-    const endTimer = performanceMonitor.startTimer('create_setlists_for_new_shows');
-    
-    try {
-      logger.info('Creating setlists for new shows...');
-      
-      // Get all shows created in the last hour that don't have setlists
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-      
-      const { data: showsWithoutSetlists, error: showsError } = await this.supabaseClient
-        .from('cached_shows')
-        .select('id, artist_id, name')
-        .gte('created_at', oneHourAgo);
-
-      if (showsError) {
-        logger.error('Failed to fetch shows without setlists', { error: showsError });
-        return;
-      }
-
-      if (!showsWithoutSetlists || showsWithoutSetlists.length === 0) {
-        logger.info('No shows need setlist creation');
-        return;
-      }
-
-      logger.info(`Creating setlists for ${showsWithoutSetlists.length} shows`);
-
-      // Process each show
-      for (const show of showsWithoutSetlists) {
-        try {
-          await this.createSetlistForShow(show);
-        } catch (error) {
-          logger.warn('Failed to create setlist for show', {
-            showId: show.id,
-            showName: show.name,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-        }
-      }
-    } finally {
-      endTimer();
-    }
-  }
-
-  private async createSetlistForShow(show: any): Promise<void> {
-    const artistId = show.artist_id;
-    if (!artistId) {
-      logger.warn('Show has no artist_id, skipping setlist creation', { showId: show.id });
-      return;
-    }
-
-    // Get artist's songs from cache
-    const { data: artistSongs, error: songsError } = await this.supabaseClient
-      .from('cached_songs')
-      .select('id, spotify_id, name, album, popularity')
-      .eq('artist_id', artistId)
-      .order('popularity', { ascending: false })
-      .limit(50);
-
-    if (songsError) {
-      logger.error('Failed to fetch artist songs', { artistId, error: songsError });
-      return;
-    }
-
-    if (!artistSongs || artistSongs.length === 0) {
-      logger.warn('No songs found for artist, skipping setlist creation', { artistId, showId: show.id });
-      return;
-    }
-
-    // Select 5 random songs, weighted towards more popular ones
-    const selectedSongs = this.selectRandomSongs(artistSongs, 5);
-    
-    // Create setlist songs array
-    const setlistSongs = selectedSongs.map((song, index) => ({
-      id: crypto.randomUUID(),
-      song_id: song.id,
-      song_name: song.name,
-      spotify_id: song.spotify_id,
-      album: song.album,
-      vote_count: 0,
-      suggested: false,
-      order_index: index,
-      created_at: new Date().toISOString()
-    }));
-
-    // Create the setlist
-    const { error: setlistError } = await this.supabaseClient
-      .from('setlists')
-      .insert({
-        show_id: show.id,
-        songs: setlistSongs
-      });
-
-    if (setlistError) {
-      logger.error('Failed to create setlist', { 
-        showId: show.id, 
-        error: setlistError,
-        songsCount: setlistSongs.length 
-      });
-    } else {
-      logger.info('Created setlist for show', {
-        showId: show.id,
-        showName: show.name,
-        songsCount: setlistSongs.length
-      });
-    }
-  }
-
-  private selectRandomSongs(songs: any[], count: number): any[] {
-    if (songs.length <= count) {
-      return songs;
-    }
-
-    // Create weighted selection - more popular songs have higher chance
-    const weighted: any[] = [];
-    songs.forEach(song => {
-      const weight = Math.max(1, song.popularity || 0);
-      for (let i = 0; i < weight; i++) {
-        weighted.push(song);
-      }
-    });
-
-    // Randomly select unique songs
-    const selected: any[] = [];
-    const usedSongs = new Set<string>();
-
-    while (selected.length < count && usedSongs.size < songs.length) {
-      const randomIndex = Math.floor(Math.random() * weighted.length);
-      const song = weighted[randomIndex];
-      
-      if (!usedSongs.has(song.id)) {
-        selected.push(song);
-        usedSongs.add(song.id);
-      }
-    }
-
-    return selected;
-  }
-}
-
-// Main Deno.serve Handler
 Deno.serve(async (req: Request): Promise<Response> => {
-  const startTime = performance.now();
-
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return handleCorsPreFlight();
   }
 
   try {
-    logger.info('Popular tours sync job initiated');
-
+    console.log('Starting simplified popular tours sync...');
+    
     // Create Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Execute sync
-    const syncJob = new PopularToursSync(supabaseClient);
-    const result = await syncJob.execute();
+    // Get API key
+    const { data: keyData, error: keyError } = await supabaseClient
+      .from('secrets')
+      .select('value')
+      .eq('key', 'TICKETMASTER_API_KEY')
+      .single();
 
-    const totalTime = performance.now() - startTime;
-    result.executionTime = Math.round(totalTime);
+    if (keyError || !keyData?.value) {
+      throw new Error('Failed to get Ticketmaster API key');
+    }
 
-    logger.info('Popular tours sync job completed', {
-      success: result.success,
-      executionTime: totalTime
+    const apiKey = keyData.value;
+    
+    // Fetch popular events directly from Ticketmaster
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${apiKey}&classificationName=music&sort=relevance,desc&size=50&countryCode=US`;
+    
+    console.log('Fetching from Ticketmaster API...');
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Ticketmaster API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    const events = data._embedded?.events || [];
+    
+    console.log(`Found ${events.length} events`);
+    
+    // Process first 10 events to test
+    const processedShows = [];
+    const processedArtists = [];
+    
+    for (const event of events.slice(0, 10)) {
+      try {
+        const artist = event._embedded?.attractions?.[0];
+        const venue = event._embedded?.venues?.[0];
+        
+        if (!artist || !venue || !event.dates?.start?.dateTime) {
+          continue;
+        }
+        
+        // Process artist
+        const artistData = {
+          ticketmaster_id: artist.id,
+          name: artist.name,
+          image_url: artist.images?.[0]?.url || null,
+          genres: artist.classifications?.map(c => c.genre?.name).filter(Boolean) || [],
+          last_synced_at: new Date().toISOString()
+        };
+        
+        // Upsert artist
+        const { data: upsertedArtist, error: artistError } = await supabaseClient
+          .from('artists')
+          .upsert(artistData, { onConflict: 'ticketmaster_id' })
+          .select()
+          .single();
+          
+        if (artistError) {
+          console.error('Error upserting artist:', artistError);
+          continue;
+        }
+        
+        processedArtists.push(upsertedArtist);
+        
+        // Process show
+        const showData = {
+          ticketmaster_id: event.id,
+          artist_id: upsertedArtist.id,
+          name: event.name,
+          date: event.dates.start.dateTime,
+          venue_name: venue.name,
+          venue_location: {
+            city: venue.city?.name,
+            state: venue.state?.name,
+            country: venue.country?.name
+          },
+          ticket_url: event.url,
+          last_synced_at: new Date().toISOString()
+        };
+        
+        // Upsert show
+        const { data: upsertedShow, error: showError } = await supabaseClient
+          .from('cached_shows')
+          .upsert(showData, { onConflict: 'ticketmaster_id' })
+          .select()
+          .single();
+          
+        if (showError) {
+          console.error('Error upserting show:', showError);
+          continue;
+        }
+        
+        processedShows.push(upsertedShow);
+        
+      } catch (error) {
+        console.error('Error processing event:', error);
+      }
+    }
+    
+    console.log(`Processed ${processedArtists.length} artists and ${processedShows.length} shows`);
+    
+    return createCorsResponse({
+      success: true,
+      data: {
+        artistsProcessed: processedArtists.length,
+        showsProcessed: processedShows.length,
+        totalEvents: events.length
+      }
     });
-
-    return createCorsResponse(result, result.success ? 200 : 500);
-
+    
   } catch (error) {
-    const totalTime = performance.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-
-    logger.error('Sync job handler error', {
-      error: errorMessage,
-      executionTime: totalTime
-    });
-
-    const errorResponse = createApiResponse(false, undefined, errorMessage, {
-      executionTime: totalTime
-    });
-
-    return createCorsResponse(errorResponse, 500);
+    console.error('Sync error:', error);
+    return createCorsResponse({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
   }
 });

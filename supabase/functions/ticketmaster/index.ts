@@ -334,7 +334,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
   
   try {
     // Parse request body
-    const requestBody: TicketmasterRequest = await req.json();
+    let requestBody: TicketmasterRequest;
+    
+    // Handle both JSON and form-data requests
+    const contentType = req.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/json')) {
+      requestBody = await req.json();
+    } else {
+      // Fallback for other content types
+      const text = await req.text();
+      try {
+        requestBody = JSON.parse(text || '{}');
+      } catch {
+        requestBody = { endpoint: 'search' }; // Default endpoint
+      }
+    }
     
     // Validate request
     if (!requestBody.endpoint) {
