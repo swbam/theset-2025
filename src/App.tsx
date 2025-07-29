@@ -13,6 +13,8 @@ import Shows from './pages/Shows';
 import HowItWorks from './pages/HowItWorks';
 import NotFound from './pages/NotFound';
 import MyArtists from './pages/MyArtists';
+import Auth from './pages/Auth';
+import DashboardHome from './pages/DashboardHome';
 
 const queryClient = new QueryClient();
 
@@ -26,6 +28,7 @@ const App = () => (
             <Sonner />
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
 
               <Route path="/artists" element={<Artists />} />
               <Route path="/shows" element={<Shows />} />
@@ -34,6 +37,7 @@ const App = () => (
               <Route path="/show/:eventId" element={<ShowPage />} />
 
               <Route path="/dashboard" element={<Dashboard />}>
+                <Route index element={<DashboardHome />} />
                 <Route path="my-artists" element={<MyArtists />} />
                 <Route path="my-activity" element={<Index />} />
                 <Route path="profile" element={<Index />} />

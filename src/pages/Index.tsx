@@ -77,10 +77,10 @@ const Index = () => {
                 recommendations and upcoming shows.
               </p>
               <Button
-                onClick={signInWithSpotify}
+                onClick={() => navigate('/auth')}
                 className="bg-green-500 hover:bg-green-600 text-black font-semibold px-6 py-2 rounded-full text-sm"
               >
-                Connect Spotify
+                Get Started
               </Button>
             </div>
           </section>

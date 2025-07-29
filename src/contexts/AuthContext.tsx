@@ -6,7 +6,10 @@ import { useNavigate } from 'react-router-dom';
 interface AuthContextType {
   session: Session | null;
   user: User | null;
+  isSpotifyUser: boolean;
   signInWithSpotify: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: any }>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -16,6 +19,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
+
+  // Check if user signed up with Spotify
+  const isSpotifyUser = user?.app_metadata?.provider === 'spotify';
 
   useEffect(() => {
     // Get initial session
@@ -51,6 +57,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithEmail = async (email: string, password: string) => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { error };
+    } catch (error) {
+      console.error('Error signing in with email:', error);
+      return { error };
+    }
+  };
+
+  const signUpWithEmail = async (email: string, password: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/dashboard`;
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl
+        }
+      });
+      return { error };
+    } catch (error) {
+      console.error('Error signing up with email:', error);
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -63,7 +99,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signInWithSpotify, signOut }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      isSpotifyUser, 
+      signInWithSpotify, 
+      signInWithEmail, 
+      signUpWithEmail, 
+      signOut 
+    }}>
       {children}
     </AuthContext.Provider>
   );
