@@ -13,6 +13,9 @@ import Shows from './pages/Shows';
 import HowItWorks from './pages/HowItWorks';
 import NotFound from './pages/NotFound';
 import MyArtists from './pages/MyArtists';
+import MyActivity from './pages/MyActivity';
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 import Auth from './pages/Auth';
 import DashboardHome from './pages/DashboardHome';
 
@@ -39,9 +42,9 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />}>
                 <Route index element={<DashboardHome />} />
                 <Route path="my-artists" element={<MyArtists />} />
-                <Route path="my-activity" element={<Index />} />
-                <Route path="profile" element={<Index />} />
-                <Route path="settings" element={<Index />} />
+                <Route path="my-activity" element={<MyActivity />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="settings" element={<Settings />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
