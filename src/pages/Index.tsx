@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Music2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SearchBar } from '@/components/search/SearchBar';
@@ -7,10 +8,37 @@ import { UpcomingShows } from '@/components/shows/UpcomingShows';
 import { Button } from '@/components/ui/button';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
+import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
+import { useToast } from '@/components/ui/use-toast';
 
 const Index = () => {
   const { user, signInWithSpotify } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [popularShows, setPopularShows] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        console.log('Loading popular tours for homepage...');
+        const shows = await fetchPopularTours();
+        setPopularShows(shows || []);
+        console.log('Loaded popular shows:', shows?.length || 0);
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        toast({
+          title: 'Notice',
+          description: 'Some content may take a moment to load',
+          variant: 'default',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, [toast]);
 
   const handleArtistClick = (artistName: string) => {
     navigate(`/artist/${encodeURIComponent(artistName)}`);
@@ -66,7 +94,7 @@ const Index = () => {
                 Trending Shows
               </h2>
               <p className="text-zinc-400 text-sm">
-                Shows with the most active voting right now
+                {isLoading ? 'Loading trending shows...' : 'Shows with the most active voting right now'}
               </p>
             </div>
             <Button
@@ -77,9 +105,47 @@ const Index = () => {
               View all →
             </Button>
           </div>
-          <div className="text-center py-8">
-            <p className="text-zinc-500 text-sm">No trending shows found</p>
-          </div>
+          
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-48 bg-zinc-800 animate-pulse rounded-lg" />
+              ))}
+            </div>
+          ) : popularShows.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {popularShows.slice(0, 6).map((show, index) => (
+                <div
+                  key={show.id || index}
+                  className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 hover:bg-zinc-800 transition-colors cursor-pointer"
+                  onClick={() => {
+                    const artist = show._embedded?.attractions?.[0];
+                    if (artist?.name) {
+                      handleArtistClick(artist.name);
+                    }
+                  }}
+                >
+                  {show.images?.[0]?.url && (
+                    <div 
+                      className="w-full h-32 bg-cover bg-center rounded-lg mb-3"
+                      style={{ backgroundImage: `url(${show.images[0].url})` }}
+                    />
+                  )}
+                  <h3 className="text-white font-semibold mb-1 truncate">{show.name}</h3>
+                  <p className="text-zinc-400 text-sm mb-2 truncate">
+                    {show._embedded?.attractions?.[0]?.name}
+                  </p>
+                  <p className="text-zinc-500 text-xs">
+                    {show._embedded?.venues?.[0]?.name}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-zinc-500 text-sm">No trending shows found</p>
+            </div>
+          )}
         </section>
 
         {/* Featured Artists */}
@@ -90,7 +156,7 @@ const Index = () => {
                 Featured Artists
               </h2>
               <p className="text-zinc-400 text-sm">
-                Top artists with upcoming shows to vote on
+                {isLoading ? 'Loading featured artists...' : 'Top artists with upcoming shows to vote on'}
               </p>
             </div>
             <Button
@@ -101,7 +167,7 @@ const Index = () => {
               View all →
             </Button>
           </div>
-          <FeaturedArtists onArtistClick={handleArtistClick} />
+          <FeaturedArtists onArtistClick={handleArtistClick} shows={popularShows} isLoading={isLoading} />
         </section>
 
         {/* Upcoming Shows */}
@@ -112,7 +178,7 @@ const Index = () => {
                 Upcoming Shows
               </h2>
               <p className="text-zinc-400 text-sm">
-                Browse and vote on setlists for upcoming concerts
+                {isLoading ? 'Loading upcoming shows...' : 'Browse and vote on setlists for upcoming concerts'}
               </p>
             </div>
             <Button
@@ -146,7 +212,7 @@ const Index = () => {
             ))}
           </div>
 
-          <UpcomingShows onArtistClick={handleArtistClick} />
+          <UpcomingShows onArtistClick={handleArtistClick} shows={popularShows.slice(6)} isLoading={isLoading} />
         </section>
 
         {/* How TheSet Works */}
