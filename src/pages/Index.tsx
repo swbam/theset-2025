@@ -115,7 +115,17 @@ const Index = () => {
             </div>
           ) : popularShows.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {popularShows.slice(0, 6).map((show, index) => (
+              {(() => {
+                // Deduplicate shows by artist name for trending shows
+                const uniqueShows = new Map();
+                popularShows.forEach(show => {
+                  const artistName = show._embedded?.attractions?.[0]?.name;
+                  if (artistName && !uniqueShows.has(artistName)) {
+                    uniqueShows.set(artistName, show);
+                  }
+                });
+                return Array.from(uniqueShows.values()).slice(0, 6);
+              })().map((show, index) => (
                 <div
                   key={show.id || index}
                   className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 hover:bg-zinc-800 transition-colors cursor-pointer"
