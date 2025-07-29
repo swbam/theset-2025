@@ -54,10 +54,10 @@ export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
     const value = e.target.value;
     setSearchQuery(value);
     
-    // Debounce search
+    // Debounce search with cleanup
     const timeoutId = setTimeout(() => {
       handleSearch(value);
-    }, 300);
+    }, 500); // Increased to 500ms to reduce API calls
 
     return () => clearTimeout(timeoutId);
   };

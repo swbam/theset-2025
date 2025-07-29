@@ -14,29 +14,31 @@ export const searchArtists = async (query: string) => {
   try {
     const results = await callTicketmasterFunction('search', query);
 
-    // Filter for music events and extract unique artists
+    // Extract unique artists from events
     const uniqueArtists = new Map();
 
-    results.forEach((event: TicketmasterEvent) => {
-      const artist = event._embedded?.attractions?.[0];
-      if (artist && artist.name && artist.name.toLowerCase().includes(query.toLowerCase())) {
-        if (!uniqueArtists.has(artist.name)) {
-          uniqueArtists.set(artist.name, {
-            name: artist.name,
-            image: artist.images?.[0]?.url || event.images?.[0]?.url,
-            venue: event._embedded?.venues?.[0]?.name,
-            date: event.dates?.start?.dateTime,
-            url: event.url,
-            ticketmaster_id: artist.id,
-            capacity: event._embedded?.venues?.[0]?.capacity || 0,
-          });
+    if (results._embedded?.events) {
+      results._embedded.events.forEach((event: TicketmasterEvent) => {
+        const artist = event._embedded?.attractions?.[0];
+        if (artist && artist.name) {
+          if (!uniqueArtists.has(artist.name)) {
+            uniqueArtists.set(artist.name, {
+              name: artist.name,
+              image: artist.images?.[0]?.url || event.images?.[0]?.url,
+              venue: event._embedded?.venues?.[0]?.name,
+              date: event.dates?.start?.dateTime,
+              url: event.url,
+              ticketmaster_id: artist.id,
+              capacity: event._embedded?.venues?.[0]?.capacity || 0,
+            });
+          }
         }
-      }
-    });
+      });
+    }
 
     return Array.from(uniqueArtists.values())
       .sort((a, b) => b.capacity - a.capacity)
-      .slice(0, 10); // Limit to top 10 results
+      .slice(0, 10);
   } catch (error) {
     console.error('Error searching for artists:', error);
     return [];
