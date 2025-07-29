@@ -168,14 +168,11 @@ export default function ArtistPage() {
   const { data: shows, isLoading: isLoadingShows } = useQuery({
     queryKey: ['artistShows', decodedArtistName],
     queryFn: async () => {
+      // Fetch artist events from our current API
       const response = await fetchArtistEvents(decodedArtistName || '');
-      return response.filter(
-        (show) =>
-          show.name
-            .toLowerCase()
-            .includes(decodedArtistName?.toLowerCase() || '') &&
-          !show.name.toLowerCase().includes('tribute')
-      );
+      
+      // Return all shows for this artist
+      return response || [];
     },
     enabled: !!decodedArtistName,
   });
