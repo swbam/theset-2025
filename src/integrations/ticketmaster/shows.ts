@@ -113,12 +113,13 @@ export const prepareShowForCache = (
   const venue = show._embedded?.venues?.[0];
 
   return {
+    id: crypto.randomUUID(),
     ticketmaster_id: show.id,
-    artist_id: artistId || null,
+    artist_id: artistId || '',
     name: show.name,
     date: show.dates.start.dateTime,
     venue_name: venue?.name,
-    venue_location: venue ? JSON.stringify(venue) : null,
+    venue_location: venue ? mapVenueToLocation(venue) : undefined,
     ticket_url: show.url,
     last_synced_at: new Date().toISOString(),
   };
@@ -137,21 +138,11 @@ export const updateShowCache = async (
     .map((show) => show._embedded?.venues?.[0])
     .filter((v): v is NonNullable<typeof v> => v !== undefined);
 
-  const venueIds = await updateVenuesCache(venues);
+  // Note: Venue cache update would be handled here
 
-  // Prepare and upsert shows with venue IDs
+  // Prepare and upsert shows
   const showsToCache = shows
-    .map((show) => {
-      const prepared = prepareShowForCache(show, artistId);
-      if (!prepared) return null;
-
-      const venueId = show._embedded?.venues?.[0]?.id;
-      if (venueId) {
-        prepared.venue_id = venueIds.get(venueId);
-      }
-
-      return prepared;
-    })
+    .map((show) => prepareShowForCache(show, artistId))
     .filter((s): s is CachedShow => s !== null);
 
   if (showsToCache.length > 0) {

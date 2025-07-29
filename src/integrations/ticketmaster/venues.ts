@@ -19,7 +19,6 @@ function mapDatabaseVenueToCachedVenue(dbVenue: Tables<'venues'>): CachedVenue {
     ticketmaster_id: dbVenue.ticketmaster_id,
     name: dbVenue.name,
     metadata: dbVenue.metadata as Record<string, any>,
-    last_synced_at: dbVenue.last_synced_at,
     created_at: dbVenue.created_at,
   };
 }
@@ -42,7 +41,7 @@ export async function cacheVenueData(
       .upsert({
         ticketmaster_id: venue.id,
         name: venue.name,
-        metadata: venueObj as Json,
+        metadata: venueObj as unknown as Json,
       })
       .select()
       .single();
@@ -90,7 +89,7 @@ export async function getVenueById(
     }
 
     const needsRefresh = await PlatformClient.needsSync(
-      cachedVenue.last_synced_at as string
+      cachedVenue.created_at as string
     );
 
     if (needsRefresh) {

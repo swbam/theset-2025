@@ -17,7 +17,7 @@ export async function calculateSongVotes(
       return [];
     }
 
-    const songs = Array.isArray(setlistData.songs) ? setlistData.songs as StoredSetlistSong[] : [];
+    const songs = Array.isArray(setlistData.songs) ? (setlistData.songs as unknown as StoredSetlistSong[]) : [];
 
     const songsWithVotes = await Promise.all(
       songs.map(async (song: StoredSetlistSong) => {
@@ -61,7 +61,7 @@ export async function getUserVoteCount(
       return 0;
     }
 
-    const songs = Array.isArray(setlistData.songs) ? setlistData.songs as StoredSetlistSong[] : [];
+    const songs = Array.isArray(setlistData.songs) ? (setlistData.songs as unknown as StoredSetlistSong[]) : [];
     const songIds = songs.map((song: StoredSetlistSong) => song.id).filter(Boolean);
 
     if (songIds.length === 0) {

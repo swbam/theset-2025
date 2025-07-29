@@ -106,12 +106,15 @@ export default function ShowPage() {
 
           return {
             id: existingSetlist.id,
-            songs: songsList.map((song: StoredSetlistSong) => ({
-              id: song.id || `song-${Math.random().toString(36).substr(2, 9)}`,
-              song_name: song.name || song.song_name || 'Unknown Song',
-              total_votes: 0,
-              suggested: song.suggested || false,
-            })),
+            songs: songsList.map((song) => {
+              const typedSong = song as unknown as StoredSetlistSong;
+              return {
+                id: typedSong.id || `song-${Math.random().toString(36).substr(2, 9)}`,
+                song_name: typedSong.name || typedSong.song_name || 'Unknown Song',
+                total_votes: 0,
+                suggested: typedSong.suggested || false,
+              };
+            }),
           };
         }
       }

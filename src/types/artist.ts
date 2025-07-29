@@ -34,7 +34,7 @@ export interface DatabaseArtist {
 export function transformDatabaseArtist(dbArtist: DatabaseArtist): Artist {
   return {
     ...dbArtist,
-    genres: Array.isArray(dbArtist.genres) ? dbArtist.genres : [],
+    genres: Array.isArray(dbArtist.genres) ? (dbArtist.genres as string[]) : [],
     metadata: dbArtist.metadata as unknown as Record<string, any>,
   };
 }
