@@ -8,6 +8,8 @@ import {
 
 interface UpcomingShowsProps {
   onArtistClick: (artistName: string) => void;
+  shows?: any[];
+  isLoading?: boolean;
 }
 
 interface ShowCard {
@@ -19,11 +21,15 @@ interface ShowCard {
   location: string;
 }
 
-export const UpcomingShows = ({ onArtistClick }: UpcomingShowsProps) => {
-  const { data: shows = [], isLoading } = useQuery({
+export const UpcomingShows = ({ onArtistClick, shows: propShows, isLoading: propIsLoading }: UpcomingShowsProps) => {
+  const { data: fetchedShows = [], isLoading: fetchIsLoading } = useQuery({
     queryKey: ['upcomingShows'],
     queryFn: fetchPopularTours,
+    enabled: !propShows, // Only fetch if no shows provided as props
   });
+
+  const shows = propShows || fetchedShows;
+  const isLoading = propIsLoading !== undefined ? propIsLoading : fetchIsLoading;
 
   const processShows = (shows: TicketmasterEvent[]): ShowCard[] => {
     return shows
