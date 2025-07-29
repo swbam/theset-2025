@@ -19,6 +19,9 @@ interface SongSuggestionDialogProps {
   onOpenChange: (open: boolean) => void;
   setlistId: string;
   onSongAdded: () => void;
+  isAuthenticated?: boolean;
+  guestActionsUsed?: number;
+  onGuestActionUsed?: () => void;
 }
 
 export function SongSuggestionDialog({
@@ -26,6 +29,9 @@ export function SongSuggestionDialog({
   onOpenChange,
   setlistId,
   onSongAdded,
+  isAuthenticated,
+  guestActionsUsed = 0,
+  onGuestActionUsed,
 }: SongSuggestionDialogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SpotifyTrack[]>([]);
@@ -53,6 +59,16 @@ export function SongSuggestionDialog({
   };
 
   const handleAddSong = async (track: SpotifyTrack) => {
+    // Check if guest can add songs
+    if (!isAuthenticated && guestActionsUsed && guestActionsUsed > 0) {
+      toast({
+        title: 'Sign in Required',
+        description: 'Please sign in to suggest more songs.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsAdding(true);
     try {
       const { data: setlist, error: fetchError } = await supabase
@@ -86,6 +102,11 @@ export function SongSuggestionDialog({
         title: 'Song Added',
         description: `"${track.name}" has been added to the setlist!`,
       });
+
+      // Track guest action if not authenticated
+      if (!isAuthenticated && onGuestActionUsed) {
+        onGuestActionUsed();
+      }
 
       setSearchQuery('');
       setSearchResults([]);

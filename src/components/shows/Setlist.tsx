@@ -16,6 +16,8 @@ interface SetlistProps {
   user: User | null;
   onVote: (songId: string) => Promise<void>;
   onSuggest: () => void;
+  isAuthenticated?: boolean;
+  guestActionsUsed?: number;
 }
 
 export const Setlist = ({
@@ -24,17 +26,19 @@ export const Setlist = ({
   user,
   onVote,
   onSuggest,
+  isAuthenticated,
+  guestActionsUsed = 0,
 }: SetlistProps) => (
   <div className="space-y-6">
     <div className="flex items-center justify-between">
       <h2 className="text-2xl font-semibold text-white">Setlist</h2>
-      {user && (
+      {(user || guestActionsUsed === 0) && (
         <Button
           variant="outline"
           onClick={onSuggest}
           className="hover:bg-white/10 hover:text-white"
         >
-          Suggest a song
+          {!user && guestActionsUsed === 0 ? 'Suggest a song (guest)' : 'Suggest a song'}
         </Button>
       )}
     </div>
@@ -50,6 +54,8 @@ export const Setlist = ({
             suggested={song.suggested}
             onVote={onVote}
             hasVoted={userVotes?.includes(song.id)}
+            isAuthenticated={isAuthenticated}
+            guestActionsUsed={guestActionsUsed}
           />
         ))}
       </div>

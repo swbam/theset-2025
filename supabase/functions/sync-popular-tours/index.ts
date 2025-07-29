@@ -354,6 +354,9 @@ class PopularToursSync {
       // Phase 2: Process events in batches
       await this.processEventsInBatches(qualityEvents);
 
+      // Phase 3: Create setlists for new shows
+      await this.createSetlistsForNewShows();
+
       // Phase 3: Update final metrics
       const executionTime = performance.now() - startTime;
       this.state.currentPhase = 'complete';
@@ -546,6 +549,145 @@ class PopularToursSync {
         executionTime: performance.now() - startTime
       };
     }
+  }
+
+  // Create setlists for new shows with 5 random songs from artist's catalog
+  private async createSetlistsForNewShows(): Promise<void> {
+    const endTimer = performanceMonitor.startTimer('create_setlists_for_new_shows');
+    
+    try {
+      logger.info('Creating setlists for new shows...');
+      
+      // Get all shows created in the last hour that don't have setlists
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      
+      const { data: showsWithoutSetlists, error: showsError } = await this.supabaseClient
+        .from('cached_shows')
+        .select('id, artist_id, name')
+        .gte('created_at', oneHourAgo);
+
+      if (showsError) {
+        logger.error('Failed to fetch shows without setlists', { error: showsError });
+        return;
+      }
+
+      if (!showsWithoutSetlists || showsWithoutSetlists.length === 0) {
+        logger.info('No shows need setlist creation');
+        return;
+      }
+
+      logger.info(`Creating setlists for ${showsWithoutSetlists.length} shows`);
+
+      // Process each show
+      for (const show of showsWithoutSetlists) {
+        try {
+          await this.createSetlistForShow(show);
+        } catch (error) {
+          logger.warn('Failed to create setlist for show', {
+            showId: show.id,
+            showName: show.name,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+    } finally {
+      endTimer();
+    }
+  }
+
+  private async createSetlistForShow(show: any): Promise<void> {
+    const artistId = show.artist_id;
+    if (!artistId) {
+      logger.warn('Show has no artist_id, skipping setlist creation', { showId: show.id });
+      return;
+    }
+
+    // Get artist's songs from cache
+    const { data: artistSongs, error: songsError } = await this.supabaseClient
+      .from('cached_songs')
+      .select('id, spotify_id, name, album, popularity')
+      .eq('artist_id', artistId)
+      .order('popularity', { ascending: false })
+      .limit(50);
+
+    if (songsError) {
+      logger.error('Failed to fetch artist songs', { artistId, error: songsError });
+      return;
+    }
+
+    if (!artistSongs || artistSongs.length === 0) {
+      logger.warn('No songs found for artist, skipping setlist creation', { artistId, showId: show.id });
+      return;
+    }
+
+    // Select 5 random songs, weighted towards more popular ones
+    const selectedSongs = this.selectRandomSongs(artistSongs, 5);
+    
+    // Create setlist songs array
+    const setlistSongs = selectedSongs.map((song, index) => ({
+      id: crypto.randomUUID(),
+      song_id: song.id,
+      song_name: song.name,
+      spotify_id: song.spotify_id,
+      album: song.album,
+      vote_count: 0,
+      suggested: false,
+      order_index: index,
+      created_at: new Date().toISOString()
+    }));
+
+    // Create the setlist
+    const { error: setlistError } = await this.supabaseClient
+      .from('setlists')
+      .insert({
+        show_id: show.id,
+        songs: setlistSongs
+      });
+
+    if (setlistError) {
+      logger.error('Failed to create setlist', { 
+        showId: show.id, 
+        error: setlistError,
+        songsCount: setlistSongs.length 
+      });
+    } else {
+      logger.info('Created setlist for show', {
+        showId: show.id,
+        showName: show.name,
+        songsCount: setlistSongs.length
+      });
+    }
+  }
+
+  private selectRandomSongs(songs: any[], count: number): any[] {
+    if (songs.length <= count) {
+      return songs;
+    }
+
+    // Create weighted selection - more popular songs have higher chance
+    const weighted: any[] = [];
+    songs.forEach(song => {
+      const weight = Math.max(1, song.popularity || 0);
+      for (let i = 0; i < weight; i++) {
+        weighted.push(song);
+      }
+    });
+
+    // Randomly select unique songs
+    const selected: any[] = [];
+    const usedSongs = new Set<string>();
+
+    while (selected.length < count && usedSongs.size < songs.length) {
+      const randomIndex = Math.floor(Math.random() * weighted.length);
+      const song = weighted[randomIndex];
+      
+      if (!usedSongs.has(song.id)) {
+        selected.push(song);
+        usedSongs.add(song.id);
+      }
+    }
+
+    return selected;
   }
 }
 

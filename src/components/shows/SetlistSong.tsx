@@ -8,6 +8,8 @@ interface SetlistSongProps {
   suggested?: boolean;
   onVote: (songId: string) => Promise<void>;
   hasVoted?: boolean;
+  isAuthenticated?: boolean;
+  guestActionsUsed?: number;
 }
 
 export const SetlistSong = ({
@@ -17,7 +19,17 @@ export const SetlistSong = ({
   suggested,
   onVote,
   hasVoted,
-}: SetlistSongProps) => (
+  isAuthenticated,
+  guestActionsUsed = 0,
+}: SetlistSongProps) => {
+  const canVote = isAuthenticated || guestActionsUsed === 0;
+  const buttonText = !isAuthenticated && guestActionsUsed > 0 
+    ? 'Sign in to vote' 
+    : hasVoted 
+      ? 'Voted' 
+      : 'Vote';
+
+  return (
   <div className="flex items-center justify-between bg-white/5 p-4 rounded-lg hover:bg-white/10 transition-colors">
     <div className="space-y-1">
       <p className="text-white font-medium">{songName}</p>
@@ -33,13 +45,24 @@ export const SetlistSong = ({
       </span>
       <Button
         variant="outline"
-        size="icon"
+        size={!isAuthenticated && guestActionsUsed > 0 ? "sm" : "icon"}
         onClick={() => onVote(id)}
-        disabled={hasVoted}
-        className={`${hasVoted ? 'bg-white/10 text-white' : 'hover:bg-white/10 hover:text-white'}`}
+        disabled={hasVoted || !canVote}
+        className={`${
+          hasVoted 
+            ? 'bg-white/10 text-white' 
+            : !canVote 
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:bg-white/10 hover:text-white'
+        }`}
       >
-        <ThumbsUp className="h-4 w-4" />
+        {!isAuthenticated && guestActionsUsed > 0 ? (
+          buttonText
+        ) : (
+          <ThumbsUp className="h-4 w-4" />
+        )}
       </Button>
     </div>
   </div>
-);
+  );
+};

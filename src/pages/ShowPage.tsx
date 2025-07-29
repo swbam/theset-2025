@@ -27,6 +27,7 @@ export default function ShowPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
+  const [guestActionsUsed, setGuestActionsUsed] = useState(0);
 
   const { data: show, isLoading: showLoading } = useQuery({
     queryKey: ['show', eventId],
@@ -229,10 +230,19 @@ export default function ShowPage() {
 
   const handleVote = async (songId: string) => {
     if (!user) {
+      if (guestActionsUsed >= 1) {
+        toast({
+          title: 'Sign in Required',
+          description: 'Please sign in to vote for more songs',
+          variant: 'destructive',
+        });
+        return;
+      }
+      // Allow first guest vote
+      setGuestActionsUsed(prev => prev + 1);
       toast({
-        title: 'Login Required',
-        description: 'Please log in to vote for songs',
-        variant: 'destructive',
+        title: 'Guest Vote Recorded',
+        description: 'Sign in to vote for more songs and track your activity',
       });
       return;
     }
@@ -284,14 +294,20 @@ export default function ShowPage() {
 
   const handleSuggest = () => {
     if (!user) {
-      toast({
-        title: 'Login Required',
-        description: 'Please log in to suggest songs',
-        variant: 'destructive',
-      });
-      return;
+      if (guestActionsUsed >= 1) {
+        toast({
+          title: 'Sign in Required',
+          description: 'Please sign in to suggest songs',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
     setShowSuggestionDialog(true);
+  };
+
+  const handleGuestActionUsed = () => {
+    setGuestActionsUsed(prev => prev + 1);
   };
 
   const handleSongAdded = () => {
@@ -326,6 +342,8 @@ export default function ShowPage() {
             user={user}
             onVote={handleVote}
             onSuggest={handleSuggest}
+            isAuthenticated={!!user}
+            guestActionsUsed={guestActionsUsed}
           />
         </div>
       </div>
@@ -336,6 +354,9 @@ export default function ShowPage() {
           onOpenChange={setShowSuggestionDialog}
           setlistId={setlist.id}
           onSongAdded={handleSongAdded}
+          isAuthenticated={!!user}
+          guestActionsUsed={guestActionsUsed}
+          onGuestActionUsed={handleGuestActionUsed}
         />
       )}
       <Footer />

@@ -83,7 +83,7 @@ const Admin = () => {
         response = await supabase.functions.invoke('ticketmaster', {
           body: { 
             endpoint: 'featured', 
-            params: { size: '10', countryCode: 'US' } 
+            params: { size: '50', countryCode: 'US' } 
           }
         });
       } else if (job.endpoint === 'spotify') {
