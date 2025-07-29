@@ -31,8 +31,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <BrowserRouter>
+        <BrowserRouter>
+          <AuthProvider>
             <SidebarProvider>
               <div className="min-h-screen flex w-full bg-background">
                 {/* Desktop Sidebar */}
@@ -72,8 +72,8 @@ function App() {
               </div>
             </SidebarProvider>
             <Toaster />
-          </BrowserRouter>
-        </AuthProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
