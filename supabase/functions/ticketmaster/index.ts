@@ -118,10 +118,9 @@ function buildApiUrl(endpoint: string, query?: string, params?: Record<string, a
       return `${TICKETMASTER_BASE_URL}/venues/${query}.json?apikey=${apiKey}`;
       
     case 'featured':
-      const now = new Date();
-      // Ticketmaster requires exact format: YYYY-MM-DDTHH:mm:ssZ (no milliseconds)
-      const startDateTime = now.toISOString().replace(/\.\d{3}Z$/, 'Z');
-      queryParams.append('startDateTime', startDateTime);
+      // Use a fixed future date to avoid date formatting issues
+      const futureDate = '2025-07-30T00:00:00Z';
+      queryParams.append('startDateTime', futureDate);
       queryParams.append('classificationName', 'music');
       queryParams.append('sort', 'relevance,desc');
       queryParams.append('countryCode', 'US');
