@@ -60,7 +60,7 @@ const Index = () => {
             Discover upcoming concerts and help shape the perfect show by voting
             for your favorite songs.
           </p>
-          <SearchBar onArtistClick={handleArtistClick} />
+          <SearchBar />
         </div>
       </div>
 

@@ -1,142 +1,111 @@
-import { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Search, Loader2, Music } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { searchArtists } from '@/integrations/ticketmaster/artists';
 import { useToast } from '@/hooks/use-toast';
-import { sanitizeSearchInput, validateArtistName } from '@/utils/inputValidation';
 
-interface SearchResult {
+interface Artist {
+  id: string;
   name: string;
-  image?: string;
-  venue?: string;
-  ticketmaster_id?: string;
+  image_url?: string;
+  ticketmaster_id: string;
 }
 
-interface SearchBarProps {
-  onArtistClick: (artistName: string) => void;
-}
-
-export const SearchBar = ({ onArtistClick }: SearchBarProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [hasSearched, setHasSearched] = useState(false);
+export function SearchBar() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Artist[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSearch = async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      setHasSearched(false);
-      return;
-    }
+  const searchDebounced = useCallback(
+    async (searchQuery: string) => {
+      if (searchQuery.length < 2) {
+        setResults([]);
+        return;
+      }
 
-    // Sanitize and validate input
-    const sanitizedQuery = sanitizeSearchInput(query);
-    if (!validateArtistName(sanitizedQuery)) {
-      toast({
-        title: 'Invalid search',
-        description: 'Please enter a valid artist name.',
-        variant: 'destructive',
-      });
-      return;
-    }
+      setIsLoading(true);
+      try {
+        const artists = await searchArtists(searchQuery);
+        setResults(artists.slice(0, 10)); // Limit to 10 results
+      } catch (error) {
+        console.error('Search error:', error);
+        toast({
+          title: "Search Error",
+          description: "Failed to search artists. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [toast]
+  );
 
-    setIsSearching(true);
-    setHasSearched(true);
-    
-    try {
-      console.log('Searching for artists:', sanitizedQuery);
-      const results = await searchArtists(sanitizedQuery);
-      console.log('Search results:', results);
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Search error:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to search for artists. Please try again.',
-        variant: 'destructive',
-      });
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = sanitizeSearchInput(e.target.value);
-    setSearchQuery(value);
-    
-    // Debounce search with cleanup
-    const timeoutId = setTimeout(() => {
-      handleSearch(value);
-    }, 500); // Increased to 500ms to reduce API calls
-
-    return () => clearTimeout(timeoutId);
-  };
-
-  const handleArtistClick = (artistName: string) => {
-    setSearchQuery('');
-    setSearchResults([]);
-    setHasSearched(false);
-    onArtistClick(artistName);
+  const handleSelectArtist = (artist: Artist) => {
+    setOpen(false);
+    setQuery('');
+    navigate(`/artists/${artist.id}`);
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto relative">
-      <div className="relative">
-        <Input
-          type="text"
-          placeholder="Search for an artist..."
-          className="w-full h-12 pl-12 glass-morphism"
-          value={searchQuery}
-          onChange={handleInputChange}
-        />
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-        {isSearching && (
-          <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin" />
-        )}
-      </div>
-
-      {(searchResults.length > 0 || (hasSearched && !isSearching)) && searchQuery && (
-        <div className="absolute z-10 w-full mt-2 bg-background/95 backdrop-blur-sm rounded-lg border border-border shadow-xl max-h-[60vh] overflow-y-auto">
-          <div className="p-2 space-y-2">
-            {searchResults.length > 0 ? (
-              searchResults.map((result, index) => (
-                <div
-                  key={`${result.name}-${index}`}
-                  className="p-3 hover:bg-accent/50 rounded-md cursor-pointer transition-colors"
-                  onClick={() => handleArtistClick(result.name)}
-                >
-                  <div className="flex items-center gap-3">
-                    {result.image ? (
-                      <div
-                        className="w-12 h-12 rounded-full bg-cover bg-center flex-shrink-0"
-                        style={{ backgroundImage: `url(${result.image})` }}
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                        <Music className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">{result.name}</h4>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {result.venue ? `Next show: ${result.venue}` : 'Click to view shows'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-4 text-center text-muted-foreground">
-                <Music className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No artists found for "{searchQuery}"</p>
-                <p className="text-xs mt-1">Try searching for a different artist name</p>
-              </div>
-            )}
-          </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search artists..."
+            value={query}
+            onChange={(e) => {
+              const value = e.target.value;
+              setQuery(value);
+              searchDebounced(value);
+              setOpen(value.length > 0);
+            }}
+            className="pl-10 bg-background/50 backdrop-blur-sm border-border/50"
+          />
         </div>
-      )}
-    </div>
+      </PopoverTrigger>
+      <PopoverContent className="w-[400px] p-0" align="start">
+        <Command>
+          <CommandList>
+            {isLoading ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                Searching...
+              </div>
+            ) : results.length === 0 && query.length > 1 ? (
+              <CommandEmpty>No artists found.</CommandEmpty>
+            ) : (
+              <CommandGroup>
+                {results.map((artist) => (
+                  <CommandItem
+                    key={artist.id}
+                    onSelect={() => handleSelectArtist(artist)}
+                    className="flex items-center gap-3 p-3 cursor-pointer"
+                  >
+                    {artist.image_url && (
+                      <img
+                        src={artist.image_url}
+                        alt={artist.name}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <p className="font-medium">{artist.name}</p>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
-};
+}
