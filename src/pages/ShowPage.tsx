@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +19,7 @@ import { createInitialSetlistFromSpotifyTracks } from '@/integrations/ticketmast
 import type { DatabaseSongRecord, StoredSetlistSong } from '@/types/setlist';
 import type { VenueLocation } from '@/types/show';
 import { calculateSongVotes } from '@/utils/voteCalculations';
+import { realtimeVoting } from '@/services/realtimeVoting';
 
 export default function ShowPage() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -175,6 +176,32 @@ export default function ShowPage() {
     enabled: !!show?.id,
   });
 
+  // Set up real-time voting
+  useEffect(() => {
+    if (!setlist?.id) return;
+
+    const handleVoteUpdate = () => {
+      // Refresh vote counts when votes change
+      queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
+      queryClient.invalidateQueries({ queryKey: ['user-votes', setlist.id] });
+    };
+
+    const handleSetlistUpdate = () => {
+      // Refresh setlist when new songs are added
+      queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
+    };
+
+    const voteChannel = realtimeVoting.subscribeToVoting(setlist.id, handleVoteUpdate);
+    const setlistChannel = realtimeVoting.subscribeToSetlistChanges(setlist.id, handleSetlistUpdate);
+
+    return () => {
+      realtimeVoting.unsubscribe();
+      if (setlistChannel) {
+        supabase.removeChannel(setlistChannel);
+      }
+    };
+  }, [setlist?.id, queryClient, show?.id]);
+
   const { data: userVotes } = useQuery({
     queryKey: ['user-votes', setlist?.id],
     queryFn: async () => {
@@ -235,6 +262,11 @@ export default function ShowPage() {
 
       queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
       queryClient.invalidateQueries({ queryKey: ['user-votes', setlist?.id] });
+
+      // Broadcast the vote for real-time updates
+      if (setlist?.id) {
+        await realtimeVoting.broadcastVote(setlist.id, songId, user.id);
+      }
 
       toast({
         title: 'Vote Submitted',
