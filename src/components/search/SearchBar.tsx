@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Search, Loader2, Music } from 'lucide-react';
-import { searchArtists } from '@/integrations/ticketmaster/client';
+import { searchArtists } from '@/integrations/ticketmaster/artists';
 import { useToast } from '@/components/ui/use-toast';
 
 interface SearchResult {
