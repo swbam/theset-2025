@@ -48,54 +48,46 @@ export const searchArtists = async (query: string) => {
 export const fetchArtistEvents = async (artistName: string) => {
   console.log('Fetching events for artist:', artistName);
 
-  // First check if we have the artist in our database
-  const { data: artist } = await supabase
-    .from('artists')
-    .select('id, name, ticketmaster_id')
-    .eq('name', artistName)
-    .maybeSingle();
-
-  if (artist) {
-    console.log('Found artist in database:', artist);
-    
-    // Check for existing shows in database
-    const { data: shows } = await supabase
-      .from('shows')
-      .select(`
-        *,
-        artist:artists(*),
-        venue:venues(*)
-      `)
-      .eq('artist_id', artist.id)
-      .gte('date', new Date().toISOString())
-      .order('date', { ascending: true });
-
-    if (shows && shows.length > 0) {
-      console.log('Returning cached shows for artist:', artistName);
-      return shows;
-    }
-  }
-
-  // Fetch fresh shows from Ticketmaster
-  console.log('Fetching fresh shows from Ticketmaster for artist:', artistName);
   try {
-    const events = await callTicketmasterFunction('artist', artistName);
-    
-    // Start background import process if we have events
-    if (events.length > 0) {
-      console.log(`Starting background import for ${events.length} events for artist: ${artistName}`);
-      
-      // Trigger background sync - don't await this
-      supabase.functions.invoke('sync-artist-shows', {
-        body: { artistName, events }
-      }).catch(error => {
-        console.error('Background sync failed:', error);
-      });
+    // Trigger auto-sync for this artist
+    const { data: syncResult, error } = await supabase.functions.invoke('auto-sync-artist', {
+      body: { artistName, forceSync: false }
+    });
+
+    if (error) {
+      console.error('Auto-sync failed:', error);
+      throw error;
     }
 
-    return events;
+    console.log('Auto-sync result:', syncResult);
+    
+    // Return the shows from the sync result
+    return syncResult?.data?.shows || [];
+
   } catch (error) {
-    console.error('Error fetching artist events:', error);
+    console.error('Error in fetchArtistEvents:', error);
+    
+    // Fallback: try to get from database
+    const { data: artist } = await supabase
+      .from('artists')
+      .select('id')
+      .ilike('name', artistName)
+      .maybeSingle();
+
+    if (artist) {
+      const { data: shows } = await supabase
+        .from('cached_shows')
+        .select(`
+          *,
+          artist:artists(id, name, spotify_id)
+        `)
+        .eq('artist_id', artist.id)
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true });
+
+      return shows || [];
+    }
+
     return [];
   }
 };
