@@ -12,7 +12,7 @@ import { Search, Music, Loader2 } from 'lucide-react';
 import { searchTracks } from '@/integrations/spotify/client';
 import type { SpotifyTrack } from '@/integrations/spotify/client';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface SongSuggestionDialogProps {
   open: boolean;

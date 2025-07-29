@@ -119,7 +119,8 @@ function buildApiUrl(endpoint: string, query?: string, params?: Record<string, a
       
     case 'featured':
       const now = new Date();
-      const startDateTime = now.toISOString();
+      // Format as YYYY-MM-DDTHH:mm:ssZ
+      const startDateTime = now.toISOString().slice(0, 19) + 'Z';
       queryParams.append('startDateTime', startDateTime);
       queryParams.append('classificationName', 'music');
       queryParams.append('sort', 'relevance,desc');
