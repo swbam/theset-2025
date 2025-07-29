@@ -48,74 +48,6 @@ interface TicketmasterRequest {
   };
 }
 
-// Request Queue with Priority System
-class RequestQueue {
-  private highPriorityQueue: (() => Promise<void>)[] = [];
-  private normalQueue: (() => Promise<void>)[] = [];
-  private processing = false;
-  private readonly concurrency = 3;
-  private activeRequests = 0;
-
-  async addRequest(
-    requestFn: () => Promise<Response>, 
-    priority: 'high' | 'normal' = 'normal'
-  ): Promise<Response> {
-    return new Promise((resolve, reject) => {
-      const wrappedRequest = async () => {
-        try {
-          this.activeRequests++;
-          const response = await requestFn();
-          resolve(response);
-        } catch (error) {
-          reject(error);
-        } finally {
-          this.activeRequests--;
-        }
-      };
-
-      if (priority === 'high') {
-        this.highPriorityQueue.push(wrappedRequest);
-      } else {
-        this.normalQueue.push(wrappedRequest);
-      }
-
-      this.processQueue();
-    });
-  }
-
-  private async processQueue(): Promise<void> {
-    if (this.processing || this.activeRequests >= this.concurrency) {
-      return;
-    }
-
-    this.processing = true;
-
-    while (
-      (this.highPriorityQueue.length > 0 || this.normalQueue.length > 0) &&
-      this.activeRequests < this.concurrency
-    ) {
-      const nextRequest = this.highPriorityQueue.shift() || this.normalQueue.shift();
-      if (nextRequest) {
-        nextRequest().catch(error => {
-          logger.error('Queue request failed', { error });
-        });
-      }
-    }
-
-    this.processing = false;
-  }
-
-  getQueueStatus(): { high: number; normal: number; active: number } {
-    return {
-      high: this.highPriorityQueue.length,
-      normal: this.normalQueue.length,
-      active: this.activeRequests
-    };
-  }
-}
-
-const requestQueue = new RequestQueue();
-
 // Enhanced API Key Management
 async function getApiKey(supabaseClient: SupabaseClient): Promise<string> {
   const endTimer = performanceMonitor.startTimer('get_api_key');
@@ -142,7 +74,7 @@ async function getApiKey(supabaseClient: SupabaseClient): Promise<string> {
   }
 }
 
-// Smart URL Builder with Validation
+// Smart URL Builder with Validation - FIXED to prevent duplicate parameters
 function buildApiUrl(endpoint: string, query?: string, params?: Record<string, any>, apiKey?: string): string {
   const queryParams = new URLSearchParams();
   
@@ -150,27 +82,29 @@ function buildApiUrl(endpoint: string, query?: string, params?: Record<string, a
     queryParams.append('apikey', apiKey);
   }
   
-  // Add default parameters
-  queryParams.append('classificationName', 'music');
-  
   let url: string;
   
   switch (endpoint) {
     case 'search':
+      // Search for artists specifically
       if (query) queryParams.append('keyword', query);
-      queryParams.append('sort', 'date,asc');
+      queryParams.append('classificationName', 'music');
+      queryParams.append('sort', 'relevance,desc');
       queryParams.append('size', '50');
       url = `${TICKETMASTER_BASE_URL}/events.json`;
       break;
       
     case 'artist':
+      // Search for events by artist name
       if (query) queryParams.append('keyword', query);
-      queryParams.append('sort', 'relevance,desc');
+      queryParams.append('classificationName', 'music');
+      queryParams.append('sort', 'date,asc');
       queryParams.append('size', '100');
       url = `${TICKETMASTER_BASE_URL}/events.json`;
       break;
       
     case 'events':
+      queryParams.append('classificationName', 'music');
       queryParams.append('sort', 'date,asc');
       queryParams.append('size', '50');
       url = `${TICKETMASTER_BASE_URL}/events.json`;
@@ -187,23 +121,27 @@ function buildApiUrl(endpoint: string, query?: string, params?: Record<string, a
       const now = new Date();
       const startDateTime = now.toISOString();
       queryParams.append('startDateTime', startDateTime);
+      queryParams.append('classificationName', 'music');
       queryParams.append('sort', 'relevance,desc');
       queryParams.append('countryCode', 'US');
-      queryParams.append('size', '100');
+      queryParams.append('size', '50');
       url = `${TICKETMASTER_BASE_URL}/events.json`;
       break;
       
     case 'health':
-      return `${TICKETMASTER_BASE_URL}/events.json?apikey=${apiKey}&size=1`;
+      queryParams.append('classificationName', 'music');
+      queryParams.append('size', '1');
+      url = `${TICKETMASTER_BASE_URL}/events.json`;
+      break;
       
     default:
       throw new Error(`Invalid endpoint: ${endpoint}`);
   }
   
-  // Apply additional parameters
+  // Apply additional parameters ONLY if they don't conflict with existing ones
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
-      if (key !== 'apikey' && value !== undefined && value !== null) {
+      if (key !== 'apikey' && value !== undefined && value !== null && !queryParams.has(key)) {
         queryParams.append(key, String(value));
       }
     });
@@ -320,18 +258,10 @@ async function performHealthCheck(supabaseClient: SupabaseClient): Promise<ApiRe
     const data = await makeTicketmasterRequest(healthUrl, { timeout: 10000 });
     const responseTime = performance.now() - startTime;
     
-    const queueStatus = requestQueue.getQueueStatus();
-    const circuitState = circuitBreaker.getState();
-    const rateLimitTokens = rateLimiter.getAvailableTokens();
-    
     return createApiResponse(true, {
       status: 'healthy',
       responseTime: Math.round(responseTime),
-      apiConnectivity: 'ok',
-      queueStatus,
-      circuitBreakerState: circuitState.state,
-      rateLimitTokens,
-      performanceStats: performanceMonitor.getAllStats()
+      apiConnectivity: 'ok'
     });
   } catch (error) {
     return createApiResponse(false, undefined, `Health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -362,12 +292,8 @@ async function handleTicketmasterRequest(request: TicketmasterRequest, supabaseC
     // Build URL
     const url = buildApiUrl(request.endpoint, request.query, request.params, apiKey);
     
-    // Make request through queue system
-    const priority = request.endpoint === 'search' ? 'high' : 'normal';
-    const data = await requestQueue.addRequest(
-      () => makeTicketmasterRequest(url, request.options),
-      priority
-    );
+    // Make request
+    const data = await makeTicketmasterRequest(url, request.options);
     
     // Validate and transform response
     const validatedData = validateAndTransformResponse(data, request.endpoint);
@@ -375,8 +301,7 @@ async function handleTicketmasterRequest(request: TicketmasterRequest, supabaseC
     const executionTime = endTimer();
     
     return createApiResponse(true, validatedData, undefined, {
-      executionTime: Math.round(executionTime),
-      rateLimitRemaining: rateLimiter.getAvailableTokens()
+      executionTime: Math.round(executionTime)
     });
     
   } catch (error) {
