@@ -147,9 +147,6 @@ export default function ArtistPage() {
             <ArtistHero
               artist={artistData as any}
               artistName={artistData.name}
-              isFollowing={false}
-              isFollowActionPending={false}
-              onFollowClick={() => {}}
             />
             
             <ArtistShows

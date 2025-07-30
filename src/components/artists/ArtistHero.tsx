@@ -2,6 +2,7 @@ import type { Artist } from '@/types/artist';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { useArtistFollow } from '@/hooks/useArtistFollow';
 
 interface ArtistHeroProps {
   artist: Artist | null;
@@ -37,7 +38,7 @@ export const ArtistHero = ({
               <h1 className="text-5xl font-bold text-white">{artistName}</h1>
               <Button
                 variant={isFollowing ? 'secondary' : 'default'}
-                onClick={onFollowClick}
+                onClick={toggleFollow}
                 disabled={isFollowActionPending}
               >
                 {isFollowActionPending ? (

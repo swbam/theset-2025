@@ -6,8 +6,7 @@ import { useState } from 'react';
 
 export function TopNavigation() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  const { user, signInWithSpotify } = useAuth();
+  const { user, signOut, signInWithSpotify } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navigationItems = [
