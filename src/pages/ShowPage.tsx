@@ -13,9 +13,10 @@ import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { ThumbsUp } from 'lucide-react';
 import { getArtistTopTracks, searchArtist } from '@/integrations/spotify/client';
+import { realtimeVoting } from '@/services/realtimeVoting';
 
 export default function ShowPage() {
-  const { eventId } = useParams<{ eventId: string }>();
+  const { showId } = useParams<{ showId: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function ShowPage() {
 
   // Fetch show data
   const { data: show, isLoading: showLoading } = useQuery({
-    queryKey: ['show', eventId],
+    queryKey: ['show', showId],
     queryFn: async () => {
       const { data: show, error } = await supabase
         .from('cached_shows')
@@ -38,7 +39,7 @@ export default function ShowPage() {
             image_url
           )
         `)
-        .eq('ticketmaster_id', eventId)
+        .eq('ticketmaster_id', showId)
         .maybeSingle();
 
       if (error) {
@@ -48,7 +49,7 @@ export default function ShowPage() {
 
       return show;
     },
-    enabled: !!eventId,
+    enabled: !!showId,
   });
 
   // Fetch or create setlist
@@ -159,6 +160,37 @@ export default function ShowPage() {
     },
     enabled: !!user?.id && !!setlist?.id && !!setlist?.songs?.length,
   });
+
+  // Set up real-time voting updates
+  useEffect(() => {
+    if (!setlist?.id) return;
+
+    // Subscribe to voting updates
+    const subscription = realtimeVoting.subscribeToVoting(
+      setlist.id,
+      (payload) => {
+        // Refresh the setlist data when votes change
+        queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
+        queryClient.invalidateQueries({ queryKey: ['user-votes', setlist.id, user?.id] });
+      }
+    );
+
+    // Subscribe to setlist changes (new songs added)
+    const setlistSubscription = realtimeVoting.subscribeToSetlistChanges(
+      setlist.id,
+      (payload) => {
+        // Refresh the setlist when songs are added
+        queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
+      }
+    );
+
+    return () => {
+      realtimeVoting.unsubscribe();
+      if (setlistSubscription) {
+        supabase.removeChannel(setlistSubscription);
+      }
+    };
+  }, [setlist?.id, show?.id, user?.id, queryClient]);
 
   const handleVote = async (songId: string) => {
     if (!user) {
