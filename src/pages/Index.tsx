@@ -129,12 +129,17 @@ const Index = () => {
             </div>
           ) : popularShows.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(() => {
-                // Deduplicate shows by ticketmaster ID for trending shows
+          {(() => {
+                // Deduplicate shows by unique combination of name + venue + date
                 const uniqueShows = new Map();
                 popularShows.forEach(show => {
-                  if (show.id && !uniqueShows.has(show.id)) {
-                    uniqueShows.set(show.id, show);
+                  const venue = show._embedded?.venues?.[0]?.name || '';
+                  const artist = show._embedded?.attractions?.[0]?.name || '';
+                  const date = show.dates?.start?.localDate || '';
+                  const uniqueKey = `${artist}-${show.name}-${venue}-${date}`;
+                  
+                  if (!uniqueShows.has(uniqueKey)) {
+                    uniqueShows.set(uniqueKey, show);
                   }
                 });
                 return Array.from(uniqueShows.values()).slice(0, 6);
