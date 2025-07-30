@@ -117,24 +117,22 @@ export default function ShowPage() {
             suggested: false
           }));
 
-          const { error: songsError } = await supabase
+          const { data: insertedSongs, error: songsError } = await supabase
             .from('setlist_songs')
-            .insert(setlistSongs);
+            .insert(setlistSongs)
+            .select();
 
           if (songsError) {
             throw new Error('Failed to add songs to setlist');
           }
 
+          // Get setlist songs with vote counts
+          const { data: songsData } = await supabase
+            .rpc('get_setlist_with_votes', { setlist_uuid: newSetlist.id });
+
           return {
             id: newSetlist.id,
-            songs: setlistSongs.map(song => ({
-              id: song.setlist_id, // This will be replaced with actual ID
-              song_name: song.song_name,
-              spotify_id: song.spotify_id,
-              total_votes: 0,
-              suggested: false,
-              order_index: song.order_index
-            }))
+            songs: songsData || []
           };
         }
       }
