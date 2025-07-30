@@ -1,44 +1,116 @@
-import React from 'react';
+import { TopNavigation } from '@/components/layout/TopNavigation';
 import { SearchBar } from '@/components/search/SearchBar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SearchFilters, type SearchFilters as SearchFiltersType } from '@/components/search/SearchFilters';
+import { SearchResults } from '@/components/search/SearchResults';
+import { Footer } from '@/components/layout/Footer';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { searchArtists } from '@/integrations/ticketmaster/artists';
+import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Search() {
-  return (
-    <div className="container mx-auto p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-4">Search Artists</h1>
-          <p className="text-muted-foreground">
-            Find your favorite artists and discover their upcoming shows
-          </p>
-        </div>
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [artists, setArtists] = useState<any[]>([]);
+  const [shows, setShows] = useState<any[]>([]);
+  const [venues, setVenues] = useState<any[]>([]);
+  const [filters, setFilters] = useState<SearchFiltersType>({});
+  const query = searchParams.get('q') || '';
 
+  useEffect(() => {
+    if (query) {
+      performSearch(query);
+    }
+  }, [query]);
+
+  const performSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
+    
+    setIsLoading(true);
+    try {
+      // Search for artists
+      const artistResults = await searchArtists(searchQuery);
+      setArtists(artistResults || []);
+
+      // Search for shows (using popular tours and filtering by query)
+      const showResults = await fetchPopularTours();
+      const filteredShows = (showResults || []).filter(show => 
+        show.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        show._embedded?.attractions?.[0]?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setShows(filteredShows);
+
+      // Extract venues from shows
+      const venueResults = (showResults || [])
+        .filter(show => show._embedded?.venues?.[0])
+        .map(show => show._embedded.venues[0])
+        .filter(venue => venue.name?.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      // Deduplicate venues
+      const uniqueVenues = venueResults.filter((venue, index, self) => 
+        index === self.findIndex(v => v.id === venue.id)
+      );
+      setVenues(uniqueVenues);
+
+    } catch (error) {
+      console.error('Search error:', error);
+      toast({
+        title: 'Search Error',
+        description: 'Failed to perform search. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleArtistClick = (artistName: string) => {
+    navigate(`/artist/${encodeURIComponent(artistName)}`);
+  };
+
+  const handleShowClick = (show: any) => {
+    if (show.id) {
+      navigate(`/show/${show.id}`);
+    }
+  };
+
+  const handleFiltersChange = (newFilters: SearchFiltersType) => {
+    setFilters(newFilters);
+    // Apply filters to results
+    // This would typically refetch data with filters applied
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <TopNavigation />
+      <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="mb-8">
           <SearchBar />
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>How to Search</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4 text-sm text-muted-foreground">
-              <p>
-                • Type the name of any artist to search for their upcoming shows
-              </p>
-              <p>
-                • Click on an artist from the search results to view their profile
-              </p>
-              <p>
-                • Browse their upcoming shows and participate in setlist voting
-              </p>
-              <p>
-                • Sign in to vote on songs and suggest new tracks for setlists
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Search Filters */}
+        <div className="mb-8">
+          <SearchFilters 
+            onFiltersChange={handleFiltersChange}
+            initialFilters={filters}
+          />
+        </div>
+
+        {/* Search Results */}
+        <SearchResults
+          query={query}
+          artists={artists}
+          shows={shows}
+          venues={venues}
+          isLoading={isLoading}
+          onShowClick={handleShowClick}
+          onArtistClick={handleArtistClick}
+        />
       </div>
+      <Footer />
     </div>
   );
 }
