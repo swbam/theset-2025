@@ -104,6 +104,13 @@ export type Database = {
             referencedRelation: "artists"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_cached_shows_artist_id"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cached_songs: {
@@ -207,6 +214,67 @@ export type Database = {
         }
         Relationships: []
       }
+      setlist_songs: {
+        Row: {
+          artist_id: string | null
+          created_at: string | null
+          id: string
+          order_index: number | null
+          setlist_id: string
+          song_id: string | null
+          song_name: string
+          spotify_id: string | null
+          suggested: boolean | null
+          total_votes: number | null
+        }
+        Insert: {
+          artist_id?: string | null
+          created_at?: string | null
+          id?: string
+          order_index?: number | null
+          setlist_id: string
+          song_id?: string | null
+          song_name: string
+          spotify_id?: string | null
+          suggested?: boolean | null
+          total_votes?: number | null
+        }
+        Update: {
+          artist_id?: string | null
+          created_at?: string | null
+          id?: string
+          order_index?: number | null
+          setlist_id?: string
+          song_id?: string | null
+          song_name?: string
+          spotify_id?: string | null
+          suggested?: boolean | null
+          total_votes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setlist_songs_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "setlist_songs_setlist_id_fkey"
+            columns: ["setlist_id"]
+            isOneToOne: false
+            referencedRelation: "setlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "setlist_songs_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       setlists: {
         Row: {
           created_at: string | null
@@ -283,6 +351,35 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      song_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          setlist_song_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          setlist_song_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          setlist_song_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "song_votes_setlist_song_id_fkey"
+            columns: ["setlist_song_id"]
+            isOneToOne: false
+            referencedRelation: "setlist_songs"
             referencedColumns: ["id"]
           },
         ]
@@ -574,6 +671,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cast_song_vote: {
+        Args: { p_setlist_song_id: string; p_user_id: string }
+        Returns: boolean
+      }
       cast_vote: {
         Args: { p_song_id: string; p_user_id?: string; p_ip_address?: string }
         Returns: undefined
@@ -584,6 +685,17 @@ export type Database = {
           health_status: string
           last_sync: string
           error_rate: number
+        }[]
+      }
+      get_setlist_with_votes: {
+        Args: { setlist_uuid: string }
+        Returns: {
+          id: string
+          song_name: string
+          spotify_id: string
+          total_votes: number
+          suggested: boolean
+          order_index: number
         }[]
       }
       migrate_cached_shows_to_shows: {

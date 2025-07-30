@@ -7,51 +7,37 @@ import { useAuth } from '@/contexts/AuthContext';
 import { LoadingState } from '@/components/shows/LoadingState';
 import { EmptyState } from '@/components/shows/EmptyState';
 import { ShowDetails } from '@/components/shows/ShowDetails';
-import { Setlist } from '@/components/shows/Setlist';
 import { SongSuggestionDialog } from '@/components/shows/SongSuggestionDialog';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
-import {
-  getArtistTopTracks,
-  searchArtist,
-} from '@/integrations/spotify/client';
-import { createInitialSetlistFromSpotifyTracks } from '@/integrations/ticketmaster/api';
-import type { DatabaseSongRecord, StoredSetlistSong } from '@/types/setlist';
-import type { VenueLocation } from '@/types/show';
-import { calculateSongVotes } from '@/utils/voteCalculations';
-import { realtimeVoting } from '@/services/realtimeVoting';
+import { Button } from '@/components/ui/button';
+import { ThumbsUp } from 'lucide-react';
+import { getArtistTopTracks, searchArtist } from '@/integrations/spotify/client';
 
 export default function ShowPage() {
   const { eventId } = useParams<{ eventId: string }>();
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
   const [guestActionsUsed, setGuestActionsUsed] = useState(0);
 
+  // Fetch show data
   const { data: show, isLoading: showLoading } = useQuery({
     queryKey: ['show', eventId],
     queryFn: async () => {
       const { data: show, error } = await supabase
         .from('cached_shows')
-        .select(
-          `
+        .select(`
           *,
-          venue:venues(
+          artists!cached_shows_artist_id_fkey(
             id,
             name,
-            city,
-            state,
-            country
-          ),
-          artist:artists(
-            id,
-            name,
-            spotify_id
+            spotify_id,
+            image_url
           )
-        `
-        )
+        `)
         .eq('ticketmaster_id', eventId)
         .maybeSingle();
 
@@ -60,173 +46,118 @@ export default function ShowPage() {
         return null;
       }
 
-      if (!show) {
-        console.error('Show not found:', eventId);
-        return null;
-      }
-
       return show;
     },
     enabled: !!eventId,
   });
 
+  // Fetch or create setlist
   const { data: setlist, isLoading: setlistLoading } = useQuery({
     queryKey: ['setlist', show?.id],
     queryFn: async () => {
-      const { data: existingSetlist, error: setlistError } = await supabase
+      if (!show?.id) return null;
+
+      // Check for existing setlist
+      const { data: existingSetlist } = await supabase
         .from('setlists')
-        .select(
-          `
-          id,
-          show_id,
-          created_at,
-          songs
-        `
-        )
-        .eq('show_id', show?.id)
+        .select('id')
+        .eq('show_id', show.id)
         .maybeSingle();
 
-      if (setlistError && !setlistError.message.includes('No rows found')) {
-        console.error('Error fetching setlist:', setlistError);
-        return null;
-      }
-
       if (existingSetlist) {
-        try {
-          const songsWithRealVotes = await calculateSongVotes(
-            existingSetlist.id
-          );
-
-          return {
-            id: existingSetlist.id,
-            songs: songsWithRealVotes,
-          };
-        } catch (err) {
-          console.error('Error calculating real vote counts:', err);
-          const songsList = Array.isArray(existingSetlist.songs)
-            ? existingSetlist.songs
-            : [];
-
-          return {
-            id: existingSetlist.id,
-            songs: songsList.map((song) => {
-              const typedSong = song as unknown as StoredSetlistSong;
-              return {
-                id: typedSong.id || `song-${Math.random().toString(36).substr(2, 9)}`,
-                song_name: typedSong.name || typedSong.song_name || 'Unknown Song',
-                total_votes: 0,
-                suggested: typedSong.suggested || false,
-              };
-            }),
-          };
-        }
-      }
-
-      console.log('Creating new setlist for show:', show?.id);
-
-      try {
-        const artistName = show?.artist?.name || 'Unknown Artist';
-
-        let artistSpotifyId = show?.artist?.spotify_id;
-        if (!artistSpotifyId) {
-          const spotifyArtist = await searchArtist(artistName);
-          artistSpotifyId = spotifyArtist?.id;
-
-          if (artistSpotifyId && show?.artist?.id) {
-            await supabase
-              .from('artists')
-              .update({ spotify_id: artistSpotifyId })
-              .eq('id', show.artist.id);
-          }
-        }
-
-        if (!artistSpotifyId) {
-          console.error('Could not find artist on Spotify:', artistName);
-          throw new Error(
-            `Artist "${artistName}" not found on Spotify. Please ensure the artist name is correct.`
-          );
-        }
-
-        const topTracks = await getArtistTopTracks(artistSpotifyId);
-
-        if (!topTracks || topTracks.length === 0) {
-          console.error('No top tracks found for artist:', artistName);
-          throw new Error(
-            `No songs found for artist "${artistName}" on Spotify.`
-          );
-        }
-
-        const setlistId = await createInitialSetlistFromSpotifyTracks(
-          show?.id,
-          topTracks
-        );
+        // Get setlist songs with vote counts
+        const { data: songsData } = await supabase
+          .rpc('get_setlist_with_votes', { setlist_uuid: existingSetlist.id });
 
         return {
-          id: setlistId,
-          songs: topTracks.map((track, index) => ({
-            id: `song-${track.id}`,
-            song_name: track.name,
-            total_votes: 0,
-            suggested: false,
-          })),
+          id: existingSetlist.id,
+          songs: songsData || []
         };
-      } catch (error) {
-        console.error('Error creating setlist from Spotify:', error);
-        throw error;
       }
+
+      // Create new setlist if artist has Spotify ID
+      const artist = show.artists;
+      if (!artist?.spotify_id) {
+        // Try to find artist on Spotify
+        const spotifyArtist = await searchArtist(artist?.name || 'Unknown');
+        if (spotifyArtist && artist?.id) {
+          await supabase
+            .from('artists')
+            .update({ spotify_id: spotifyArtist.id })
+            .eq('id', artist.id);
+          
+          artist.spotify_id = spotifyArtist.id;
+        }
+      }
+
+      if (artist?.spotify_id) {
+        // Get top tracks from Spotify
+        const topTracks = await getArtistTopTracks(artist.spotify_id);
+        
+        if (topTracks.length > 0) {
+          // Create setlist
+          const { data: newSetlist, error: setlistError } = await supabase
+            .from('setlists')
+            .insert({ show_id: show.id })
+            .select('id')
+            .single();
+
+          if (setlistError) {
+            throw new Error('Failed to create setlist');
+          }
+
+          // Add songs to setlist
+          const setlistSongs = topTracks.slice(0, 10).map((track, index) => ({
+            setlist_id: newSetlist.id,
+            song_name: track.name,
+            spotify_id: track.id,
+            artist_id: artist.id,
+            order_index: index,
+            suggested: false
+          }));
+
+          const { error: songsError } = await supabase
+            .from('setlist_songs')
+            .insert(setlistSongs);
+
+          if (songsError) {
+            throw new Error('Failed to add songs to setlist');
+          }
+
+          return {
+            id: newSetlist.id,
+            songs: setlistSongs.map(song => ({
+              id: song.setlist_id, // This will be replaced with actual ID
+              song_name: song.song_name,
+              spotify_id: song.spotify_id,
+              total_votes: 0,
+              suggested: false,
+              order_index: song.order_index
+            }))
+          };
+        }
+      }
+
+      return null;
     },
     enabled: !!show?.id,
   });
 
-  // Set up real-time voting
-  useEffect(() => {
-    if (!setlist?.id) return;
-
-    const handleVoteUpdate = () => {
-      // Refresh vote counts when votes change
-      queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
-      queryClient.invalidateQueries({ queryKey: ['user-votes', setlist.id] });
-    };
-
-    const handleSetlistUpdate = () => {
-      // Refresh setlist when new songs are added
-      queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
-    };
-
-    const voteChannel = realtimeVoting.subscribeToVoting(setlist.id, handleVoteUpdate);
-    const setlistChannel = realtimeVoting.subscribeToSetlistChanges(setlist.id, handleSetlistUpdate);
-
-    return () => {
-      realtimeVoting.unsubscribe();
-      if (setlistChannel) {
-        supabase.removeChannel(setlistChannel);
-      }
-    };
-  }, [setlist?.id, queryClient, show?.id]);
-
+  // Get user votes for this setlist
   const { data: userVotes } = useQuery({
-    queryKey: ['user-votes', setlist?.id],
+    queryKey: ['user-votes', setlist?.id, user?.id],
     queryFn: async () => {
-      if (!user || !setlist?.id) return [];
+      if (!user?.id || !setlist?.id) return [];
 
-      try {
-        const { data: votes, error } = await supabase
-          .from('user_votes')
-          .select('song_id')
-          .eq('user_id', user.id);
+      const { data: votes } = await supabase
+        .from('song_votes')
+        .select('setlist_song_id')
+        .eq('user_id', user.id)
+        .in('setlist_song_id', setlist.songs?.map(s => s.id) || []);
 
-        if (error) {
-          console.error('Error fetching user votes:', error);
-          return [];
-        }
-
-        return votes?.map((v) => v.song_id) || [];
-      } catch (err) {
-        console.error('Error in userVotes query:', err);
-        return [];
-      }
+      return votes?.map(v => v.setlist_song_id) || [];
     },
-    enabled: !!setlist?.id && !!user?.id,
+    enabled: !!user?.id && !!setlist?.id && !!setlist?.songs?.length,
   });
 
   const handleVote = async (songId: string) => {
@@ -239,7 +170,6 @@ export default function ShowPage() {
         });
         return;
       }
-      // Allow first guest vote
       setGuestActionsUsed(prev => prev + 1);
       toast({
         title: 'Guest Vote Recorded',
@@ -249,42 +179,35 @@ export default function ShowPage() {
     }
 
     try {
-      const { error } = await supabase.from('user_votes').insert({
-        user_id: user.id,
-        song_id: songId,
-      });
+      const { data: result, error } = await supabase
+        .rpc('cast_song_vote', {
+          p_setlist_song_id: songId,
+          p_user_id: user.id
+        });
 
       if (error) {
-        if (error.code === '23505') {
-          toast({
-            title: 'Already Voted',
-            description: 'You have already voted for this song',
-            variant: 'destructive',
-          });
-        } else {
-          toast({
-            title: 'Error',
-            description: 'Failed to submit vote',
-            variant: 'destructive',
-          });
-        }
+        throw error;
+      }
+
+      if (!result) {
+        toast({
+          title: 'Already Voted',
+          description: 'You have already voted for this song',
+          variant: 'destructive',
+        });
         return;
       }
 
+      // Refresh data
       queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
-      queryClient.invalidateQueries({ queryKey: ['user-votes', setlist?.id] });
-
-      // Broadcast the vote for real-time updates
-      if (setlist?.id) {
-        await realtimeVoting.broadcastVote(setlist.id, songId, user.id);
-      }
+      queryClient.invalidateQueries({ queryKey: ['user-votes', setlist?.id, user.id] });
 
       toast({
         title: 'Vote Submitted',
         description: 'Your vote has been recorded',
       });
     } catch (error) {
-      console.error('Error submitting vote:', error);
+      console.error('Error voting:', error);
       toast({
         title: 'Error',
         description: 'Failed to submit vote',
@@ -294,21 +217,15 @@ export default function ShowPage() {
   };
 
   const handleSuggest = () => {
-    if (!user) {
-      if (guestActionsUsed >= 1) {
-        toast({
-          title: 'Sign in Required',
-          description: 'Please sign in to suggest songs',
-          variant: 'destructive',
-        });
-        return;
-      }
+    if (!user && guestActionsUsed >= 1) {
+      toast({
+        title: 'Sign in Required',
+        description: 'Please sign in to suggest songs',
+        variant: 'destructive',
+      });
+      return;
     }
     setShowSuggestionDialog(true);
-  };
-
-  const handleGuestActionUsed = () => {
-    setGuestActionsUsed(prev => prev + 1);
   };
 
   const handleSongAdded = () => {
@@ -343,8 +260,8 @@ export default function ShowPage() {
   const venueInfo = show.venue_name
     ? {
         name: show.venue_name,
-        city: (show.venue_location as VenueLocation)?.city?.name,
-        state: (show.venue_location as VenueLocation)?.state?.name,
+        city: (show.venue_location as any)?.city?.name,
+        state: (show.venue_location as any)?.state?.name,
       }
     : undefined;
 
@@ -354,15 +271,76 @@ export default function ShowPage() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="space-y-8">
           <ShowDetails name={show.name} date={show.date} venue={venueInfo} />
-          <Setlist
-            setlist={setlist}
-            userVotes={userVotes || []}
-            user={user}
-            onVote={handleVote}
-            onSuggest={handleSuggest}
-            isAuthenticated={!!user}
-            guestActionsUsed={guestActionsUsed}
-          />
+          
+          {/* Setlist Section */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold text-white">Setlist</h2>
+              {(user || guestActionsUsed === 0) && (
+                <Button
+                  variant="outline"
+                  onClick={handleSuggest}
+                  className="hover:bg-white/10 hover:text-white"
+                >
+                  {!user && guestActionsUsed === 0 ? 'Suggest a song (guest)' : 'Suggest a song'}
+                </Button>
+              )}
+            </div>
+
+            {setlist && setlist.songs ? (
+              <div className="space-y-2">
+                {setlist.songs.map((song: any) => (
+                  <div key={song.id} className="flex items-center justify-between bg-white/5 p-4 rounded-lg hover:bg-white/10 transition-colors">
+                    <div className="space-y-1">
+                      <p className="text-white font-medium">{song.song_name}</p>
+                      {song.suggested && (
+                        <span className="text-sm text-white/60 bg-white/10 px-2 py-0.5 rounded-full">
+                          Fan suggestion
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-white/60 min-w-[2rem] text-right">
+                        {song.total_votes || 0}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size={!user && guestActionsUsed > 0 ? "sm" : "icon"}
+                        onClick={() => handleVote(song.id)}
+                        disabled={userVotes?.includes(song.id) || (!user && guestActionsUsed > 0)}
+                        className={`${
+                          userVotes?.includes(song.id)
+                            ? 'bg-white/10 text-white' 
+                            : (!user && guestActionsUsed > 0)
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {!user && guestActionsUsed > 0 ? (
+                          'Sign in to vote'
+                        ) : (
+                          <ThumbsUp className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-white/60 py-8 text-center space-y-2">
+                <p>The setlist for this show will be available soon.</p>
+                {user && (
+                  <Button
+                    variant="outline"
+                    onClick={handleSuggest}
+                    className="mt-4 hover:bg-white/10 hover:text-white"
+                  >
+                    Suggest a song
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -374,7 +352,7 @@ export default function ShowPage() {
           onSongAdded={handleSongAdded}
           isAuthenticated={!!user}
           guestActionsUsed={guestActionsUsed}
-          onGuestActionUsed={handleGuestActionUsed}
+          onGuestActionUsed={() => setGuestActionsUsed(prev => prev + 1)}
         />
       )}
       <Footer />

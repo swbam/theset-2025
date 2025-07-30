@@ -64,7 +64,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const apiKey = keyData.value;
     
-    // Search for artist events
+    // Search for artist events from Ticketmaster
     const searchUrl = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${apiKey}&keyword=${encodeURIComponent(artistName)}&classificationName=music&sort=date,asc&size=50`;
     
     console.log('Searching Ticketmaster for:', artistName);

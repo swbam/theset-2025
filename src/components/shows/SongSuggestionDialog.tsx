@@ -71,32 +71,37 @@ export function SongSuggestionDialog({
 
     setIsAdding(true);
     try {
-      const { data: setlist, error: fetchError } = await supabase
+      // Get artist ID from setlist
+      const { data: setlist, error: setlistError } = await supabase
         .from('setlists')
-        .select('songs')
+        .select(`
+          show_id,
+          cached_shows!inner(artist_id)
+        `)
         .eq('id', setlistId)
         .single();
 
-      if (fetchError) throw fetchError;
+      if (setlistError || !setlist) {
+        throw new Error('Setlist not found');
+      }
 
-      const currentSongs = Array.isArray(setlist.songs) ? setlist.songs : [];
-      const newSong = {
-        id: `song-${track.id}`,
-        song_name: track.name,
-        spotify_id: track.id,
-        total_votes: 0,
-        suggested: true,
-        order: currentSongs.length,
-      };
+      const artistId = setlist.cached_shows.artist_id;
 
-      const updatedSongs = [...currentSongs, newSong];
+      // Add song to setlist_songs
+      const { error } = await supabase
+        .from('setlist_songs')
+        .insert({
+          setlist_id: setlistId,
+          song_name: track.name,
+          spotify_id: track.id,
+          artist_id: artistId,
+          suggested: true,
+          order_index: 999 // Put suggested songs at the end
+        });
 
-      const { error: updateError } = await supabase
-        .from('setlists')
-        .update({ songs: updatedSongs })
-        .eq('id', setlistId);
-
-      if (updateError) throw updateError;
+      if (error) {
+        throw error;
+      }
 
       toast({
         title: 'Song Added',
