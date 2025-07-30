@@ -96,10 +96,10 @@ export default function ArtistPage() {
   });
 
   const handleShowClick = (show: any) => {
-    if (show.ticketmaster_id) {
-      navigate(`/show/${show.ticketmaster_id}`);
-    } else if (show.id) {
-      navigate(`/show/${show.id}`);
+    // Use ticketmaster_id from cached_shows or id from TicketmasterEvent
+    const showId = show.ticketmaster_id || show.id;
+    if (showId) {
+      navigate(`/show/${showId}`);
     } else {
       toast({
         title: 'Show Not Available',
