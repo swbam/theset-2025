@@ -771,6 +771,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_song_to_setlist: {
+        Args: {
+          p_setlist_id: string
+          p_song_name: string
+          p_spotify_id?: string
+          p_suggested?: boolean
+        }
+        Returns: string
+      }
+      cast_setlist_vote: {
+        Args: {
+          p_setlist_song_id: string
+          p_user_id?: string
+          p_ip_address?: string
+        }
+        Returns: boolean
+      }
       cast_song_vote: {
         Args: { p_setlist_song_id: string; p_user_id: string }
         Returns: boolean
@@ -797,6 +814,10 @@ export type Database = {
           suggested: boolean
           order_index: number
         }[]
+      }
+      initialize_show_setlist: {
+        Args: { p_show_id: string; p_artist_name: string }
+        Returns: string
       }
       migrate_cached_shows_to_shows: {
         Args: Record<PropertyKey, never>
