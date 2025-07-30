@@ -9,70 +9,49 @@ export interface RealTimeUpdate {
   timestamp: string;
 }
 
-export const useRealTimeUpdates = (showId?: string) => {
+export const useRealTimeUpdates = (tables: string[], onUpdate?: () => void) => {
   const [updates, setUpdates] = useState<RealTimeUpdate[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!showId) return;
+    if (!tables.length) return;
 
-    let channel: RealtimeChannel;
-
-    const setupRealTime = () => {
-      // Subscribe to votes changes for this show
-      channel = supabase
-        .channel(`show-updates-${showId}`)
+    const channels = tables.map(table => {
+      const channel = supabase
+        .channel(`${table}-changes`)
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
-            table: 'votes',
-            filter: `show_id=eq.${showId}`
+            table: table,
           },
           (payload) => {
-            console.log('Real-time vote update:', payload);
-            setUpdates(prev => [...prev, {
-              type: 'vote',
-              showId,
-              data: payload,
-              timestamp: new Date().toISOString()
-            }]);
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'setlist_songs',
-            filter: `show_id=eq.${showId}`
-          },
-          (payload) => {
-            console.log('Real-time setlist update:', payload);
+            console.log(`Real-time update on ${table}:`, payload);
             setUpdates(prev => [...prev, {
               type: 'setlist_update',
-              showId,
+              showId: '',
               data: payload,
               timestamp: new Date().toISOString()
             }]);
+            onUpdate?.();
           }
         )
         .subscribe((status) => {
-          console.log('Real-time subscription status:', status);
+          console.log(`Real-time subscription status for ${table}:`, status);
           setIsConnected(status === 'SUBSCRIBED');
         });
-    };
 
-    setupRealTime();
+      return channel;
+    });
 
     return () => {
-      if (channel) {
+      channels.forEach(channel => {
         supabase.removeChannel(channel);
-      }
+      });
       setIsConnected(false);
     };
-  }, [showId]);
+  }, [tables, onUpdate]);
 
   const clearUpdates = () => setUpdates([]);
 

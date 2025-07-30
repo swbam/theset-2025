@@ -775,7 +775,7 @@ export type Database = {
         Args: {
           p_setlist_id: string
           p_song_name: string
-          p_spotify_id?: string
+          p_spotify_id: string
           p_suggested?: boolean
         }
         Returns: string
@@ -816,7 +816,9 @@ export type Database = {
         }[]
       }
       initialize_show_setlist: {
-        Args: { p_show_id: string; p_artist_name: string }
+        Args:
+          | { p_show_id: string; p_artist_name: string }
+          | { p_show_id: string; p_spotify_tracks: Json }
         Returns: string
       }
       migrate_cached_shows_to_shows: {

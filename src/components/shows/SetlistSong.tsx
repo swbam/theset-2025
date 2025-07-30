@@ -30,39 +30,39 @@ export const SetlistSong = ({
       : 'Vote';
 
   return (
-  <div className="flex items-center justify-between bg-white/5 p-4 rounded-lg hover:bg-white/10 transition-colors">
-    <div className="space-y-1">
-      <p className="text-white font-medium">{songName}</p>
-      {suggested && (
-        <span className="text-sm text-white/60 bg-white/10 px-2 py-0.5 rounded-full">
-          Fan suggestion
-        </span>
-      )}
-    </div>
-    <div className="flex items-center gap-3">
-      <span className="text-white/60 min-w-[2rem] text-right">
-        {totalVotes || 0}
-      </span>
-      <Button
-        variant="outline"
-        size={!isAuthenticated && guestActionsUsed > 0 ? "sm" : "icon"}
-        onClick={() => onVote(id)}
-        disabled={hasVoted || !canVote}
-        className={`${
-          hasVoted 
-            ? 'bg-white/10 text-white' 
-            : !canVote 
-              ? 'opacity-50 cursor-not-allowed'
-              : 'hover:bg-white/10 hover:text-white'
-        }`}
-      >
-        {!isAuthenticated && guestActionsUsed > 0 ? (
-          buttonText
-        ) : (
-          <ThumbsUp className="h-4 w-4" />
+    <div className="flex items-center justify-between bg-muted/50 p-4 rounded-lg hover:bg-muted transition-colors">
+      <div className="space-y-1">
+        <p className="text-foreground font-medium">{songName}</p>
+        {suggested && (
+          <span className="text-sm text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+            Fan suggestion
+          </span>
         )}
-      </Button>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-muted-foreground min-w-[2rem] text-right">
+          {totalVotes || 0}
+        </span>
+        <Button
+          variant="outline"
+          size={!isAuthenticated && guestActionsUsed > 0 ? "sm" : "icon"}
+          onClick={() => onVote(id)}
+          disabled={hasVoted || !canVote}
+          className={`${
+            hasVoted 
+              ? 'bg-accent text-accent-foreground' 
+              : !canVote 
+                ? 'opacity-50 cursor-not-allowed'
+                : 'hover:bg-accent hover:text-accent-foreground'
+          }`}
+        >
+          {!isAuthenticated && guestActionsUsed > 0 ? (
+            buttonText
+          ) : (
+            <ThumbsUp className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
     </div>
-  </div>
   );
 };
