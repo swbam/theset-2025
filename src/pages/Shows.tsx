@@ -1,11 +1,36 @@
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { PopularTours } from '@/components/shows/PopularTours';
-import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/layout/Footer';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Shows() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [shows, setShows] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadShows = async () => {
+      try {
+        const data = await fetchPopularTours();
+        setShows(data || []);
+      } catch (error) {
+        console.error('Error loading shows:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load shows. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadShows();
+  }, [toast]);
 
   const handleArtistClick = (artistName: string) => {
     navigate(`/artist/${encodeURIComponent(artistName)}`);
@@ -22,29 +47,7 @@ export default function Shows() {
           </p>
         </div>
 
-        {/* Genre filters */}
-        <div className="flex gap-2 mb-8 flex-wrap">
-          {[
-            'All Genres',
-            'Rock',
-            'Pop',
-            'Electronic',
-            'R&B',
-            'Folk',
-            'Country',
-          ].map((genre) => (
-            <Button
-              key={genre}
-              variant="outline"
-              size="sm"
-              className="text-sm text-zinc-400 border-zinc-700 hover:bg-zinc-800"
-            >
-              {genre}
-            </Button>
-          ))}
-        </div>
-
-        <PopularTours onArtistClick={handleArtistClick} />
+        <PopularTours onArtistClick={handleArtistClick} shows={shows} isLoading={isLoading} />
       </div>
       <Footer />
     </div>

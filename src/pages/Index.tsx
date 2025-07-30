@@ -9,11 +9,10 @@ import { Button } from '@/components/ui/button';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
 import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
-import { PopularTours } from '@/components/shows/PopularTours';
 import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const { user, signInWithSpotify } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +42,12 @@ const Index = () => {
 
   const handleArtistClick = (artistName: string) => {
     navigate(`/artist/${encodeURIComponent(artistName)}`);
+  };
+
+  const handleShowClick = (show: any) => {
+    if (show.id) {
+      navigate(`/show/${show.id}`);
+    }
   };
 
   return (
@@ -125,12 +130,11 @@ const Index = () => {
           ) : popularShows.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {(() => {
-                // Deduplicate shows by artist name for trending shows
+                // Deduplicate shows by ticketmaster ID for trending shows
                 const uniqueShows = new Map();
                 popularShows.forEach(show => {
-                  const artistName = show._embedded?.attractions?.[0]?.name;
-                  if (artistName && !uniqueShows.has(artistName)) {
-                    uniqueShows.set(artistName, show);
+                  if (show.id && !uniqueShows.has(show.id)) {
+                    uniqueShows.set(show.id, show);
                   }
                 });
                 return Array.from(uniqueShows.values()).slice(0, 6);
@@ -138,12 +142,7 @@ const Index = () => {
                 <div
                   key={show.id || index}
                   className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 hover:bg-zinc-800 transition-colors cursor-pointer"
-                  onClick={() => {
-                    const artist = show._embedded?.attractions?.[0];
-                    if (artist?.name) {
-                      handleArtistClick(artist.name);
-                    }
-                  }}
+                  onClick={() => handleShowClick(show)}
                 >
                   {show.images?.[0]?.url && (
                     <div 
@@ -210,34 +209,7 @@ const Index = () => {
             </Button>
           </div>
 
-          {/* Genre filters */}
-          <div className="flex gap-2 mb-6 flex-wrap">
-            {[
-              'All Genres',
-              'Rock',
-              'Pop',
-              'Electronic',
-              'R&B',
-              'Folk',
-              'Country',
-            ].map((genre) => (
-              <Button
-                key={genre}
-                variant="outline"
-                size="sm"
-                className="text-sm text-zinc-400 border-zinc-700 hover:bg-zinc-800"
-              >
-                {genre}
-              </Button>
-            ))}
-          </div>
-
           <UpcomingShows onArtistClick={handleArtistClick} shows={popularShows.slice(6)} isLoading={isLoading} />
-          
-          {/* Popular Tours Component */}
-          <div className="py-8">
-            <PopularTours onArtistClick={handleArtistClick} />
-          </div>
         </section>
 
         {/* How TheSet Works */}

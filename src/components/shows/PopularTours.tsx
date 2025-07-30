@@ -38,33 +38,13 @@ interface Show {
 
 interface PopularToursProps {
   onArtistClick?: (artistName: string) => void;
+  shows?: Show[];
+  isLoading?: boolean;
 }
 
-export const PopularTours = ({ onArtistClick }: PopularToursProps = {}) => {
-  const [shows, setShows] = useState<Show[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export const PopularTours = ({ onArtistClick, shows = [], isLoading = false }: PopularToursProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const loadPopularTours = async () => {
-      try {
-        const data = await fetchPopularTours();
-        setShows(data || []);
-      } catch (error) {
-        console.error('Error loading popular tours:', error);
-        toast({
-          title: 'Loading Error',
-          description: 'Failed to load popular tours. Please try again.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadPopularTours();
-  }, [toast]);
 
   const handleShowClick = (show: Show) => {
     const artist = show._embedded?.attractions?.[0];

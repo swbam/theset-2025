@@ -1,10 +1,36 @@
 import { TopNavigation } from '@/components/layout/TopNavigation';
-import { PopularTours } from '@/components/shows/PopularTours';
+import { FeaturedArtists } from '@/components/artists/FeaturedArtists';
 import { Footer } from '@/components/layout/Footer';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Artists() {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [shows, setShows] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadShows = async () => {
+      try {
+        const data = await fetchPopularTours();
+        setShows(data || []);
+      } catch (error) {
+        console.error('Error loading shows:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load artist data. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadShows();
+  }, [toast]);
 
   const handleArtistClick = (artistName: string) => {
     navigate(`/artist/${encodeURIComponent(artistName)}`);
@@ -23,7 +49,7 @@ export default function Artists() {
           </p>
         </div>
 
-        <PopularTours onArtistClick={handleArtistClick} />
+        <FeaturedArtists onArtistClick={handleArtistClick} shows={shows} isLoading={isLoading} />
       </div>
       <Footer />
     </div>
