@@ -1,218 +1,200 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Music, User, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Activity, Vote, Music } from 'lucide-react';
+import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import { TopNavigation } from '@/components/layout/TopNavigation';
+import { Footer } from '@/components/layout/Footer';
 
-const MyActivity = () => {
+interface UserVote {
+  id: string;
+  created_at: string;
+  song_id: string;
+  // We'll need to join with setlist_songs to get song details
+}
+
+interface VoteActivity {
+  id: string;
+  created_at: string;
+  song_name: string;
+  artist_name?: string;
+  show_date?: string;
+}
+
+export default function MyActivity() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [voteHistory, setVoteHistory] = useState<VoteActivity[]>([]);
+  const [followedCount, setFollowedCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: setlistData = [], isLoading: setlistLoading } = useQuery({
-    queryKey: ['user-setlists', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
+  useEffect(() => {
+    if (user) {
+      fetchUserActivity();
+    }
+  }, [user]);
 
-      try {
-        const { data, error } = await supabase
-          .from('setlists')
-          .select(`
-            id,
-            created_at,
-            show_id
-          `)
-          .limit(10);
+  const fetchUserActivity = async () => {
+    if (!user) return;
 
-        if (error) {
-          console.error('Error fetching setlists:', error);
-          return [];
-        }
+    try {
+      // Fetch user votes with song details
+      const { data: votes, error } = await supabase
+        .from('user_votes')
+        .select(`
+          id,
+          created_at,
+          song_id
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-        return (data || []).map((item) => ({
-          id: item.id,
-          created_at: item.created_at,
-          title: `Setlist #${item.id.slice(0, 8)}`,
-          shows: {
-            artist_name: 'Various Artists',
-            venue: 'Various Venues',
-          },
-        }));
-      } catch (error) {
-        console.error('Error in setlist query:', error);
-        return [];
-      }
-    },
-    enabled: !!user?.id,
-  });
+      if (error) throw error;
 
-  const { data: voteData = [], isLoading: voteLoading } = useQuery({
-    queryKey: ['user-votes', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
+      // Fetch followed artists count
+      const { count: followedArtistsCount } = await supabase
+        .from('user_artists')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
 
-      try {
-        const { data, error } = await supabase
-          .from('user_votes')
-          .select(`
-            id,
-            created_at,
-            song_id
-          `)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
+      setFollowedCount(followedArtistsCount || 0);
 
-        if (error) {
-          console.error('Error fetching votes:', error);
-          return [];
-        }
+      // For now, just show basic vote data
+      // In a full implementation, you'd join with setlist_songs to get song names
+      const activities: VoteActivity[] = votes?.map(vote => ({
+        id: vote.id,
+        created_at: vote.created_at,
+        song_name: 'Song Vote', // Placeholder - would need proper join
+        artist_name: undefined,
+        show_date: undefined,
+      })) || [];
 
-        return (data || []).map((vote) => ({
-          id: vote.id,
-          created_at: vote.created_at,
-          title: `Vote #${vote.id.slice(0, 8)}`,
-          setlist_songs: {
-            song_name: 'Song',
-            setlist: {
-              title: 'Setlist',
-              shows: {
-                artist_name: 'Artist',
-                venue: 'Venue',
-              },
-            },
-          },
-        }));
-      } catch (error) {
-        console.error('Error in votes query:', error);
-        return [];
-      }
-    },
-    enabled: !!user?.id,
-  });
+      setVoteHistory(activities);
+    } catch (error: any) {
+      console.error('Error fetching user activity:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load your activity',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  if (!user) {
+  if (isLoading) {
     return (
-      <div className="p-6 text-center">
-        <User className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
-        <p className="text-muted-foreground">
-          Please sign in to view your activity.
-        </p>
+      <div className="min-h-screen bg-black">
+        <TopNavigation />
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-white" />
+        </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">My Activity</h1>
-        <p className="text-muted-foreground">
-          Track your setlist contributions and voting history
-        </p>
-      </div>
+    <div className="min-h-screen bg-black">
+      <TopNavigation />
+      <div className="max-w-4xl mx-auto p-4 md:p-8 py-12">
+        <div className="space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold flex items-center justify-center gap-2 text-white">
+              <Activity className="h-8 w-8" />
+              My Activity
+            </h1>
+            <p className="text-zinc-400">
+              Your voting history and setlist interactions
+            </p>
+          </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Setlists Created */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Music className="h-5 w-5" />
-              Setlists Created
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {setlistLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
-                ))}
-              </div>
-            ) : setlistData.length > 0 ? (
-              <div className="space-y-3">
-                {setlistData.map((setlist) => (
-                  <div
-                    key={setlist.id}
-                    className="p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                  >
-                    <h3 className="font-medium">{setlist.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {setlist.shows.artist_name} at {setlist.shows.venue}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <CalendarDays className="h-3 w-3" />
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(setlist.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Music className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  No setlists created yet
+          {/* Activity Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-white">Total Votes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{voteHistory.length}</div>
+                <p className="text-xs text-zinc-400">
+                  All time votes cast
                 </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-white">Artists Followed</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{followedCount}</div>
+                <p className="text-xs text-zinc-400">
+                  Artists you follow
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-white">Shows Participated</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">-</div>
+                <p className="text-xs text-zinc-400">
+                  Shows you've voted on
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Votes Cast */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Recent Votes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {voteLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
-                ))}
-              </div>
-            ) : voteData.length > 0 ? (
-              <div className="space-y-3">
-                {voteData.map((vote) => (
-                  <div
-                    key={vote.id}
-                    className="p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-medium">{vote.title}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {vote.setlist_songs.setlist.shows.artist_name}
-                        </p>
+          {/* Recent Activity */}
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Vote className="h-5 w-5" />
+                Recent Activity
+              </CardTitle>
+              <CardDescription className="text-zinc-400">
+                Your latest votes and interactions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {voteHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <Music className="h-12 w-12 mx-auto text-zinc-500 mb-4" />
+                  <p className="text-zinc-400">No activity yet</p>
+                  <p className="text-sm text-zinc-500">
+                    Start voting on setlists to see your activity here
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {voteHistory.map((activity) => (
+                    <div key={activity.id} className="flex items-center justify-between p-4 rounded-lg border border-zinc-800">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-primary/10">
+                          <Vote className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">Voted on a song</p>
+                          <p className="text-sm text-zinc-400">
+                            {format(new Date(activity.created_at), 'MMM d, yyyy HH:mm')}
+                          </p>
+                        </div>
                       </div>
-                      <Badge variant="secondary" className="ml-2">
-                        Vote
-                      </Badge>
+                      <Badge variant="secondary" className="bg-zinc-800 text-zinc-300">Vote</Badge>
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <CalendarDays className="h-3 w-3" />
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(vote.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Clock className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  No votes cast yet
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
+      <Footer />
     </div>
   );
-};
-
-export default MyActivity;
+}

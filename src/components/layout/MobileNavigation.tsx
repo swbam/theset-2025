@@ -1,18 +1,25 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Search, User, Calendar, Music } from 'lucide-react';
+import { Home, Search, User, Calendar, Music, LogIn, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const navItems = [
-  { icon: Home, label: 'Home', href: '/' },
-  { icon: Search, label: 'Search', href: '/search' },
-  { icon: Music, label: 'Artists', href: '/artists' },
-  { icon: Calendar, label: 'Shows', href: '/shows' },
-  { icon: User, label: 'Profile', href: '/profile' },
-];
+import { useAuth } from '@/contexts/AuthContext';
 
 export function MobileNavigation() {
   const location = useLocation();
+  const { user } = useAuth();
+
+  const navItems = user ? [
+    { icon: Home, label: 'Home', href: '/' },
+    { icon: Search, label: 'Search', href: '/search' },
+    { icon: Calendar, label: 'Shows', href: '/shows' },
+    { icon: Heart, label: 'My Artists', href: '/my-artists' },
+    { icon: User, label: 'Profile', href: '/profile' },
+  ] : [
+    { icon: Home, label: 'Home', href: '/' },
+    { icon: Search, label: 'Search', href: '/search' },
+    { icon: Calendar, label: 'Shows', href: '/shows' },
+    { icon: LogIn, label: 'Sign In', href: '/auth' },
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border md:hidden z-50">

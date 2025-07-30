@@ -6,18 +6,13 @@ import { Loader2 } from 'lucide-react';
 interface ArtistHeroProps {
   artist: Artist | null;
   artistName?: string;
-  isFollowing?: boolean;
-  isFollowActionPending: boolean;
-  onFollowClick: () => void;
 }
 
 export const ArtistHero = ({
   artist,
   artistName,
-  isFollowing,
-  isFollowActionPending,
-  onFollowClick,
 }: ArtistHeroProps) => {
+  const { isFollowing, isLoading: isFollowActionPending, toggleFollow } = useArtistFollow(artist?.id || '');
   return (
     <div
       className="h-[400px] relative bg-cover bg-center"

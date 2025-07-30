@@ -1,147 +1,281 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { User, Mail, Calendar, Music } from 'lucide-react';
-import { useState } from 'react';
+import { Loader2, Music, User, Calendar, Mail, LogOut } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
-const Profile = () => {
-  const { user, signOut } = useAuth();
+interface Profile {
+  id: string;
+  display_name?: string;
+  avatar_url?: string;
+  bio?: string;
+  spotify_id?: string;
+  created_at: string;
+}
+
+export default function Profile() {
+  const { user, signOut, isSpotifyUser } = useAuth();
+  const { toast } = useToast();
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [bio, setBio] = useState('');
 
-  if (!user) {
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setProfile(data);
+        setDisplayName(data.display_name || '');
+        setBio(data.bio || '');
+      }
+    } catch (error: any) {
+      console.error('Error fetching profile:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load profile',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!user) return;
+
+    try {
+      setIsSaving(true);
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          display_name: displayName || null,
+          bio: bio || null,
+        });
+
+      if (error) throw error;
+
+      await fetchProfile();
+      setIsEditing(false);
+      
+      toast({
+        title: 'Success',
+        description: 'Profile updated successfully',
+      });
+    } catch (error: any) {
+      console.error('Error saving profile:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update profile',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  if (isLoading) {
     return (
-      <div className="p-6 text-center">
-        <User className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Sign In Required</h2>
-        <p className="text-muted-foreground">
-          Please sign in to view your profile.
-        </p>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     );
   }
 
-  const joinDate = new Date(user.created_at || Date.now()).toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric'
-  });
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Profile</h1>
-        <p className="text-muted-foreground">
-          Manage your account settings and preferences
-        </p>
-      </div>
+    <div className="min-h-screen bg-black p-4 md:p-8">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-white">My Profile</h1>
+          <p className="text-zinc-400">Manage your account settings</p>
+        </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Profile Info */}
-        <Card>
+        {/* Profile Information */}
+        <Card className="bg-zinc-900 border-zinc-800">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-white">
               <User className="h-5 w-5" />
               Profile Information
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={user.user_metadata?.avatar_url} />
-                <AvatarFallback className="text-lg">
-                  {user.email?.charAt(0).toUpperCase()}
+            <div className="flex items-center space-x-4">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url} />
+                <AvatarFallback className="bg-zinc-800 text-white">
+                  {(profile?.display_name || user?.email || 'U')[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <h3 className="text-lg font-medium">
-                  {user.user_metadata?.full_name || 'Music Fan'}
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-white">
+                  {profile?.display_name || user?.user_metadata?.name || user?.email}
                 </h3>
-                <p className="text-muted-foreground">{user.email}</p>
+                {isSpotifyUser && (
+                  <Badge variant="secondary" className="mt-1 bg-[#1DB954] text-black">
+                    <Music className="h-3 w-3 mr-1" />
+                    Spotify Connected
+                  </Badge>
+                )}
               </div>
             </div>
 
-            <Separator />
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="email">Email</Label>
+            {isEditing ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="displayName" className="text-white">Display Name</Label>
                   <Input
-                    id="email"
-                    value={user.email || ''}
-                    disabled
-                    className="mt-1"
+                    id="displayName"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Enter your display name"
+                    className="bg-zinc-800 border-zinc-700 text-white"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="name">Display Name</Label>
-                  <Input
-                    id="name"
-                    value={user.user_metadata?.full_name || ''}
-                    disabled={!isEditing}
-                    className="mt-1"
+                <div className="space-y-2">
+                  <Label htmlFor="bio" className="text-white">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Tell us about yourself..."
+                    rows={3}
+                    className="bg-zinc-800 border-zinc-700 text-white"
                   />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={saveProfile} disabled={isSaving}>
+                    {isSaving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Save Changes
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setDisplayName(profile?.display_name || '');
+                      setBio(profile?.bio || '');
+                    }}
+                    className="border-zinc-700 text-white hover:bg-zinc-800"
+                  >
+                    Cancel
+                  </Button>
                 </div>
               </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant={isEditing ? "default" : "outline"}
-                  onClick={() => setIsEditing(!isEditing)}
-                  className="flex-1"
-                >
-                  {isEditing ? 'Save Changes' : 'Edit Profile'}
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-white">Display Name</Label>
+                  <p className="text-sm text-zinc-400 mt-1">
+                    {profile?.display_name || 'Not set'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-white">Bio</Label>
+                  <p className="text-sm text-zinc-400 mt-1">
+                    {profile?.bio || 'No bio yet'}
+                  </p>
+                </div>
+                <Button onClick={() => setIsEditing(true)}>
+                  Edit Profile
                 </Button>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Account Details */}
-        <Card>
+        <Card className="bg-zinc-900 border-zinc-800">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Mail className="h-5 w-5" />
               Account Details
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Email Verified</span>
+            <div className="flex justify-between items-center">
+              <div>
+                <Label className="text-white">Email</Label>
+                <p className="text-sm text-zinc-400">{user?.email}</p>
               </div>
-              <span className="text-sm text-green-600">✓ Yes</span>
+              <Badge variant={user?.email_confirmed_at ? "default" : "secondary"}>
+                {user?.email_confirmed_at ? "Verified" : "Unverified"}
+              </Badge>
             </div>
 
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
-                <Music className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Connected Services</span>
+            <Separator className="bg-zinc-700" />
+
+            <div>
+              <Label className="text-white">Connected Services</Label>
+              <div className="mt-2 space-y-2">
+                {isSpotifyUser ? (
+                  <div className="flex items-center gap-2">
+                    <Music className="h-4 w-4 text-[#1DB954]" />
+                    <span className="text-sm text-white">Spotify</span>
+                    <Badge variant="default" className="bg-[#1DB954] text-black">Connected</Badge>
+                  </div>
+                ) : (
+                  <p className="text-sm text-zinc-400">No connected services</p>
+                )}
               </div>
-              <span className="text-sm text-muted-foreground">
-                {user.app_metadata?.provider === 'spotify' ? 'Spotify' : 'Email'}
-              </span>
             </div>
 
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Member Since</span>
+            <Separator className="bg-zinc-700" />
+
+            <div className="flex justify-between items-center">
+              <div>
+                <Label className="text-white">Member Since</Label>
+                <p className="text-sm text-zinc-400 flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(user?.created_at || '').toLocaleDateString()}
+                </p>
               </div>
-              <span className="text-sm text-muted-foreground">{joinDate}</span>
             </div>
 
-            <Separator />
+            <Separator className="bg-zinc-700" />
 
             <Button
               variant="destructive"
-              onClick={signOut}
+              onClick={handleSignOut}
               className="w-full"
             >
+              <LogOut className="mr-2 h-4 w-4" />
               Sign Out
             </Button>
           </CardContent>
@@ -149,6 +283,4 @@ const Profile = () => {
       </div>
     </div>
   );
-};
-
-export default Profile;
+}

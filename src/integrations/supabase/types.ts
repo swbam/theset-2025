@@ -157,6 +157,30 @@ export type Database = {
           },
         ]
       }
+      guest_actions: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          entity_id: string
+          id: string
+          ip_address: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          entity_id: string
+          id?: string
+          ip_address: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          entity_id?: string
+          id?: string
+          ip_address?: string
+        }
+        Relationships: []
+      }
       platform_identifiers: {
         Row: {
           created_at: string | null
@@ -187,6 +211,39 @@ export type Database = {
           metadata?: Json | null
           platform?: string
           platform_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          spotify_data: Json | null
+          spotify_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id: string
+          spotify_data?: Json | null
+          spotify_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          spotify_data?: Json | null
+          spotify_id?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
