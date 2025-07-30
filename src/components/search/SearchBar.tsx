@@ -51,7 +51,7 @@ export function SearchBar() {
   const handleSelectArtist = (artist: Artist) => {
     setOpen(false);
     setQuery('');
-    navigate(`/artists/${artist.id}`);
+    navigate(`/artist/${encodeURIComponent(artist.name)}`);
   };
 
   return (
@@ -83,9 +83,9 @@ export function SearchBar() {
               <CommandEmpty>No artists found.</CommandEmpty>
             ) : (
               <CommandGroup>
-                {results.map((artist) => (
+                {results.map((artist, index) => (
                   <CommandItem
-                    key={artist.id}
+                    key={artist.ticketmaster_id || `artist-${index}`}
                     onSelect={() => handleSelectArtist(artist)}
                     className="flex items-center gap-3 p-3 cursor-pointer"
                   >

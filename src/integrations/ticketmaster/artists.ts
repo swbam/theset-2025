@@ -23,12 +23,13 @@ export const searchArtists = async (query: string) => {
         if (artist && artist.name) {
           if (!uniqueArtists.has(artist.name)) {
             uniqueArtists.set(artist.name, {
+              id: artist.id,
               name: artist.name,
-              image: artist.images?.[0]?.url || event.images?.[0]?.url,
+              image_url: artist.images?.[0]?.url || event.images?.[0]?.url,
+              ticketmaster_id: artist.id,
               venue: event._embedded?.venues?.[0]?.name,
               date: event.dates?.start?.dateTime,
               url: event.url,
-              ticketmaster_id: artist.id,
               capacity: event._embedded?.venues?.[0]?.capacity || 0,
             });
           }
