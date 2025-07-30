@@ -76,7 +76,7 @@ export function SongSuggestionDialog({
         .from('setlists')
         .select(`
           show_id,
-          cached_shows!inner(artist_id)
+          cached_shows!setlists_show_id_fkey(artist_id)
         `)
         .eq('id', setlistId)
         .single();
@@ -85,7 +85,7 @@ export function SongSuggestionDialog({
         throw new Error('Setlist not found');
       }
 
-      const artistId = setlist.cached_shows.artist_id;
+      const artistId = (setlist as any).cached_shows?.artist_id;
 
       // Add song to setlist_songs
       const { error } = await supabase
