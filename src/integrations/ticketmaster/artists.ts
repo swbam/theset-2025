@@ -5,14 +5,16 @@ import type { TicketmasterEvent } from './types';
 
 // Search specifically for artists, not just events
 export const searchArtists = async (query: string) => {
-  console.log('Searching for artists:', query);
+  console.log('searchArtists: Searching for artists:', query);
   
   if (!query.trim()) {
     return [];
   }
 
   try {
+    console.log('searchArtists: About to call Ticketmaster function...');
     const results = await callTicketmasterFunction('search', query);
+    console.log('searchArtists: Got results:', results);
 
     // Extract unique artists from events
     const uniqueArtists = new Map();

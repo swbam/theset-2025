@@ -25,6 +25,7 @@ export function SearchBar() {
 
   const searchDebounced = useCallback(
     async (searchQuery: string) => {
+      console.log('SearchBar: Starting search for:', searchQuery);
       if (searchQuery.length < 2) {
         setResults([]);
         return;
@@ -32,10 +33,12 @@ export function SearchBar() {
 
       setIsLoading(true);
       try {
+        console.log('SearchBar: Calling searchArtists...');
         const artists = await searchArtists(searchQuery);
+        console.log('SearchBar: Got artists:', artists);
         setResults(artists.slice(0, 10)); // Limit to 10 results
       } catch (error) {
-        console.error('Search error:', error);
+        console.error('SearchBar: Search error:', error);
         toast({
           title: "Search Error",
           description: "Failed to search artists. Please try again.",
