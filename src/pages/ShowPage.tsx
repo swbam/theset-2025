@@ -62,7 +62,12 @@ export default function ShowPage() {
   const { data: setlist, isLoading: setlistLoading } = useQuery({
     queryKey: ['setlist', show?.id],
     queryFn: async () => {
-      if (!show?.id) return null;
+      if (!show?.id) {
+        console.log('Setlist query: No show ID');
+        return null;
+      }
+
+      console.log('Setlist query: Looking for setlist for show:', show.id);
 
       // Check for existing setlist
       const { data: existingSetlist } = await supabase
@@ -71,10 +76,15 @@ export default function ShowPage() {
         .eq('show_id', show.id)
         .maybeSingle();
 
+      console.log('Setlist query: Existing setlist:', existingSetlist);
+
       if (existingSetlist) {
         // Get setlist songs with vote counts
+        console.log('Setlist query: Getting songs for existing setlist:', existingSetlist.id);
         const { data: songsData } = await supabase
           .rpc('get_setlist_with_votes', { setlist_uuid: existingSetlist.id });
+
+        console.log('Setlist query: Songs data:', songsData);
 
         return {
           id: existingSetlist.id,
@@ -84,35 +94,62 @@ export default function ShowPage() {
 
       // Create new setlist if artist has Spotify ID
       const artist = show.artists;
+      console.log('Setlist query: Artist data:', artist);
+      
       if (artist?.spotify_id) {
+        console.log('Setlist query: Artist has Spotify ID, creating setlist for:', artist.spotify_id);
+        
         // Get top tracks from Spotify via Edge Function
         try {
-          const { data: spotifyData } = await supabase.functions.invoke('spotify', {
+          console.log('Setlist query: Calling Spotify function...');
+          const { data: spotifyData, error: spotifyError } = await supabase.functions.invoke('spotify', {
             body: {
               action: 'getArtistTopTracks',
               params: { artistId: artist.spotify_id }
             }
           });
           
-          if (spotifyData?.tracks && spotifyData.tracks.length > 0) {
+          console.log('Setlist query: Spotify response:', spotifyData, 'Error:', spotifyError);
+          
+          if (spotifyError) {
+            console.error('Setlist query: Spotify error:', spotifyError);
+            return null;
+          }
+          
+          if (spotifyData?.data && spotifyData.data.length > 0) {
+            console.log('Setlist query: Got Spotify tracks, initializing setlist...');
+            
             // Initialize setlist with Spotify tracks
-            const { data: newSetlistId } = await supabase.rpc('initialize_show_setlist', {
+            const { data: newSetlistId, error: initError } = await supabase.rpc('initialize_show_setlist', {
               p_show_id: show.id,
-              p_spotify_tracks: spotifyData.tracks
+              p_spotify_tracks: spotifyData.data
             });
+            
+            console.log('Setlist query: Initialize result:', newSetlistId, 'Error:', initError);
+            
+            if (initError) {
+              console.error('Setlist query: Initialize error:', initError);
+              return null;
+            }
             
             // Get the complete setlist with songs
             const { data: songsData } = await supabase
               .rpc('get_setlist_with_votes', { setlist_uuid: newSetlistId });
 
+            console.log('Setlist query: Final songs data:', songsData);
+
             return {
               id: newSetlistId,
               songs: songsData || []
             };
+          } else {
+            console.log('Setlist query: No Spotify tracks found');
           }
         } catch (error) {
-          console.error('Failed to initialize setlist:', error);
+          console.error('Setlist query: Failed to initialize setlist:', error);
         }
+      } else {
+        console.log('Setlist query: No Spotify ID for artist');
       }
 
       return null;
