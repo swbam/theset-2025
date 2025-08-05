@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
+import { toSlug } from '@/utils/slug';
 import { useToast } from '@/hooks/use-toast';
 
 interface SearchResult {
@@ -56,7 +57,7 @@ export function SearchBar() {
     setOpen(false);
     setQuery('');
     if (item.type === 'artist') {
-      navigate(`/artist/${encodeURIComponent(item.name)}`);
+      navigate(`/artist/${toSlug(item.name)}`);
     } else if (item.type === 'show') {
       navigate(`/show/${item.id}`);
     } else if (item.type === 'venue') {

@@ -19,7 +19,7 @@ export default function ArtistPage() {
   const { toast } = useToast();
   const [isLoadingShows, setIsLoadingShows] = useState(true);
 
-  const decodedArtistName = artistName ? decodeURIComponent(artistName) : '';
+  const decodedArtistName = artistName ? artistName.replace(/-/g, ' ') : '';
 
   // Query for artist data from our database
   const { data: artistData, isLoading: artistLoading } = useQuery({
