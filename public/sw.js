@@ -30,16 +30,27 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(request).then((resp) => {
-      if (resp) return resp;
-      return fetch(request).then((netResp) => {
-        // Cache new requests
-        if (netResp.status === 200 && request.url.startsWith(self.location.origin)) {
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, netResp.clone()));
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(request);
+      if (cached) return cached;
+
+      try {
+        const networkResponse = await fetch(request);
+
+        // Only cache successful same-origin responses to avoid cloning issues
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          networkResponse.type === 'basic'
+        ) {
+          cache.put(request, networkResponse.clone());
         }
-        return netResp;
-      });
+
+        return networkResponse;
+      } catch (_err) {
+        // If offline and no cache match, just error out
+        return cached || Response.error();
+      }
     })
   );
 });
-

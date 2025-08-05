@@ -18,9 +18,18 @@ interface RequestBody {
   spotifyId?: string;
 }
 
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  SERVICE_ROLE_KEY,
+  {
+    global: {
+      headers: {
+        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+    },
+  }
 );
 
 function jsonResponse(body: unknown, status = 200) {
@@ -148,4 +157,3 @@ serve(async (req) => {
     return jsonResponse({ success: false, error: (error as Error).message }, 500);
   }
 });
-

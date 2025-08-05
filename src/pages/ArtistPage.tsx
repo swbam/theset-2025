@@ -38,35 +38,23 @@ export default function ArtistPage() {
         return existingArtist;
       }
 
-      // If not in database, search Spotify and create artist record
+      // If not in DB, trigger server-side sync which will upsert securely
       try {
-        const spotifyArtist = await searchArtist(decodedArtistName);
-        if (!spotifyArtist) {
-          throw new Error('Artist not found on Spotify');
-        }
-
-        // Create artist record in our database
-        const { data: newArtist, error } = await supabase
-          .from('artists')
-          .insert({
-            name: spotifyArtist.name,
-            spotify_id: spotifyArtist.id,
-            image_url: spotifyArtist.images?.[0]?.url,
-            genres: spotifyArtist.genres || [],
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error creating artist:', error);
-          return spotifyArtist;
-        }
-
-        return newArtist;
-      } catch (error) {
-        console.error('Error fetching artist:', error);
-        throw error;
+        await supabase.functions.invoke('auto-sync-artist', {
+          body: { artistName: decodedArtistName },
+        });
+      } catch (err) {
+        console.error('auto-sync-artist failed', err);
       }
+
+      // Re-query after sync attempt
+      const { data: syncedArtist } = await supabase
+        .from('artists')
+        .select('*')
+        .ilike('name', decodedArtistName)
+        .maybeSingle();
+
+      return syncedArtist;
     },
     enabled: !!decodedArtistName,
   });
