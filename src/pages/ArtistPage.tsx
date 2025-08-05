@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
 import { ArtistHero } from '@/components/artists/ArtistHero';
+import { FollowButton } from '@/components/artists/FollowButton';
 import { ArtistShows } from '@/components/artists/ArtistShows';
 import { ArtistFollowCard } from '@/components/artists/ArtistFollowCard';
 import { LoadingState } from '@/components/shows/LoadingState';
@@ -176,3 +177,5 @@ export default function ArtistPage() {
     </div>
   );
 }
+
+// Inside component before return maybe after data load but let's add rendering modifications

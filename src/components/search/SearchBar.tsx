@@ -5,19 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { searchArtists } from '@/integrations/ticketmaster/artists';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface Artist {
+interface SearchResult {
   id: string;
+  type: 'artist' | 'venue' | 'show';
   name: string;
-  image_url?: string;
-  ticketmaster_id: string;
+  image_url?: string | null;
 }
 
 export function SearchBar() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Artist[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -33,10 +33,11 @@ export function SearchBar() {
 
       setIsLoading(true);
       try {
-        console.log('SearchBar: Calling searchArtists...');
-        const artists = await searchArtists(searchQuery);
-        console.log('SearchBar: Got artists:', artists);
-        setResults(artists.slice(0, 10)); // Limit to 10 results
+        const { data, error } = await supabase.functions.invoke('search', {
+          body: { query: searchQuery },
+        });
+        if (error) throw error;
+        setResults((data?.data as SearchResult[]) || []);
       } catch (error) {
         console.error('SearchBar: Search error:', error);
         toast({
@@ -51,10 +52,16 @@ export function SearchBar() {
     [toast]
   );
 
-  const handleSelectArtist = (artist: Artist) => {
+  const handleSelect = (item: SearchResult) => {
     setOpen(false);
     setQuery('');
-    navigate(`/artist/${encodeURIComponent(artist.name)}`);
+    if (item.type === 'artist') {
+      navigate(`/artist/${encodeURIComponent(item.name)}`);
+    } else if (item.type === 'show') {
+      navigate(`/show/${item.id}`);
+    } else if (item.type === 'venue') {
+      navigate(`/venue/${item.id}`);
+    }
   };
 
   return (
@@ -86,21 +93,26 @@ export function SearchBar() {
               <CommandEmpty>No artists found.</CommandEmpty>
             ) : (
               <CommandGroup>
-                {results.map((artist, index) => (
+                {results.map((res, index) => (
                   <CommandItem
-                    key={artist.ticketmaster_id || `artist-${index}`}
-                    onSelect={() => handleSelectArtist(artist)}
+                    key={`${res.type}-${res.id}`}
+                    onSelect={() => handleSelect(res)}
                     className="flex items-center gap-3 p-3 cursor-pointer"
                   >
-                    {artist.image_url && (
+                    {res.image_url && (
                       <img
-                        src={artist.image_url}
-                        alt={artist.name}
+                        src={res.image_url}
+                        alt={res.name}
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     )}
                     <div className="flex-1">
-                      <p className="font-medium">{artist.name}</p>
+                      <p className="font-medium">
+                        {res.name}
+                        <span className="text-xs text-muted-foreground ml-2 uppercase">
+                          {res.type}
+                        </span>
+                      </p>
                     </div>
                   </CommandItem>
                 ))}

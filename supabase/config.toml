@@ -1,1 +1,12 @@
-project_id = "nxeokwzotcrumtywdnvd"
+# Supabase Edge Function Cron schedules
+
+[functions]
+
+  [[functions.cron]]
+  name = "sync-artist-shows"
+  schedule = "0 */6 * * *" # every 6 hours
+
+  [[functions.cron]]
+  name = "sync-artist-songs"
+  schedule = "0 3 * * *" # every day at 03:00 UTC
+
