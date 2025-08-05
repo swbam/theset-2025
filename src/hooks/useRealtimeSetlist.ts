@@ -28,8 +28,8 @@ export function useRealtimeSetlist(showId: string, userId?: string) {
         const songsWithVotes = await Promise.all(
           setlistData.songs.map(async (song: any) => {
             // Get total votes for this song
-            const { count: voteCount } = await supabase
-              .from('votes')
+              const { count: voteCount } = await supabase
+              .from('user_votes')
               .select('*', { count: 'exact' })
               .eq('show_id', showId)
               .eq('song_id', song.spotify_id);
@@ -74,35 +74,37 @@ export function useRealtimeSetlist(showId: string, userId?: string) {
 
   // Real-time subscription for votes
   useEffect(() => {
-    const channel = supabase
-      .channel(`show:${showId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'votes',
-          filter: `show_id=eq.${showId}`
-        },
-        () => {
-          // Reload setlist when votes change
-          loadSetlist();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'setlists',
-          filter: `show_id=eq.${showId}`
-        },
-        () => {
-          // Reload setlist when songs are added/removed
-          loadSetlist();
-        }
-      )
-      .subscribe();
+    const channel = supabase.channel(`show:${showId}`);
+
+    // Subscribe to vote changes
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'user_votes',
+        filter: `show_id=eq.${showId}`,
+      },
+      () => {
+        loadSetlist();
+      },
+    );
+
+    // Subscribe to setlist mutations (songs added / removed)
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'setlists',
+        filter: `show_id=eq.${showId}`,
+      },
+      () => {
+        loadSetlist();
+      },
+    );
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
