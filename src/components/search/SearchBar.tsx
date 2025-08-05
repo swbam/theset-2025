@@ -5,20 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { supabase } from '@/integrations/supabase/client';
 import { toSlug } from '@/utils/slug';
 import { useToast } from '@/hooks/use-toast';
+import { searchArtists } from '@/integrations/ticketmaster/artists';
 
-interface SearchResult {
+interface ArtistResult {
   id: string;
-  type: 'artist' | 'venue' | 'show';
   name: string;
   image_url?: string | null;
 }
 
 export function SearchBar() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<ArtistResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -34,11 +33,8 @@ export function SearchBar() {
 
       setIsLoading(true);
       try {
-        const { data, error } = await supabase.functions.invoke('search', {
-          body: { query: searchQuery },
-        });
-        if (error) throw error;
-        setResults((data?.data as SearchResult[]) || []);
+        const artists = await searchArtists(searchQuery);
+        setResults(artists.slice(0, 15));
       } catch (error) {
         console.error('SearchBar: Search error:', error);
         toast({
@@ -53,16 +49,10 @@ export function SearchBar() {
     [toast]
   );
 
-  const handleSelect = (item: SearchResult) => {
+  const handleSelect = (item: ArtistResult) => {
     setOpen(false);
     setQuery('');
-    if (item.type === 'artist') {
-      navigate(`/artist/${toSlug(item.name)}`);
-    } else if (item.type === 'show') {
-      navigate(`/show/${item.id}`);
-    } else if (item.type === 'venue') {
-      navigate(`/venue/${item.id}`);
-    }
+    navigate(`/artist/${toSlug(item.name)}`);
   };
 
   return (
@@ -96,7 +86,7 @@ export function SearchBar() {
               <CommandGroup>
                 {results.map((res, index) => (
                   <CommandItem
-                    key={`${res.type}-${res.id}`}
+                    key={res.id}
                     onSelect={() => handleSelect(res)}
                     className="flex items-center gap-3 p-3 cursor-pointer"
                   >
@@ -108,12 +98,7 @@ export function SearchBar() {
                       />
                     )}
                     <div className="flex-1">
-                      <p className="font-medium">
-                        {res.name}
-                        <span className="text-xs text-muted-foreground ml-2 uppercase">
-                          {res.type}
-                        </span>
-                      </p>
+                      <p className="font-medium">{res.name}</p>
                     </div>
                   </CommandItem>
                 ))}
