@@ -3,7 +3,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { MobileNavigation } from "@/components/layout/MobileNavigation";
+import { BottomNav } from "@/components/layout/BottomNav";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 
 import Index from "./pages/Index";
@@ -31,7 +32,8 @@ function App() {
       <TooltipProvider>
         <BrowserRouter>
           <AuthProvider>
-            <div className="min-h-screen bg-background">
+          <ThemeProvider>
+            <div className="min-h-screen bg-background transition-colors duration-300">
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
@@ -54,10 +56,11 @@ function App() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
               
-              {/* Mobile Navigation */}
-              <MobileNavigation />
+              {/* Mobile Bottom Navigation */}
+              <BottomNav />
             </div>
             <Toaster />
+          </ThemeProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
