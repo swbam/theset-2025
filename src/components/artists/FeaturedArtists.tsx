@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
+import { toSlug } from '@/utils/slug';
 
 interface FeaturedArtistsProps {
   onArtistClick?: (artistName: string) => void;
@@ -17,9 +18,12 @@ export const FeaturedArtists = ({ onArtistClick, shows = [], isLoading = false }
 
       shows.forEach((show) => {
         const artist = show._embedded?.attractions?.[0];
-        if (!artist?.name) return;
+        if (!artist?.id || !artist?.name) return;
 
-        const existingArtist = artistMap.get(artist.name) || {
+        const key = artist.id as string;
+
+        const existingArtist = artistMap.get(key) || {
+          id: artist.id,
           name: artist.name,
           image: artist.images?.[0]?.url || show.images?.[0]?.url,
           genre: artist.classifications?.[0]?.segment?.name || 'Music',
@@ -27,7 +31,7 @@ export const FeaturedArtists = ({ onArtistClick, shows = [], isLoading = false }
         };
 
         existingArtist.showCount++;
-        artistMap.set(artist.name, existingArtist);
+        artistMap.set(key, existingArtist);
       });
 
       const artists = Array.from(artistMap.values())
@@ -64,9 +68,9 @@ export const FeaturedArtists = ({ onArtistClick, shows = [], isLoading = false }
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
       {featuredArtists.map((artist, index) => (
         <div
-          key={`${artist.name}-${index}`}
+          key={artist.id ?? index}
           className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 hover:bg-zinc-800 transition-colors cursor-pointer"
-          onClick={() => onArtistClick?.(artist.name)}
+          onClick={() => onArtistClick?.(toSlug(artist.name))}
         >
           <div className="aspect-square mb-3 rounded-lg overflow-hidden">
             {artist.image ? (

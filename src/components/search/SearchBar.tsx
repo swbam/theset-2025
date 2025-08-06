@@ -5,19 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { searchArtists } from '@/integrations/ticketmaster/artists';
+import { toSlug } from '@/utils/slug';
 import { useToast } from '@/hooks/use-toast';
+import { searchArtists } from '@/integrations/ticketmaster/artists';
 
-interface Artist {
+interface ArtistResult {
   id: string;
   name: string;
-  image_url?: string;
-  ticketmaster_id: string;
+  image_url?: string | null;
 }
 
 export function SearchBar() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Artist[]>([]);
+  const [results, setResults] = useState<ArtistResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -33,10 +33,8 @@ export function SearchBar() {
 
       setIsLoading(true);
       try {
-        console.log('SearchBar: Calling searchArtists...');
         const artists = await searchArtists(searchQuery);
-        console.log('SearchBar: Got artists:', artists);
-        setResults(artists.slice(0, 10)); // Limit to 10 results
+        setResults(artists.slice(0, 15));
       } catch (error) {
         console.error('SearchBar: Search error:', error);
         toast({
@@ -51,10 +49,10 @@ export function SearchBar() {
     [toast]
   );
 
-  const handleSelectArtist = (artist: Artist) => {
+  const handleSelect = (item: ArtistResult) => {
     setOpen(false);
     setQuery('');
-    navigate(`/artist/${encodeURIComponent(artist.name)}`);
+    navigate(`/artist/${toSlug(item.name)}`);
   };
 
   return (
@@ -71,11 +69,15 @@ export function SearchBar() {
               searchDebounced(value);
               setOpen(value.length > 0);
             }}
-            className="pl-10 bg-background/50 backdrop-blur-sm border-border/50"
+            className="pl-10 bg-background/90 backdrop-blur-sm border-border"
           />
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0" align="start">
+      <PopoverContent
+        className="w-[400px] p-0"
+        align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <Command>
           <CommandList>
             {isLoading ? (
@@ -86,21 +88,21 @@ export function SearchBar() {
               <CommandEmpty>No artists found.</CommandEmpty>
             ) : (
               <CommandGroup>
-                {results.map((artist, index) => (
+                {results.map((res, index) => (
                   <CommandItem
-                    key={artist.ticketmaster_id || `artist-${index}`}
-                    onSelect={() => handleSelectArtist(artist)}
+                    key={res.id}
+                    onSelect={() => handleSelect(res)}
                     className="flex items-center gap-3 p-3 cursor-pointer"
                   >
-                    {artist.image_url && (
+                    {res.image_url && (
                       <img
-                        src={artist.image_url}
-                        alt={artist.name}
+                        src={res.image_url}
+                        alt={res.name}
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     )}
                     <div className="flex-1">
-                      <p className="font-medium">{artist.name}</p>
+                      <p className="font-medium">{res.name}</p>
                     </div>
                   </CommandItem>
                 ))}

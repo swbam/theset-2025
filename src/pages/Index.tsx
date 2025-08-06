@@ -10,6 +10,7 @@ import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
 import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
 import { useToast } from '@/hooks/use-toast';
+import { toSlug } from '@/utils/slug';
 
 const Index = () => {
   const { user } = useAuth();
@@ -40,8 +41,8 @@ const Index = () => {
     loadInitialData();
   }, [toast]);
 
-  const handleArtistClick = (artistName: string) => {
-    navigate(`/artist/${encodeURIComponent(artistName)}`);
+  const handleArtistClick = (artistSlug: string) => {
+    navigate(`/artist/${artistSlug}`);
   };
 
   const handleShowClick = (show: any) => {
@@ -65,7 +66,10 @@ const Index = () => {
             Discover upcoming concerts and help shape the perfect show by voting
             for your favorite songs.
           </p>
-          <SearchBar />
+          {/* Centered search bar */}
+          <div className="flex justify-center mt-4">
+            <SearchBar />
+          </div>
         </div>
       </div>
 

@@ -14,17 +14,32 @@ export const corsHeaders = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
 };
 
-export function createCorsResponse(data?: unknown, status: number = 200): Response {
-  return new Response(
-    data ? JSON.stringify(data) : null,
-    {
-      status,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
+/**
+ * Helper to build a JSON Response with the project-wide CORS headers plus an
+ * optional `Cache-Control` directive so individual edge-functions can opt into
+ * short-term public caching (CDN & browser).
+ *
+ * Passing a `cacheSeconds` value of >0 will append a header such as:
+ *   Cache-Control: public, max-age=300, stale-while-revalidate=60
+ */
+export function createCorsResponse(
+  data?: unknown,
+  status: number = 200,
+  cacheSeconds = 0
+): Response {
+  const headers: Record<string, string> = {
+    ...corsHeaders,
+    'Content-Type': 'application/json',
+  };
+
+  if (cacheSeconds > 0) {
+    headers['Cache-Control'] = `public, max-age=${cacheSeconds}, stale-while-revalidate=60`;
+  }
+
+  return new Response(data ? JSON.stringify(data) : null, {
+    status,
+    headers,
+  });
 }
 
 export function handleCorsPreFlight(): Response {

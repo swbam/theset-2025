@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { useState } from 'react';
 
 export function TopNavigation() {
@@ -42,8 +43,9 @@ export function TopNavigation() {
             ))}
           </div>
 
-          {/* Auth Button */}
-          <div className="hidden md:flex">
+          {/* Theme toggle + Auth Button */}
+          <div className="hidden md:flex items-center gap-4">
+            <ThemeToggle />
             {user ? (
               <Button variant="outline" className="text-white border-zinc-700">
                 {user.email}

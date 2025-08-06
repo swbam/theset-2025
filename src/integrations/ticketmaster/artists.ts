@@ -17,14 +17,14 @@ export const searchArtists = async (query: string) => {
     console.log('searchArtists: Got results:', results);
 
     // Extract unique artists from events
-    const uniqueArtists = new Map();
+    const uniqueArtists = new Map<string, any>();
 
     if (results.data?._embedded?.events) {
       results.data._embedded.events.forEach((event: TicketmasterEvent) => {
         const artist = event._embedded?.attractions?.[0];
-        if (artist && artist.name) {
-          if (!uniqueArtists.has(artist.name)) {
-            uniqueArtists.set(artist.name, {
+        if (artist && artist.id && artist.name) {
+          if (!uniqueArtists.has(artist.id)) {
+            uniqueArtists.set(artist.id, {
               id: artist.id,
               name: artist.name,
               image_url: artist.images?.[0]?.url || event.images?.[0]?.url,

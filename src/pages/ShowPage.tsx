@@ -3,9 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { AddSongDialog } from '@/components/setlist/AddSongDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingState } from '@/components/shows/LoadingState';
 import { ShowDetails } from '@/components/shows/ShowDetails';
+import { TicketBanner } from '@/components/shows/TicketBanner';
+import { MapEmbed } from '@/components/shows/MapEmbed';
 import { Setlist } from '@/components/shows/Setlist';
 import { SongSuggestionDialog } from '@/components/shows/SongSuggestionDialog';
 import { TopNavigation } from '@/components/layout/TopNavigation';
@@ -240,6 +243,14 @@ export default function ShowPage() {
     setShowSuggestionDialog(true);
   };
 
+  // ---------------------------------- Add song dialog
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+  const openAddDialog = () => {
+    if (!show?.artist_id || !setlist?.id) return;
+    setAddDialogOpen(true);
+  };
+
   const handleSongAdded = () => {
     queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
   };
@@ -283,6 +294,18 @@ export default function ShowPage() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="space-y-8">
           <ShowDetails name={show.name} date={show.date} venue={venueInfo} />
+
+          {/* Ticket banner */}
+          <TicketBanner url={show.ticket_url} />
+
+          {/* Static map */}
+          {show.latitude && show.longitude && (
+            <MapEmbed
+              latitude={show.latitude}
+              longitude={show.longitude}
+              venueName={show.venue_name}
+            />
+          )}
           
           <Setlist
             setlist={setlist}

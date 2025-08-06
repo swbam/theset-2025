@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
 import { ArtistHero } from '@/components/artists/ArtistHero';
+import { FollowButton } from '@/components/artists/FollowButton';
 import { ArtistShows } from '@/components/artists/ArtistShows';
 import { ArtistFollowCard } from '@/components/artists/ArtistFollowCard';
 import { LoadingState } from '@/components/shows/LoadingState';
@@ -18,7 +19,7 @@ export default function ArtistPage() {
   const { toast } = useToast();
   const [isLoadingShows, setIsLoadingShows] = useState(true);
 
-  const decodedArtistName = artistName ? decodeURIComponent(artistName) : '';
+  const decodedArtistName = artistName ? artistName.replace(/-/g, ' ') : '';
 
   // Query for artist data from our database
   const { data: artistData, isLoading: artistLoading } = useQuery({
@@ -37,35 +38,23 @@ export default function ArtistPage() {
         return existingArtist;
       }
 
-      // If not in database, search Spotify and create artist record
+      // If not in DB, trigger server-side sync which will upsert securely
       try {
-        const spotifyArtist = await searchArtist(decodedArtistName);
-        if (!spotifyArtist) {
-          throw new Error('Artist not found on Spotify');
-        }
-
-        // Create artist record in our database
-        const { data: newArtist, error } = await supabase
-          .from('artists')
-          .insert({
-            name: spotifyArtist.name,
-            spotify_id: spotifyArtist.id,
-            image_url: spotifyArtist.images?.[0]?.url,
-            genres: spotifyArtist.genres || [],
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error creating artist:', error);
-          return spotifyArtist;
-        }
-
-        return newArtist;
-      } catch (error) {
-        console.error('Error fetching artist:', error);
-        throw error;
+        await supabase.functions.invoke('auto-sync-artist', {
+          body: { artistName: decodedArtistName },
+        });
+      } catch (err) {
+        console.error('auto-sync-artist failed', err);
       }
+
+      // Re-query after sync attempt
+      const { data: syncedArtist } = await supabase
+        .from('artists')
+        .select('*')
+        .ilike('name', decodedArtistName)
+        .maybeSingle();
+
+      return syncedArtist;
     },
     enabled: !!decodedArtistName,
   });
@@ -176,3 +165,5 @@ export default function ArtistPage() {
     </div>
   );
 }
+
+// Inside component before return maybe after data load but let's add rendering modifications

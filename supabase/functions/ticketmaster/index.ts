@@ -85,6 +85,14 @@ function buildApiUrl(endpoint: string, query?: string, params?: Record<string, a
   let url: string;
   
   switch (endpoint) {
+    case 'artist-events':
+      // Alias that searches events by artist keyword
+      params = params || {};
+      if (query) {
+        params.keyword = query;
+      }
+      endpoint = 'events';
+      break;
     case 'search':
       // Search for artists specifically
       if (query) queryParams.append('keyword', query);
