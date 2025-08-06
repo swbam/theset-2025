@@ -66,7 +66,10 @@ const Index = () => {
             Discover upcoming concerts and help shape the perfect show by voting
             for your favorite songs.
           </p>
-          <SearchBar />
+          {/* Centered search bar */}
+          <div className="flex justify-center mt-4">
+            <SearchBar />
+          </div>
         </div>
       </div>
 
