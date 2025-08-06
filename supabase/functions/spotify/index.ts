@@ -90,6 +90,45 @@ async function searchTracks(query: string) {
   return json.tracks?.items ?? [];
 }
 
+// Fetch the full track catalogue for an artist (all albums/singles)
+async function getArtistAllTracks(artistId: string): Promise<any[]> {
+  const token = await getAccessToken();
+
+  // 1. fetch albums (limit 50 per page)
+  const albums: any[] = [];
+  let url = `${SPOTIFY_API_BASE}/artists/${artistId}/albums?include_groups=album,single,appears_on,compilation&limit=50`;
+  while (url) {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const json = await res.json();
+    albums.push(...(json.items || []));
+    url = json.next ?? null;
+  }
+
+  // Deduplicate album IDs
+  const albumIds = [...new Set(albums.map((a) => a.id))];
+
+  // 2. Fetch tracks per album in batches of 20 ids (API limit)
+  const tracks: any[] = [];
+  for (let i = 0; i < albumIds.length; i += 20) {
+    const batch = albumIds.slice(i, i + 20);
+    const albumRes = await fetch(`${SPOTIFY_API_BASE}/albums?ids=${batch.join(',')}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const albumJson = await albumRes.json();
+    for (const album of albumJson.albums ?? []) {
+      tracks.push(...(album.tracks?.items ?? []));
+    }
+  }
+
+  // Map to minimal form and deduplicate by track id
+  const unique = new Map<string, { id: string; name: string }>();
+  tracks.forEach((t: any) => {
+    if (!unique.has(t.id)) unique.set(t.id, { id: t.id, name: t.name });
+  });
+
+  return [...unique.values()];
+}
+
 function error(status: number, message: string) {
   return new Response(JSON.stringify({ error: message }), {
     status,
@@ -134,6 +173,13 @@ serve(async (req) => {
         const { query } = params as { query: string };
         if (!query) return error(400, "query required");
         const data = await searchTracks(query);
+        return Response.json({ data });
+      }
+      case "artist-all-tracks":
+      case "artistAllTracks": {
+        const { artistId } = params as { artistId: string };
+        if (!artistId) return error(400, "artistId required");
+        const data = await getArtistAllTracks(artistId);
         return Response.json({ data });
       }
       default:

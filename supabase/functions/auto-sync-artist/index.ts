@@ -71,11 +71,19 @@ async function createInitialSetlist(showId: string, tracks: { id: string; name: 
   const { data: existing } = await supabase.from('setlists').select('id').eq('show_id', showId).maybeSingle();
   if (existing?.id) return existing.id as string;
 
-  const top10 = tracks.slice(0, 10).map((t) => ({ id: crypto.randomUUID(), spotify_id: t.id, name: t.name, suggested: false }));
+  // Pick 5 random distinct songs from the artist catalogue
+  const pickCount = Math.min(5, tracks.length);
+  const shuffled = [...tracks].sort(() => 0.5 - Math.random());
+  const initial = shuffled.slice(0, pickCount).map((t) => ({
+    id: crypto.randomUUID(),
+    spotify_id: t.id,
+    name: t.name,
+    suggested: false,
+  }));
 
   const { data, error } = await supabase
     .from('setlists')
-    .insert({ show_id: showId, songs: top10 })
+    .insert({ show_id: showId, songs: initial })
     .select('id')
     .single();
   if (error) throw new Error(error.message);
@@ -134,16 +142,34 @@ serve(async (req) => {
         });
     }
 
-    // 3. Cache Spotify tracks
-    type TopTrack = { id: string; name: string };
-    let tracks: TopTrack[] = [];
+    // 3. Cache ALL Spotify tracks for this artist (albums, singles, etc.)
+    type Track = { id: string; name: string };
+    let tracks: Track[] = [];
     try {
-      tracks = await invokeFunction<{ tracks: TopTrack[] }>('spotify', {
-        action: 'artist-top-tracks',
+      tracks = await invokeFunction<{ tracks: Track[] }>('spotify', {
+        action: 'artist-all-tracks',
         params: { artistId: spotifyId, artistName },
       }).then((d: any) => d.tracks ?? []);
     } catch (_) {
-      // ignore
+      // ignore – proceed even if catalogue fetch fails
+    }
+
+    if (tracks.length) {
+      // Bulk upsert into cached_songs table
+      const chunks = [];
+      for (let i = 0; i < tracks.length; i += 1000) {
+        chunks.push(tracks.slice(i, i + 1000));
+      }
+      for (const chunk of chunks) {
+        await supabase.from('cached_songs').upsert(
+          chunk.map((t) => ({
+            artist_id: artistId,
+            spotify_id: t.id,
+            name: t.name,
+          })),
+          { onConflict: 'spotify_id' }
+        );
+      }
     }
 
     // 4. Create setlists for new shows
