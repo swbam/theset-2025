@@ -11,12 +11,15 @@ import { ArtistFollowCard } from '@/components/artists/ArtistFollowCard';
 import { LoadingState } from '@/components/shows/LoadingState';
 import { fetchArtistEvents } from '@/integrations/ticketmaster/artists';
 import { searchArtist, getArtistTopTracks } from '@/integrations/spotify/client';
+import { Helmet } from 'react-helmet-async';
+import { useLocation } from 'react-router-dom';
 
 export default function ArtistPage() {
   const { artistName } = useParams<{ artistName: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoadingShows, setIsLoadingShows] = useState(true);
+  const location = useLocation();
 
   const decodedArtistName = artistName ? decodeURIComponent(artistName) : '';
 
@@ -139,6 +142,11 @@ export default function ArtistPage() {
   return (
     <div className="min-h-screen bg-black">
       <TopNavigation />
+      <Helmet>
+        <title>{`${artistData?.name} concerts — Vote on setlist | TheSet`}</title>
+        <meta name="description" content={`Explore ${artistData?.name} upcoming shows and vote on the setlist.`} />
+        <link rel="canonical" href={`${window.location.origin}${location.pathname}`} />
+      </Helmet>
       
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

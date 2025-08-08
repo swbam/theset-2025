@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -12,15 +12,17 @@ import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
 import { useGuestActions } from '@/hooks/useGuestActions';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
+import { Helmet } from 'react-helmet-async';
 
 export default function ShowPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
-  const { guestActionsUsed, incrementGuestActions } = useGuestActions();
+  const { guestActionsUsed, actionsRemaining, incrementGuestActions } = useGuestActions();
 
   // Set up real-time updates for setlist changes
   useRealTimeUpdates(['setlist_songs', 'votes'], () => {
@@ -34,17 +36,9 @@ export default function ShowPage() {
   const { data: show, isLoading: showLoading } = useQuery({
     queryKey: ['show', eventId],
     queryFn: async () => {
-      const { data: show, error } = await supabase
+      const { data: showRow, error } = await supabase
         .from('cached_shows')
-        .select(`
-          *,
-          artists!cached_shows_artist_id_fkey(
-            id,
-            name,
-            spotify_id,
-            image_url
-          )
-        `)
+        .select('*')
         .eq('ticketmaster_id', eventId)
         .maybeSingle();
 
@@ -53,7 +47,20 @@ export default function ShowPage() {
         return null;
       }
 
-      return show;
+      if (!showRow) return null;
+
+      // Fetch artist separately to avoid FK dependency
+      let artist = null as any;
+      if (showRow.artist_id) {
+        const { data: artistData } = await supabase
+          .from('artists')
+          .select('id, name, spotify_id, image_url')
+          .eq('id', showRow.artist_id)
+          .maybeSingle();
+        artist = artistData || null;
+      }
+
+      return { ...showRow, artists: artist } as any;
     },
     enabled: !!eventId,
   });
