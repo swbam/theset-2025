@@ -76,7 +76,7 @@ export function SongSuggestionDialog({
         .from('setlists')
         .select(`
           show_id,
-          cached_shows!setlists_show_id_fkey(artist_id)
+          cached_shows!fk_setlists_show_id(artist_id)
         `)
         .eq('id', setlistId)
         .single();

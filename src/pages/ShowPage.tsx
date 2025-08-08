@@ -25,7 +25,7 @@ export default function ShowPage() {
   const { guestActionsUsed, actionsRemaining, incrementGuestActions } = useGuestActions();
 
   // Set up real-time updates for setlist changes
-  useRealTimeUpdates(['setlist_songs', 'votes'], () => {
+  useRealTimeUpdates(['setlist_songs', 'song_votes'], () => {
     if (show?.id) {
       queryClient.invalidateQueries({ queryKey: ['setlist', show.id] });
       queryClient.invalidateQueries({ queryKey: ['user-votes', show.id, user?.id] });
@@ -166,19 +166,21 @@ export default function ShowPage() {
 
   // Get user votes for this setlist
   const { data: userVotes } = useQuery({
-    queryKey: ['user-votes', show?.id, user?.id],
+    queryKey: ['user-votes', setlist?.id, user?.id],
     queryFn: async () => {
-      if (!user?.id || !show?.id) return [];
+      if (!user?.id || !setlist?.songs?.length) return [];
+
+      const songIds = setlist.songs.map((s: any) => s.id);
 
       const { data: votes } = await supabase
-        .from('votes')
-        .select('song_id')
+        .from('song_votes')
+        .select('setlist_song_id')
         .eq('user_id', user.id)
-        .eq('show_id', show.id);
+        .in('setlist_song_id', songIds);
 
-      return votes?.map(v => v.song_id) || [];
+      return votes?.map((v: any) => v.setlist_song_id) || [];
     },
-    enabled: !!user?.id && !!show?.id,
+    enabled: !!user?.id && !!setlist?.songs?.length,
   });
 
   const handleVote = async (songId: string) => {
@@ -223,7 +225,7 @@ export default function ShowPage() {
 
       // Refresh data
       queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
-      queryClient.invalidateQueries({ queryKey: ['user-votes', show?.id, user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['user-votes', setlist?.id, user?.id] });
 
     } catch (error) {
       console.error('Error voting:', error);
@@ -287,6 +289,11 @@ export default function ShowPage() {
   return (
     <div className="min-h-screen bg-black">
       <TopNavigation />
+      <Helmet>
+        <title>{`${show.name} — Vote on the setlist | TheSet`}</title>
+        <meta name="description" content={`Vote on the setlist for ${show.name}${show.venue_name ? ' at ' + show.venue_name : ''}.`} />
+        <link rel="canonical" href={`${window.location.origin}${location.pathname}`} />
+      </Helmet>
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="space-y-8">
           <ShowDetails name={show.name} date={show.date} venue={venueInfo} />
