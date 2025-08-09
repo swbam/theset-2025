@@ -69,11 +69,15 @@ export function SearchBar() {
               searchDebounced(value);
               setOpen(value.length > 0);
             }}
-            className="pl-10 bg-background/50 backdrop-blur-sm border-border/50"
+            className="pl-10 bg-background/90 backdrop-blur-sm border-border"
           />
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0" align="start">
+      <PopoverContent
+        className="w-[400px] p-0"
+        align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <Command>
           <CommandList>
             {isLoading ? (
