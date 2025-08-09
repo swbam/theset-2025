@@ -1,12 +1,16 @@
-# Supabase Edge Function Cron schedules
+# Supabase Edge Function configuration
 
 [functions]
 
-  [[functions.cron]]
-  name = "sync-artist-shows"
-  schedule = "0 */6 * * *" # every 6 hours
+  [functions.ticketmaster]
+  verify_jwt = false
 
-  [[functions.cron]]
-  name = "sync-artist-songs"
-  schedule = "0 3 * * *" # every day at 03:00 UTC
+  [functions.spotify]
+  verify_jwt = false
+
+  [functions.sync-artist-songs]
+  verify_jwt = false
+
+  [functions.sync-popular-tours]
+  verify_jwt = false
 

@@ -71,37 +71,15 @@ export function SongSuggestionDialog({
 
     setIsAdding(true);
     try {
-      // Get artist ID from setlist
-      const { data: setlist, error: setlistError } = await supabase
-        .from('setlists')
-        .select(`
-          show_id,
-          cached_shows!setlists_show_id_fkey(artist_id)
-        `)
-        .eq('id', setlistId)
-        .single();
+      // Add song via RPC for consistency
+      const { error } = await supabase.rpc('add_song_to_setlist', {
+        p_setlist_id: setlistId,
+        p_song_name: track.name,
+        p_spotify_id: track.id,
+        p_suggested: true,
+      });
 
-      if (setlistError || !setlist) {
-        throw new Error('Setlist not found');
-      }
-
-      const artistId = (setlist as any).cached_shows?.artist_id;
-
-      // Add song to setlist_songs
-      const { error } = await supabase
-        .from('setlist_songs')
-        .insert({
-          setlist_id: setlistId,
-          song_name: track.name,
-          spotify_id: track.id,
-          artist_id: artistId,
-          suggested: true,
-          order_index: 999 // Put suggested songs at the end
-        });
-
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: 'Song Added',

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { fetchPopularTours } from '@/integrations/ticketmaster/client';
+import { toSlug } from '@/utils/slug';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -166,7 +167,7 @@ export default function DashboardHome() {
                 onClick={() => {
                   const artist = show._embedded?.attractions?.[0];
                   if (artist?.name) {
-                    navigate(`/artist/${encodeURIComponent(artist.name)}`);
+                    navigate(`/artist/${toSlug(artist.name)}`);
                   }
                 }}
               >

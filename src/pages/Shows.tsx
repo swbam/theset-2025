@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
 import { useToast } from '@/hooks/use-toast';
+import { toSlug } from '@/utils/slug';
 
 export default function Shows() {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ export default function Shows() {
   }, [toast]);
 
   const handleArtistClick = (artistName: string) => {
-    navigate(`/artist/${encodeURIComponent(artistName)}`);
+    navigate(`/artist/${toSlug(artistName)}`);
   };
 
   return (

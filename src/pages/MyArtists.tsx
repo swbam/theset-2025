@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
+import { toSlug } from '@/utils/slug';
 
 interface FollowedArtist {
   id: string;
@@ -170,7 +171,7 @@ export default function MyArtists() {
                       <div className="flex gap-2">
                         <Button
                           className="flex-1"
-                          onClick={() => navigate(`/artist/${encodeURIComponent(artist.name)}`)}
+                          onClick={() => navigate(`/artist/${toSlug(artist.name)}`)}
                         >
                           <Calendar className="h-4 w-4 mr-2" />
                           View Shows

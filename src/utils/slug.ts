@@ -20,3 +20,10 @@ export function fromSlug(slug: string): string {
   return slug.replace(/-/g, ' ');
 }
 
+/** Create SEO-friendly show URL with artist, venue, city, state, and date */
+export function createShowSlug(artistName: string, venueName: string, city: string, state: string, date: string): string {
+  const dateFormatted = new Date(date).toISOString().split('T')[0]; // YYYY-MM-DD
+  const slugText = `${artistName} ${venueName} ${city} ${state} ${dateFormatted}`;
+  return toSlug(slugText);
+}
+

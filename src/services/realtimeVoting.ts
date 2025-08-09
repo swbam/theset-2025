@@ -18,7 +18,8 @@ export class RealtimeVoting {
         {
           event: '*',
           schema: 'public',
-          table: 'user_votes'
+          table: 'song_votes',
+          filter: `setlist_song_id=in.(select id from setlist_songs where setlist_id='${setlistId}')`
         },
         (payload) => {
           console.log('Vote update received:', payload);
@@ -40,10 +41,10 @@ export class RealtimeVoting {
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
-          table: 'setlists',
-          filter: `id=eq.${setlistId}`
+          table: 'setlist_songs',
+          filter: `setlist_id=eq.${setlistId}`
         },
         (payload) => {
           console.log('Setlist update received:', payload);

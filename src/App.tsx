@@ -46,9 +46,9 @@ function App() {
                 <Route path="/my-artists" element={<ProtectedRoute><MyArtists /></ProtectedRoute>} />
                 <Route path="/my-activity" element={<ProtectedRoute><MyActivity /></ProtectedRoute>} />
                 <Route path="/artists" element={<Artists />} />
-                <Route path="/artist/:artistName" element={<ArtistPage />} />
+                <Route path="/artist/:artistSlug" element={<ArtistPage />} />
                 <Route path="/shows" element={<Shows />} />
-                <Route path="/show/:eventId" element={<ShowPage />} />
+                <Route path="/show/:showSlug" element={<ShowPage />} />
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/how-it-works" element={<HowItWorks />} />

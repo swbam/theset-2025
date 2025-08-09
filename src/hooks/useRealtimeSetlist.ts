@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface SetlistSong {
@@ -15,62 +15,58 @@ export function useRealtimeSetlist(showId: string, userId?: string) {
   const [setlist, setSetlist] = useState<SetlistSong[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadSetlist = async () => {
+  const loadSetlist = useCallback(async () => {
     try {
-      const { data: setlistData } = await supabase
+      // Get setlist id by show
+      const { data: setlistRow } = await supabase
         .from('setlists')
-        .select('songs')
+        .select('id')
         .eq('show_id', showId)
-        .single();
+        .maybeSingle();
 
-      if (setlistData?.songs && Array.isArray(setlistData.songs)) {
-        // Get vote counts and user votes
-        const songsWithVotes = await Promise.all(
-          setlistData.songs.map(async (song: any) => {
-            // Get total votes for this song
-              const { count: voteCount } = await supabase
-              .from('user_votes')
-              .select('*', { count: 'exact' })
-              .eq('show_id', showId)
-              .eq('song_id', song.spotify_id);
+      if (!setlistRow?.id) {
+        setSetlist([]);
+        return;
+      }
 
-            // Check if user has voted
-            let userVoted = false;
-            if (userId) {
-              const { count: userVoteCount } = await supabase
-                .from('user_votes')
-                .select('*', { count: 'exact' })
-                .eq('user_id', userId)
-                .eq('song_id', song.spotify_id);
-              userVoted = (userVoteCount || 0) > 0;
-            }
+      // Get songs with vote counts using RPC
+      const { data: songsData } = await supabase.rpc('get_setlist_with_votes', {
+        setlist_uuid: setlistRow.id,
+      });
 
-            return {
-              id: song.spotify_id,
-              spotify_id: song.spotify_id,
-              name: song.name,
-              artist_name: song.artist_name,
-              votes: voteCount || 0,
-              user_voted: userVoted,
-              suggested: song.suggested || false
-            };
-          })
-        );
+      if (Array.isArray(songsData)) {
+        // Determine which songs this user voted for
+        let userVotedSet = new Set<string>();
+        if (userId) {
+          const { data: votes } = await supabase
+            .from('song_votes')
+            .select('setlist_song_id')
+            .eq('user_id', userId);
+          userVotedSet = new Set((votes || []).map((v: { setlist_song_id: string }) => v.setlist_song_id));
+        }
 
-        // Sort by votes (descending)
-        songsWithVotes.sort((a, b) => b.votes - a.votes);
-        setSetlist(songsWithVotes);
+        const mapped = (songsData as Array<{ id: string; spotify_id: string | null; song_name: string; total_votes: number | null; suggested: boolean }>)
+          .map((s) => ({
+          id: s.id,
+          spotify_id: s.spotify_id || '',
+          name: s.song_name,
+          votes: s.total_votes ?? 0,
+          user_voted: userVotedSet.has(s.id),
+          suggested: s.suggested,
+        }));
+
+        setSetlist(mapped);
       }
     } catch (error) {
       console.error('Error loading setlist:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showId, userId]);
 
   useEffect(() => {
     loadSetlist();
-  }, [showId, userId]);
+  }, [loadSetlist]);
 
   // Real-time subscription for votes
   useEffect(() => {
@@ -82,8 +78,7 @@ export function useRealtimeSetlist(showId: string, userId?: string) {
       {
         event: '*',
         schema: 'public',
-        table: 'user_votes',
-        filter: `show_id=eq.${showId}`,
+        table: 'song_votes',
       },
       () => {
         loadSetlist();
@@ -96,8 +91,7 @@ export function useRealtimeSetlist(showId: string, userId?: string) {
       {
         event: '*',
         schema: 'public',
-        table: 'setlists',
-        filter: `show_id=eq.${showId}`,
+        table: 'setlist_songs',
       },
       () => {
         loadSetlist();
@@ -109,7 +103,7 @@ export function useRealtimeSetlist(showId: string, userId?: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [showId]);
+  }, [showId, loadSetlist]);
 
   return {
     setlist,

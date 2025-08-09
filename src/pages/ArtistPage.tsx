@@ -6,20 +6,18 @@ import { useToast } from '@/hooks/use-toast';
 import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
 import { ArtistHero } from '@/components/artists/ArtistHero';
-import { FollowButton } from '@/components/artists/FollowButton';
 import { ArtistShows } from '@/components/artists/ArtistShows';
-import { ArtistFollowCard } from '@/components/artists/ArtistFollowCard';
 import { LoadingState } from '@/components/shows/LoadingState';
 import { fetchArtistEvents } from '@/integrations/ticketmaster/artists';
-import { searchArtist, getArtistTopTracks } from '@/integrations/spotify/client';
+import { fromSlug, toSlug, createShowSlug } from '@/utils/slug';
 
 export default function ArtistPage() {
-  const { artistName } = useParams<{ artistName: string }>();
+  const { artistSlug } = useParams<{ artistSlug: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoadingShows, setIsLoadingShows] = useState(true);
 
-  const decodedArtistName = artistName ? artistName.replace(/-/g, ' ') : '';
+  const decodedArtistName = artistSlug ? fromSlug(artistSlug) : '';
 
   // Query for artist data from our database
   const { data: artistData, isLoading: artistLoading } = useQuery({
@@ -85,10 +83,24 @@ export default function ArtistPage() {
   });
 
   const handleShowClick = (show: any) => {
-    // Use ticketmaster_id from cached_shows or id from TicketmasterEvent
+    // Create SEO-friendly show slug with venue, city, state, date
     const showId = show.ticketmaster_id || show.id;
     if (showId) {
-      navigate(`/show/${showId}`);
+      const artistName = artistData?.name || decodedArtistName;
+      const venueName = show.venue_name || show._embedded?.venues?.[0]?.name || 'venue';
+      const showDate = show.date || show.dates?.start?.dateTime;
+      const venueLocation = show.venue_location || show._embedded?.venues?.[0];
+      const city = venueLocation?.city?.name || 'city';
+      const state = venueLocation?.state?.name || venueLocation?.state?.stateCode || 'state';
+      
+      if (showDate) {
+        const showSlug = createShowSlug(artistName, venueName, city, state, showDate);
+        navigate(`/show/${showSlug}?id=${showId}`);
+      } else {
+        // Fallback for shows without dates
+        const showSlug = toSlug(`${artistName} ${venueName} ${city} ${state}`);
+        navigate(`/show/${showSlug}?id=${showId}`);
+      }
     } else {
       toast({
         title: 'Show Not Available',
@@ -129,36 +141,20 @@ export default function ArtistPage() {
     <div className="min-h-screen bg-black">
       <TopNavigation />
       
+      {/* Hero Section */}
+      <ArtistHero
+        artist={artistData as any}
+        artistName={artistData.name}
+        showCount={shows?.length || 0}
+      />
+      
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            <ArtistHero
-              artist={artistData as any}
-              artistName={artistData.name}
-            />
-            
-            <ArtistShows
-              shows={shows || []}
-              isLoading={showsLoading || isLoadingShows}
-              onShowClick={handleShowClick}
-            />
-          </div>
-
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <ArtistFollowCard
-              name={artistData.name}
-              imageUrl={
-                'image_url' in artistData 
-                  ? artistData.image_url 
-                  : (artistData as any).images?.[0]?.url || null
-              }
-              followingSince={new Date().toISOString()}
-              showCount={shows?.length || 0}
-            />
-          </div>
-        </div>
+        <ArtistShows
+          shows={shows || []}
+          isLoading={showsLoading || isLoadingShows}
+          onShowClick={handleShowClick}
+        />
       </div>
       
       <Footer />

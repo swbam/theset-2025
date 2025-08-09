@@ -23,38 +23,12 @@ export const callTicketmasterFunction = async (
   return data;
 };
 
+// Deprecated: do not use JSON songs. Use initialize_show_setlist RPC with Spotify tracks.
 export const createInitialSetlistFromSpotifyTracks = async (
-  showId: string,
-  spotifyTracks: SpotifyTrack[]
+  _showId: string,
+  _spotifyTracks: SpotifyTrack[]
 ): Promise<string> => {
-  // Create songs array from Spotify tracks
-  const songs = spotifyTracks.map((track, index) => ({
-    id: `song-${track.id}`,
-    name: track.name,
-    song_name: track.name,
-    spotify_id: track.id,
-    total_votes: 0,
-    suggested: false,
-    order: index,
-  }));
-
-  // Create new setlist with real Spotify data
-  const { data: setlist, error } = await supabase
-    .from('setlists')
-    .insert({
-      show_id: showId,
-      songs: songs,
-      created_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error creating setlist:', error);
-    throw error;
-  }
-
-  return setlist.id;
+  throw new Error('createInitialSetlistFromSpotifyTracks is deprecated. Use initialize_show_setlist RPC.');
 };
 
 export const fetchFromCache = async (

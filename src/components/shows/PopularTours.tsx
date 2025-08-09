@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Music, MapPin, Calendar, Users, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { toSlug } from '@/utils/slug';
 
 interface Show {
   id: string;
@@ -52,7 +53,7 @@ export const PopularTours = ({ onArtistClick, shows = [], isLoading = false }: P
       if (onArtistClick) {
         onArtistClick(artist.name);
       } else {
-        navigate(`/artist/${encodeURIComponent(artist.name)}`);
+        navigate(`/artist/${toSlug(artist.name)}`);
       }
     }
   };

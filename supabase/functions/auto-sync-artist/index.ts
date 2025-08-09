@@ -44,11 +44,37 @@ function jsonResponse(body: unknown, status = 200) {
 
 // Helper – upsert artist row and return its DB id
 async function upsertArtist(name: string, spotifyId?: string) {
+  // Prefer de-duplication by spotify_id if available
+  if (spotifyId) {
+    const { data, error } = await supabase
+      .from('artists')
+      .upsert(
+        {
+          name,
+          spotify_id: spotifyId,
+          last_synced_at: new Date().toISOString(),
+        },
+        { onConflict: 'spotify_id' }
+      )
+      .select('id')
+      .single();
+    if (error) throw new Error(error.message);
+    return data.id as string;
+  }
+
+  // Fallback when no spotify_id: try to find by name, else insert
+  const { data: existing } = await supabase
+    .from('artists')
+    .select('id')
+    .ilike('name', name)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+
   const { data, error } = await supabase
     .from('artists')
-    .upsert({
+    .insert({
       name,
-      spotify_id: spotifyId ?? null,
+      last_synced_at: new Date().toISOString(),
     })
     .select('id')
     .single();
@@ -65,29 +91,23 @@ async function invokeFunction<T>(fn: string, payload: Record<string, unknown>): 
   return data as T;
 }
 
-// Helper – build initial setlist from top Spotify tracks
+// Helper – create initial setlist via RPC with Spotify tracks
 async function createInitialSetlist(showId: string, tracks: { id: string; name: string }[]) {
-  // Only insert if a setlist doesn't already exist
-  const { data: existing } = await supabase.from('setlists').select('id').eq('show_id', showId).maybeSingle();
+  // Only create if not exists
+  const { data: existing } = await supabase
+    .from('setlists')
+    .select('id')
+    .eq('show_id', showId)
+    .maybeSingle();
   if (existing?.id) return existing.id as string;
 
-  // Pick 5 random distinct songs from the artist catalogue
-  const pickCount = Math.min(5, tracks.length);
-  const shuffled = [...tracks].sort(() => 0.5 - Math.random());
-  const initial = shuffled.slice(0, pickCount).map((t) => ({
-    id: crypto.randomUUID(),
-    spotify_id: t.id,
-    name: t.name,
-    suggested: false,
-  }));
-
-  const { data, error } = await supabase
-    .from('setlists')
-    .insert({ show_id: showId, songs: initial })
-    .select('id')
-    .single();
-  if (error) throw new Error(error.message);
-  return data.id as string;
+  // Use RPC to initialize normalized setlist + setlist_songs
+  const { data: newSetlistId, error: initError } = await supabase.rpc('initialize_show_setlist', {
+    p_show_id: showId,
+    p_spotify_tracks: tracks,
+  });
+  if (initError) throw new Error(initError.message);
+  return newSetlistId as string;
 }
 
 serve(async (req) => {
@@ -114,42 +134,102 @@ serve(async (req) => {
   if (!artistName) return jsonResponse({ error: 'artistName is required' }, 400);
 
   try {
-    // 1. Upsert artist row
-    const artistId = await upsertArtist(artistName, spotifyId);
-
-    // 2. Import shows via Ticketmaster edge function
-    type TMResponse = { events: { id: string; name: string; dates: { start: { dateTime: string } } }[] };
-
-    let tmData: TMResponse;
-    try {
-      tmData = await invokeFunction<TMResponse>('ticketmaster', {
-        endpoint: 'artist-events',
-        artistName,
-      });
-    } catch (e) {
-      // Non-fatal – continue without events
-      tmData = { events: [] } as TMResponse;
+    // 1. Resolve Spotify artist ID if not provided
+    let resolvedSpotifyId = spotifyId;
+    if (!resolvedSpotifyId) {
+      try {
+        const spSearch = await invokeFunction<any>('spotify', {
+          action: 'search-artist',
+          params: { artistName }
+        });
+        resolvedSpotifyId = spSearch?.data?.id ?? null;
+      } catch (_) {
+        resolvedSpotifyId = null;
+      }
     }
 
-    for (const ev of tmData.events ?? []) {
+    // Upsert artist row
+    const artistId = await upsertArtist(artistName, resolvedSpotifyId ?? undefined);
+
+    // 2. Import shows via Ticketmaster edge function
+    // Call Ticketmaster proxy for artist events
+    let tmResponse: any = null;
+    try {
+      tmResponse = await invokeFunction<any>('ticketmaster', {
+        endpoint: 'artist-events',
+        query: artistName,
+      });
+    } catch (_) {
+      tmResponse = null;
+    }
+
+    const events: any[] = tmResponse?.data?._embedded?.events ?? [];
+
+    for (const ev of events) {
+      const venue = ev._embedded?.venues?.[0];
+      let venueId = null;
+
+      // Upsert venue first if exists
+      if (venue) {
+        const { data: venueData } = await supabase
+          .from('venues')
+          .upsert({
+            ticketmaster_id: venue.id,
+            name: venue.name,
+            city: venue.city?.name ?? null,
+            state: venue.state?.name ?? null,
+            country: venue.country?.name ?? null,
+            timezone: venue.timezone ?? null,
+            address: venue.address?.line1 ?? null,
+            postal_code: venue.postalCode ?? null,
+            last_synced_at: new Date().toISOString()
+          }, { onConflict: 'ticketmaster_id' })
+          .select('id')
+          .single();
+        
+        venueId = venueData?.id ?? null;
+      }
+
       await supabase
         .from('shows')
         .upsert({
           ticketmaster_id: ev.id,
           artist_id: artistId,
+          venue_id: venueId,
           name: ev.name,
-          starts_at: ev.dates?.start?.dateTime ?? null,
-        });
+          date: ev.dates?.start?.dateTime ?? null,
+        }, { onConflict: 'ticketmaster_id' });
+
+      // Also upsert cached_shows used by the frontend
+      await supabase
+        .from('cached_shows')
+        .upsert({
+          ticketmaster_id: ev.id,
+          artist_id: artistId,
+          name: ev.name,
+          date: ev.dates?.start?.dateTime ?? null,
+          venue_name: venue?.name ?? null,
+          venue_location: venue ? {
+            city: venue.city?.name,
+            state: venue.state?.name,
+            country: venue.country?.name
+          } : null,
+          ticket_url: ev.url ?? null,
+          last_synced_at: new Date().toISOString()
+        }, { onConflict: 'ticketmaster_id' });
     }
 
     // 3. Cache ALL Spotify tracks for this artist (albums, singles, etc.)
     type Track = { id: string; name: string };
     let tracks: Track[] = [];
     try {
-      tracks = await invokeFunction<{ tracks: Track[] }>('spotify', {
-        action: 'artist-all-tracks',
-        params: { artistId: spotifyId, artistName },
-      }).then((d: any) => d.tracks ?? []);
+      if (resolvedSpotifyId) {
+        const spAll = await invokeFunction<any>('spotify', {
+          action: 'artistAllTracks',
+          params: { artistId: resolvedSpotifyId },
+        });
+        tracks = spAll?.data?.map((t: any) => ({ id: t.id, name: t.name })) ?? [];
+      }
     } catch (_) {
       // ignore – proceed even if catalogue fetch fails
     }
@@ -166,10 +246,19 @@ serve(async (req) => {
             artist_id: artistId,
             spotify_id: t.id,
             name: t.name,
+            album: 'Unknown Album',
+            popularity: 50,
+            last_synced_at: new Date().toISOString()
           })),
-          { onConflict: 'spotify_id' }
+          { onConflict: 'artist_id,spotify_id' }
         );
       }
+
+      // Update artist sync timestamp
+      await supabase
+        .from('artists')
+        .update({ last_synced_at: new Date().toISOString() })
+        .eq('id', artistId);
     }
 
     // 4. Create setlists for new shows

@@ -86,12 +86,12 @@ function buildApiUrl(endpoint: string, query?: string, params?: Record<string, a
   
   switch (endpoint) {
     case 'artist-events':
-      // Alias that searches events by artist keyword
-      params = params || {};
-      if (query) {
-        params.keyword = query;
-      }
-      endpoint = 'events';
+      // Events filtered by artist keyword
+      if (query) queryParams.append('keyword', query);
+      queryParams.append('classificationName', 'music');
+      queryParams.append('sort', 'date,asc');
+      queryParams.append('size', '50');
+      url = `${TICKETMASTER_BASE_URL}/events.json`;
       break;
     case 'search':
       // Search for artists specifically

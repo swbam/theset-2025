@@ -120,10 +120,36 @@ async function getArtistAllTracks(artistId: string): Promise<any[]> {
     }
   }
 
-  // Map to minimal form and deduplicate by track id
+  // Filter out live recordings and deduplicate by track name (case insensitive)
   const unique = new Map<string, { id: string; name: string }>();
   tracks.forEach((t: any) => {
-    if (!unique.has(t.id)) unique.set(t.id, { id: t.id, name: t.name });
+    const trackName = t.name?.toLowerCase() || '';
+    
+    // Skip tracks with "live" in the title (various formats)
+    if (
+      trackName.includes('live') ||
+      trackName.includes('(live') ||
+      trackName.includes('[live') ||
+      trackName.includes('- live') ||
+      trackName.includes('acoustic') ||
+      trackName.includes('unplugged') ||
+      trackName.includes('concert') ||
+      trackName.includes('session')
+    ) {
+      return; // Skip this track
+    }
+
+    // Use normalized track name for deduplication (removes common suffixes)
+    const normalizedName = trackName
+      .replace(/\s*\(.*?\)\s*/g, '') // Remove parentheses content
+      .replace(/\s*\[.*?\]\s*/g, '') // Remove bracket content
+      .replace(/\s*-\s*(remaster|remix|edit|version|deluxe).*$/i, '') // Remove version suffixes
+      .trim();
+
+    // Only keep if we haven't seen this normalized name before
+    if (!unique.has(normalizedName) && t.id && t.name) {
+      unique.set(normalizedName, { id: t.id, name: t.name });
+    }
   });
 
   return [...unique.values()];

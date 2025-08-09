@@ -55,7 +55,9 @@ export const AddSongDialog: React.FC<AddSongDialogProps> = ({
     try {
       const { error } = await supabase.rpc('add_song_to_setlist', {
         p_setlist_id: setlistId,
-        p_song_id: song.id,
+        p_song_name: song.name,
+        p_spotify_id: song.spotify_id,
+        p_suggested: true,
       });
       if (error) throw error;
       onSongAdded?.();

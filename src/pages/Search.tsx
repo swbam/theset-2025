@@ -8,6 +8,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchArtists } from '@/integrations/ticketmaster/artists';
 import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
 import { useToast } from '@/hooks/use-toast';
+import { toSlug, createShowSlug } from '@/utils/slug';
 
 export default function Search() {
   const [searchParams] = useSearchParams();
@@ -68,12 +69,24 @@ export default function Search() {
   };
 
   const handleArtistClick = (artistName: string) => {
-    navigate(`/artist/${encodeURIComponent(artistName)}`);
+    navigate(`/artist/${toSlug(artistName)}`);
   };
 
   const handleShowClick = (show: any) => {
     if (show.id) {
-      navigate(`/show/${show.id}`);
+      const artistName = show._embedded?.attractions?.[0]?.name || 'artist';
+      const venueName = show._embedded?.venues?.[0]?.name || 'venue';
+      const city = show._embedded?.venues?.[0]?.city?.name || 'city';
+      const state = show._embedded?.venues?.[0]?.state?.name || show._embedded?.venues?.[0]?.state?.stateCode || 'state';
+      const showDate = show.dates?.start?.dateTime;
+      
+      if (showDate) {
+        const showSlug = createShowSlug(artistName, venueName, city, state, showDate);
+        navigate(`/show/${showSlug}?id=${show.id}`);
+      } else {
+        const showSlug = toSlug(`${artistName} ${venueName} ${city} ${state}`);
+        navigate(`/show/${showSlug}?id=${show.id}`);
+      }
     }
   };
 

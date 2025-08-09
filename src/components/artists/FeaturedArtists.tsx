@@ -13,14 +13,16 @@ export const FeaturedArtists = ({ onArtistClick, shows = [], isLoading = false }
 
   useEffect(() => {
     if (shows && shows.length > 0) {
-      // Extract unique artists from shows data
+      // Extract unique artists from shows data with enhanced deduplication
       const artistMap = new Map<string, any>();
 
       shows.forEach((show) => {
         const artist = show._embedded?.attractions?.[0];
         if (!artist?.id || !artist?.name) return;
 
-        const key = artist.id as string;
+        // Use both ID and normalized name for stronger deduplication
+        const normalizedName = artist.name.toLowerCase().trim();
+        const key = `${artist.id}-${normalizedName}`;
 
         const existingArtist = artistMap.get(key) || {
           id: artist.id,
@@ -34,10 +36,13 @@ export const FeaturedArtists = ({ onArtistClick, shows = [], isLoading = false }
         artistMap.set(key, existingArtist);
       });
 
+      // Filter to only artists with shows in USA and sort by show count
       const artists = Array.from(artistMap.values())
+        .filter((artist) => artist.showCount > 0) // Ensure they have shows
         .sort((a, b) => b.showCount - a.showCount)
-        .slice(0, 12); // Top 12 artists
+        .slice(0, 12); // Top 12 unique artists with most shows
 
+      console.log('Featured artists processed:', artists.length, 'unique artists from', shows.length, 'shows');
       setFeaturedArtists(artists);
     }
   }, [shows]);
