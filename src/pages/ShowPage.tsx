@@ -25,8 +25,6 @@ export default function ShowPage() {
   const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
   const { guestActionsUsed, actionsRemaining, incrementGuestActions } = useGuestActions();
 
-<<<<<<< HEAD
-=======
   // Set up real-time updates for setlist changes
   useRealTimeUpdates(['setlist_songs', 'song_votes'], () => {
     if (show?.id) {
@@ -34,8 +32,6 @@ export default function ShowPage() {
       queryClient.invalidateQueries({ queryKey: ['user-votes', show.id, user?.id] });
     }
   });
-
->>>>>>> origin/main
   // Fetch show data
   const { data: show, isLoading: showLoading } = useQuery({
     queryKey: ['show', eventId],
@@ -180,38 +176,19 @@ export default function ShowPage() {
   const { data: userVotes } = useQuery({
     queryKey: ['user-votes', setlist?.id, user?.id],
     queryFn: async () => {
-<<<<<<< HEAD
-      if (!user?.id || !setlist?.id) return [];
-
-      // Get setlist song ids
-      const { data: setlistSongs, error: songsError } = await supabase
-        .from('setlist_songs')
-        .select('id')
-        .eq('setlist_id', setlist.id);
-
-      if (songsError || !setlistSongs || setlistSongs.length === 0) return [];
-
-      const songIds = setlistSongs.map((s: any) => s.id);
-
-      // Get user's votes among those songs
-      const { data: votes, error: votesError } = await supabase
-=======
       if (!user?.id || !setlist?.songs?.length) return [];
 
       const songIds = setlist.songs.map((s: any) => s.id);
 
       const { data: votes } = await supabase
->>>>>>> origin/main
         .from('song_votes')
         .select('setlist_song_id')
         .eq('user_id', user.id)
         .in('setlist_song_id', songIds);
 
-<<<<<<< HEAD
-      if (votesError) return [];
       return votes?.map((v: any) => v.setlist_song_id) || [];
     },
-    enabled: !!user?.id && !!setlist?.id,
+    enabled: !!user?.id && !!setlist?.songs?.length,
   });
 
   // Query artist's song catalog for the dropdown
@@ -231,15 +208,9 @@ export default function ShowPage() {
         return [];
       }
 
-      console.log('Artist songs fetched:', data?.length || 0, 'songs');
       return data || [];
     },
     enabled: !!show?.artist_id,
-=======
-      return votes?.map((v: any) => v.setlist_song_id) || [];
-    },
-    enabled: !!user?.id && !!setlist?.songs?.length,
->>>>>>> origin/main
   });
 
   const handleVote = async (songId: string) => {
@@ -389,45 +360,6 @@ export default function ShowPage() {
   return (
     <div className="min-h-screen bg-black">
       <TopNavigation />
-<<<<<<< HEAD
-      
-      {/* Hero Section */}
-      <div 
-        className="relative h-96 bg-cover bg-center"
-        style={{
-          backgroundImage: show.artists?.cover_image_url 
-            ? `url(${show.artists.cover_image_url})`
-            : 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)'
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/60 to-black/90" />
-        
-        {/* Back button */}
-        <button 
-          onClick={() => navigate(-1)}
-          className="absolute top-6 left-6 flex items-center gap-2 text-white hover:text-white/80 transition-colors z-10"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to artist
-        </button>
-
-        {/* Upcoming badge */}
-        <div className="absolute top-6 right-6 bg-gray-800/80 text-white text-sm px-3 py-1 rounded-full backdrop-blur-sm">
-          Upcoming
-        </div>
-
-        <div className="absolute bottom-8 left-8 flex items-end gap-6">
-          {/* Artist profile image */}
-          {show.artists?.image_url && (
-            <img
-              src={show.artists.image_url}
-              alt={show.artists.name}
-              className="w-32 h-32 rounded-lg object-cover shadow-2xl"
-            />
-          )}
-=======
       <Helmet>
         <title>{`${show.name} — Vote on the setlist | TheSet`}</title>
         <meta name="description" content={`Vote on the setlist for ${show.name}${show.venue_name ? ' at ' + show.venue_name : ''}.`} />
@@ -435,8 +367,7 @@ export default function ShowPage() {
       </Helmet>
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="space-y-8">
-          <ShowDetails name={show.name} date={show.date} venue={venueInfo} />
->>>>>>> origin/main
+          {/* Header line-up */}
           
           <div className="pb-2">
             <h1 className="text-4xl font-bold text-white mb-2">{show.artists?.name || 'Artist'}</h1>

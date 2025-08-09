@@ -10,12 +10,9 @@ import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
 import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
 import { useToast } from '@/hooks/use-toast';
-<<<<<<< HEAD
 import { toSlug, createShowSlug } from '@/utils/slug';
-=======
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
->>>>>>> origin/main
 
 const Index = () => {
   const { user } = useAuth();

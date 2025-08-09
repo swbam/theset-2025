@@ -16,15 +16,21 @@ export const searchArtists = async (query: string) => {
     const results = await callTicketmasterFunction('search', query);
     console.log('searchArtists: Got results:', results);
 
-    // Extract unique artists from events
+    // Extract unique artists from U.S. events only
     const uniqueArtists = new Map<string, any>();
 
     if (results.data?._embedded?.events) {
       results.data._embedded.events.forEach((event: TicketmasterEvent) => {
+        const venueCountry = event._embedded?.venues?.[0]?.country?.countryCode || event._embedded?.venues?.[0]?.country?.name;
+        if (venueCountry && venueCountry !== 'US' && venueCountry !== 'United States') {
+          return; // Skip non-US events for now – keeps data focused and avoids duplicates
+        }
         const artist = event._embedded?.attractions?.[0];
         if (artist && artist.id && artist.name) {
-          if (!uniqueArtists.has(artist.id)) {
-            uniqueArtists.set(artist.id, {
+          const normalizedName = artist.name.toLowerCase().trim();
+          const key = `${artist.id}-${normalizedName}`;
+          if (!uniqueArtists.has(key)) {
+            uniqueArtists.set(key, {
               id: artist.id,
               name: artist.name,
               image_url: artist.images?.[0]?.url || event.images?.[0]?.url,

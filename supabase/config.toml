@@ -14,3 +14,13 @@
   [functions.sync-popular-tours]
   verify_jwt = false
 
+
+# Cron job schedules
+[[functions.cron]]
+name = "sync-artist-songs"
+schedule = "0 2 */3 * *" # every 3 days at 02:00 UTC
+
+[[functions.cron]]
+name = "sync-popular-tours"
+schedule = "0 1 * * *" # every day at 01:00 UTC
+

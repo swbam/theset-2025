@@ -17,6 +17,10 @@ export const FeaturedArtists = ({ onArtistClick, shows = [], isLoading = false }
       const artistMap = new Map<string, any>();
 
       shows.forEach((show) => {
+        const venueCountry = show._embedded?.venues?.[0]?.country?.countryCode || show._embedded?.venues?.[0]?.country?.name;
+        if (venueCountry && venueCountry !== 'US' && venueCountry !== 'United States') {
+          return; // Skip non-US shows
+        }
         const artist = show._embedded?.attractions?.[0];
         if (!artist?.id || !artist?.name) return;
 

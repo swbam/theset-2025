@@ -9,13 +9,9 @@ import { ArtistHero } from '@/components/artists/ArtistHero';
 import { ArtistShows } from '@/components/artists/ArtistShows';
 import { LoadingState } from '@/components/shows/LoadingState';
 import { fetchArtistEvents } from '@/integrations/ticketmaster/artists';
-<<<<<<< HEAD
 import { fromSlug, toSlug, createShowSlug } from '@/utils/slug';
-=======
-import { searchArtist, getArtistTopTracks } from '@/integrations/spotify/client';
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
->>>>>>> origin/main
 
 export default function ArtistPage() {
   const { artistSlug } = useParams<{ artistSlug: string }>();

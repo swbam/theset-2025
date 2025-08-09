@@ -169,12 +169,15 @@ serve(async (req) => {
       const venue = ev._embedded?.venues?.[0];
       let venueId = null;
 
-      // Upsert venue first if exists
+      // Upsert venue first if exists; create placeholder if missing
       if (venue) {
+        // Generate a stable synthetic ticketmaster_id for venues missing an ID
+        const ticketmasterVenueId = venue.id ?? `venue_${(venue.name || 'unknown').replace(/\s+/g, '_').toLowerCase()}_${(venue.city?.name || 'unknown').replace(/\s+/g, '_').toLowerCase()}`;
+
         const { data: venueData } = await supabase
           .from('venues')
           .upsert({
-            ticketmaster_id: venue.id,
+            ticketmaster_id: ticketmasterVenueId,
             name: venue.name,
             city: venue.city?.name ?? null,
             state: venue.state?.name ?? null,
@@ -185,8 +188,27 @@ serve(async (req) => {
             last_synced_at: new Date().toISOString()
           }, { onConflict: 'ticketmaster_id' })
           .select('id')
-          .single();
-        
+          .maybeSingle();
+
+        venueId = venueData?.id ?? null;
+      } else {
+        // Create a placeholder venue to satisfy NOT NULL constraint on shows.venue_id
+        const syntheticId = `venue_unknown_${(artistName || 'artist').replace(/\s+/g, '_').toLowerCase()}`;
+        const { data: venueData } = await supabase
+          .from('venues')
+          .upsert({
+            ticketmaster_id: syntheticId,
+            name: 'Unknown Venue',
+            city: null,
+            state: null,
+            country: null,
+            timezone: null,
+            address: null,
+            postal_code: null,
+            last_synced_at: new Date().toISOString()
+          }, { onConflict: 'ticketmaster_id' })
+          .select('id')
+          .maybeSingle();
         venueId = venueData?.id ?? null;
       }
 
