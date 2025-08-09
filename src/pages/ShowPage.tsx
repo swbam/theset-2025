@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +11,7 @@ import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
 import { useGuestActions } from '@/hooks/useGuestActions';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
+import { Helmet } from 'react-helmet-async';
 
 export default function ShowPage() {
   const { showSlug } = useParams<{ showSlug: string }>();
@@ -19,25 +20,29 @@ export default function ShowPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
-  const { guestActionsUsed, incrementGuestActions } = useGuestActions();
+  const { guestActionsUsed, actionsRemaining, incrementGuestActions } = useGuestActions();
 
+<<<<<<< HEAD
+=======
+  // Set up real-time updates for setlist changes
+  useRealTimeUpdates(['setlist_songs', 'song_votes'], () => {
+    if (show?.id) {
+      queryClient.invalidateQueries({ queryKey: ['setlist', show.id] });
+      queryClient.invalidateQueries({ queryKey: ['user-votes', show.id, user?.id] });
+    }
+  });
+
+>>>>>>> origin/main
   // Fetch show data
   const { data: show, isLoading: showLoading } = useQuery({
     queryKey: ['show', eventId],
     queryFn: async () => {
-      const { data: show, error } = await supabase
+      const { data: showRow, error } = await supabase
         .from('cached_shows')
-        .select(`
-          *,
-          artists!cached_shows_artist_id_fkey(
-            id,
-            name,
-            spotify_id,
-            image_url
-          )
-        `)
+        .select('*')
         .eq('ticketmaster_id', eventId)
         .maybeSingle();
 
@@ -46,7 +51,20 @@ export default function ShowPage() {
         return null;
       }
 
-      return show;
+      if (!showRow) return null;
+
+      // Fetch artist separately to avoid FK dependency
+      let artist = null as any;
+      if (showRow.artist_id) {
+        const { data: artistData } = await supabase
+          .from('artists')
+          .select('id, name, spotify_id, image_url')
+          .eq('id', showRow.artist_id)
+          .maybeSingle();
+        artist = artistData || null;
+      }
+
+      return { ...showRow, artists: artist } as any;
     },
     enabled: !!eventId,
   });
@@ -162,6 +180,7 @@ export default function ShowPage() {
   const { data: userVotes } = useQuery({
     queryKey: ['user-votes', setlist?.id, user?.id],
     queryFn: async () => {
+<<<<<<< HEAD
       if (!user?.id || !setlist?.id) return [];
 
       // Get setlist song ids
@@ -176,11 +195,19 @@ export default function ShowPage() {
 
       // Get user's votes among those songs
       const { data: votes, error: votesError } = await supabase
+=======
+      if (!user?.id || !setlist?.songs?.length) return [];
+
+      const songIds = setlist.songs.map((s: any) => s.id);
+
+      const { data: votes } = await supabase
+>>>>>>> origin/main
         .from('song_votes')
         .select('setlist_song_id')
         .eq('user_id', user.id)
         .in('setlist_song_id', songIds);
 
+<<<<<<< HEAD
       if (votesError) return [];
       return votes?.map((v: any) => v.setlist_song_id) || [];
     },
@@ -208,6 +235,11 @@ export default function ShowPage() {
       return data || [];
     },
     enabled: !!show?.artist_id,
+=======
+      return votes?.map((v: any) => v.setlist_song_id) || [];
+    },
+    enabled: !!user?.id && !!setlist?.songs?.length,
+>>>>>>> origin/main
   });
 
   const handleVote = async (songId: string) => {
@@ -357,6 +389,7 @@ export default function ShowPage() {
   return (
     <div className="min-h-screen bg-black">
       <TopNavigation />
+<<<<<<< HEAD
       
       {/* Hero Section */}
       <div 
@@ -394,6 +427,16 @@ export default function ShowPage() {
               className="w-32 h-32 rounded-lg object-cover shadow-2xl"
             />
           )}
+=======
+      <Helmet>
+        <title>{`${show.name} — Vote on the setlist | TheSet`}</title>
+        <meta name="description" content={`Vote on the setlist for ${show.name}${show.venue_name ? ' at ' + show.venue_name : ''}.`} />
+        <link rel="canonical" href={`${window.location.origin}${location.pathname}`} />
+      </Helmet>
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="space-y-8">
+          <ShowDetails name={show.name} date={show.date} venue={venueInfo} />
+>>>>>>> origin/main
           
           <div className="pb-2">
             <h1 className="text-4xl font-bold text-white mb-2">{show.artists?.name || 'Artist'}</h1>

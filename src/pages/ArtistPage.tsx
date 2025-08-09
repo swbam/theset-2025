@@ -9,13 +9,20 @@ import { ArtistHero } from '@/components/artists/ArtistHero';
 import { ArtistShows } from '@/components/artists/ArtistShows';
 import { LoadingState } from '@/components/shows/LoadingState';
 import { fetchArtistEvents } from '@/integrations/ticketmaster/artists';
+<<<<<<< HEAD
 import { fromSlug, toSlug, createShowSlug } from '@/utils/slug';
+=======
+import { searchArtist, getArtistTopTracks } from '@/integrations/spotify/client';
+import { Helmet } from 'react-helmet-async';
+import { useLocation } from 'react-router-dom';
+>>>>>>> origin/main
 
 export default function ArtistPage() {
   const { artistSlug } = useParams<{ artistSlug: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoadingShows, setIsLoadingShows] = useState(true);
+  const location = useLocation();
 
   const decodedArtistName = artistSlug ? fromSlug(artistSlug) : '';
 
@@ -140,6 +147,11 @@ export default function ArtistPage() {
   return (
     <div className="min-h-screen bg-black">
       <TopNavigation />
+      <Helmet>
+        <title>{`${artistData?.name} concerts — Vote on setlist | TheSet`}</title>
+        <meta name="description" content={`Explore ${artistData?.name} upcoming shows and vote on the setlist.`} />
+        <link rel="canonical" href={`${window.location.origin}${location.pathname}`} />
+      </Helmet>
       
       {/* Hero Section */}
       <ArtistHero

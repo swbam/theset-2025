@@ -10,7 +10,12 @@ import { TopNavigation } from '@/components/layout/TopNavigation';
 import { Footer } from '@/components/layout/Footer';
 import { fetchPopularTours } from '@/integrations/ticketmaster/artists';
 import { useToast } from '@/hooks/use-toast';
+<<<<<<< HEAD
 import { toSlug, createShowSlug } from '@/utils/slug';
+=======
+import { Helmet } from 'react-helmet-async';
+import { useLocation } from 'react-router-dom';
+>>>>>>> origin/main
 
 const Index = () => {
   const { user } = useAuth();
@@ -18,6 +23,7 @@ const Index = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [popularShows, setPopularShows] = useState<any[]>([]);
+  const location = useLocation();
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -66,6 +72,11 @@ const Index = () => {
   return (
     <div className="min-h-full bg-black">
       <TopNavigation />
+      <Helmet>
+        <title>TheSet — Vote on Concert Setlists</title>
+        <meta name="description" content="Vote on setlists for upcoming concerts. Discover shows and shape the music you hear live." />
+        <link rel="canonical" href={`${window.location.origin}${location.pathname}`} />
+      </Helmet>
       {/* Hero Section */}
       <div className="relative py-24">
         <div className="max-w-5xl mx-auto px-6 text-center">
