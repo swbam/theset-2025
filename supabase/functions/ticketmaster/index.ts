@@ -2,7 +2,7 @@
 // Supports intelligent rate limiting, circuit breakers, and comprehensive error handling
 
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
-import { handleCorsPreFlight, createCorsResponse } from '../_shared/cors.ts';
+import { handleCorsPreFlight, createCorsResponse } from './_shared/cors.ts';
 import { 
   RateLimiter, 
   CircuitBreaker, 
@@ -12,13 +12,13 @@ import {
   isRetryableError,
   createApiResponse,
   sleep
-} from '../_shared/utils.ts';
+} from './_shared/utils.ts';
 import type { 
   TicketmasterEvent, 
   TicketmasterVenue, 
   TicketmasterArtist,
   ApiResponse
-} from '../_shared/types.ts';
+} from './_shared/types.ts';
 
 // Constants
 const TICKETMASTER_BASE_URL = 'https://app.ticketmaster.com/discovery/v2';
