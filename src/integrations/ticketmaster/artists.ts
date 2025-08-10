@@ -83,8 +83,20 @@ export const fetchArtistEvents = async (artistName: string) => {
         .eq('artist_id', artist.id)
         .order('date', { ascending: true });
 
-      console.log('fetchArtistEvents: Found shows in DB:', shows);
-      return shows || [];
+      if (shows && shows.length > 0) {
+        console.log('fetchArtistEvents: Found shows in DB:', shows.length);
+        return shows;
+      }
+    }
+
+    // Fallback – fetch events directly from Ticketmaster (client-side)
+    try {
+      const tmResponse = await callTicketmasterFunction('artist-events', artistName);
+      const events = tmResponse.data?._embedded?.events || [];
+      console.log('fetchArtistEvents: Fallback events from Ticketmaster:', events.length);
+      return events;
+    } catch (tmErr) {
+      console.error('fetchArtistEvents: Ticketmaster fallback failed', tmErr);
     }
 
     return [];
@@ -106,16 +118,36 @@ export const fetchPopularTours = async () => {
 
     // Extract events from the API response
     const events = response.data?._embedded?.events || [];
-    
-    // Start background import for popular tours
-    if (events.length > 0) {
+
+    // Fire-and-forget background import to DB (idempotent)
+    if (events.length) {
       supabase.functions.invoke('sync-popular-tours', {
         body: { shows: events }
-      }).catch(error => {
-        console.error('Background popular tours sync failed:', error);
-      });
+      }).catch((error) => console.error('sync-popular-tours invoke failed', error));
     }
 
+    // Prefer reading from cached_shows for consistent data & easier dedup
+    const { data: dbShows } = await supabase
+      .from('cached_shows')
+      .select('*')
+      .gte('date', new Date().toISOString())
+      .order('date', { ascending: true })
+      .limit(100);
+
+    if (dbShows && dbShows.length > 0) {
+      // Deduplicate by artist + venue + date combination
+      const unique = new Map<string, any>();
+      dbShows.forEach((show) => {
+        const key = `${show.artist_id}-${show.venue_name}-${show.date?.slice(0, 10)}`;
+        if (!unique.has(key)) {
+          unique.set(key, show);
+        }
+      });
+
+      return Array.from(unique.values());
+    }
+
+    // Fallback to raw Ticketmaster events if DB empty
     return events;
   } catch (error) {
     console.error('Error fetching popular tours:', error);

@@ -28,8 +28,8 @@ export default function ShowPage() {
   // Set up real-time updates for setlist changes
   useRealTimeUpdates(['setlist_songs', 'song_votes'], () => {
     if (show?.id) {
-      queryClient.invalidateQueries({ queryKey: ['setlist', show.id] });
-      queryClient.invalidateQueries({ queryKey: ['user-votes', show.id, user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['setlist', show.dbShowId] });
+      queryClient.invalidateQueries({ queryKey: ['user-votes', show.dbShowId, user?.id] });
     }
   });
   // Fetch show data
@@ -60,7 +60,18 @@ export default function ShowPage() {
         artist = artistData || null;
       }
 
-      return { ...showRow, artists: artist } as any;
+      // Also fetch the canonical `shows` table row (needed for setlists)
+      let dbShowId: string | null = null;
+      if (showRow.ticketmaster_id) {
+        const { data: showCore } = await supabase
+          .from('shows')
+          .select('id')
+          .eq('ticketmaster_id', showRow.ticketmaster_id)
+          .maybeSingle();
+        dbShowId = showCore?.id ?? null;
+      }
+
+      return { ...showRow, artists: artist, dbShowId } as any;
     },
     enabled: !!eventId,
   });
@@ -68,27 +79,29 @@ export default function ShowPage() {
   // Set up real-time updates for setlist changes
   useRealTimeUpdates(['setlist_songs', 'song_votes'], () => {
     if (show?.id) {
-      queryClient.invalidateQueries({ queryKey: ['setlist', show.id] });
-      queryClient.invalidateQueries({ queryKey: ['user-votes', show.id, user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['setlist', show.dbShowId] });
+      queryClient.invalidateQueries({ queryKey: ['user-votes', show.dbShowId, user?.id] });
     }
   });
 
   // Fetch or create setlist
   const { data: setlist, isLoading: setlistLoading } = useQuery({
-    queryKey: ['setlist', show?.id],
+    // Use the canonical shows.id (dbShowId) for setlist operations
+    queryKey: ['setlist', show?.dbShowId],
     queryFn: async () => {
-      if (!show?.id) {
+      const showId = show?.dbShowId;
+      if (!showId) {
         console.log('Setlist query: No show ID');
         return null;
       }
 
-      console.log('Setlist query: Looking for setlist for show:', show.id);
+      console.log('Setlist query: Looking for setlist for show:', showId);
 
       // Check for existing setlist
       const { data: existingSetlist } = await supabase
         .from('setlists')
         .select('id')
-        .eq('show_id', show.id)
+        .eq('show_id', showId)
         .maybeSingle();
 
       console.log('Setlist query: Existing setlist:', existingSetlist);
@@ -136,7 +149,7 @@ export default function ShowPage() {
             
             // Initialize setlist with Spotify tracks
             const { data: newSetlistId, error: initError } = await supabase.rpc('initialize_show_setlist', {
-              p_show_id: show.id,
+              p_show_id: showId,
               p_spotify_tracks: spotifyData.data
             });
             
@@ -248,7 +261,7 @@ export default function ShowPage() {
         });
 
       // Refresh data
-      queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
+      queryClient.invalidateQueries({ queryKey: ['setlist', show?.dbShowId] });
       queryClient.invalidateQueries({ queryKey: ['user-votes', setlist?.id, user?.id] });
 
     } catch (error) {
@@ -305,7 +318,7 @@ export default function ShowPage() {
 
       // Reset selection and refresh data
       setSelectedSong('');
-      queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
+      queryClient.invalidateQueries({ queryKey: ['setlist', show?.dbShowId] });
     } catch (error) {
       console.error('Error adding song:', error);
       toast({
@@ -317,7 +330,7 @@ export default function ShowPage() {
   };
 
   const handleSongAdded = () => {
-    queryClient.invalidateQueries({ queryKey: ['setlist', show?.id] });
+    queryClient.invalidateQueries({ queryKey: ['setlist', show?.dbShowId] });
   };
 
   if (showLoading || setlistLoading) {

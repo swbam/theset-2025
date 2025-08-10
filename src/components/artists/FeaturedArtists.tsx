@@ -24,9 +24,11 @@ export const FeaturedArtists = ({ onArtistClick, shows = [], isLoading = false }
         const artist = show._embedded?.attractions?.[0];
         if (!artist?.id || !artist?.name) return;
 
-        // Use both ID and normalized name for stronger deduplication
+        // Normalize name once for deduplication
         const normalizedName = artist.name.toLowerCase().trim();
-        const key = `${artist.id}-${normalizedName}`;
+
+        // Deduplicate strictly by normalized name to avoid duplicates when Ticketmaster supplies multiple IDs
+        const key = normalizedName;
 
         const existingArtist = artistMap.get(key) || {
           id: artist.id,
