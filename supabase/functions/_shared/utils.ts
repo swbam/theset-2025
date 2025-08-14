@@ -1,12 +1,51 @@
 // Enterprise-grade utility functions for TheSet sync system
 
-import type { 
-  RateLimitConfig, 
-  CircuitBreakerState, 
-  SyncJobConfig,
-  HealthCheckResult,
-  ApiResponse 
-} from './types.ts';
+export interface RateLimitConfig {
+  maxRequests: number;
+  windowMs: number;
+  retryAfterMs: number;
+}
+
+export interface SyncJobConfig {
+  batchSize: number;
+  maxConcurrency: number;
+  retryAttempts: number;
+  retryDelayMs: number;
+  timeoutMs: number;
+}
+
+export interface CircuitBreakerState {
+  failures: number;
+  lastFailureTime: number;
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+}
+
+export interface HealthCheckResult {
+  service: string;
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  responseTime: number;
+  error?: string;
+  lastCheck: string;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  timestamp: string;
+  executionTime?: number;
+  rateLimitRemaining?: number;
+}
+
+export interface SyncMetrics {
+  processed: number;
+  errors: number;
+  skipped: number;
+  total: number;
+  startTime: string;
+  endTime: string;
+  executionTimeMs: number;
+}
 
 // Advanced Rate Limiter with Token Bucket Algorithm
 export class RateLimiter {
@@ -241,42 +280,6 @@ export class PerformanceMonitor {
   }
 }
 
-// Health Check System
-export class HealthChecker {
-  async checkHealth(url: string, timeoutMs: number = 5000): Promise<HealthCheckResult> {
-    const startTime = performance.now();
-    
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      
-      const response = await fetch(url, {
-        signal: controller.signal,
-        method: 'HEAD'
-      });
-      
-      clearTimeout(timeoutId);
-      const responseTime = performance.now() - startTime;
-      
-      return {
-        service: url,
-        status: response.ok ? 'healthy' : 'degraded',
-        responseTime,
-        lastCheck: new Date().toISOString()
-      };
-    } catch (error) {
-      const responseTime = performance.now() - startTime;
-      return {
-        service: url,
-        status: 'unhealthy',
-        responseTime,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        lastCheck: new Date().toISOString()
-      };
-    }
-  }
-}
-
 // Enhanced Logging System
 export class Logger {
   private static instance: Logger;
@@ -330,7 +333,7 @@ export function sleep(ms: number): Promise<void> {
 export function isRetryableError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   
-  const err = error as any; // Safe cast after type check
+  const err = error as any;
   
   // Network errors
   if (err.code === 'ECONNRESET' || err.code === 'ENOTFOUND') {

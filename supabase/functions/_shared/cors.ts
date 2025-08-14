@@ -18,9 +18,6 @@ export const corsHeaders = {
  * Helper to build a JSON Response with the project-wide CORS headers plus an
  * optional `Cache-Control` directive so individual edge-functions can opt into
  * short-term public caching (CDN & browser).
- *
- * Passing a `cacheSeconds` value of >0 will append a header such as:
- *   Cache-Control: public, max-age=300, stale-while-revalidate=60
  */
 export function createCorsResponse(
   data?: unknown,

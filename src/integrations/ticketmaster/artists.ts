@@ -1,9 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-import { callTicketmasterFunction } from './api';
-import { processShow } from './client';
-import type { TicketmasterEvent } from './types';
 
-// Search specifically for artists, not just events
+// Search for artists using our database and Ticketmaster API
 export const searchArtists = async (query: string) => {
   console.log('searchArtists: Searching for artists:', query);
   
@@ -12,44 +9,67 @@ export const searchArtists = async (query: string) => {
   }
 
   try {
-    console.log('searchArtists: About to call Ticketmaster function...');
-    const results = await callTicketmasterFunction('search', query);
-    console.log('searchArtists: Got results:', results);
+    // First search our database
+    const { data: dbArtists, error: dbError } = await supabase
+      .from('artists')
+      .select('id, name, image_url, ticketmaster_id')
+      .ilike('name', `%${query}%`)
+      .limit(10);
 
-    // Extract unique artists from U.S. events only
-    const uniqueArtists = new Map<string, any>();
-
-    if (results.data?._embedded?.events) {
-      results.data._embedded.events.forEach((event: TicketmasterEvent) => {
-        const venueCountry = event._embedded?.venues?.[0]?.country?.countryCode || event._embedded?.venues?.[0]?.country?.name;
-        if (venueCountry && venueCountry !== 'US' && venueCountry !== 'United States') {
-          return; // Skip non-US events for now – keeps data focused and avoids duplicates
-        }
-        const artist = event._embedded?.attractions?.[0];
-        if (artist && artist.id && artist.name) {
-          const normalizedName = artist.name.toLowerCase().trim();
-          const key = `${artist.id}-${normalizedName}`;
-          if (!uniqueArtists.has(key)) {
-            uniqueArtists.set(key, {
-              id: artist.id,
-              name: artist.name,
-              image_url: artist.images?.[0]?.url || event.images?.[0]?.url,
-              ticketmaster_id: artist.id,
-              venue: event._embedded?.venues?.[0]?.name,
-              date: event.dates?.start?.dateTime,
-              url: event.url,
-              capacity: event._embedded?.venues?.[0]?.capacity || 0,
-            });
-          }
-        }
-      });
+    if (dbError) {
+      console.error('Database search error:', dbError);
     }
 
-    return Array.from(uniqueArtists.values())
-      .sort((a, b) => b.capacity - a.capacity)
-      .slice(0, 10);
+    const results = dbArtists || [];
+
+    // If we have fewer than 5 results, search Ticketmaster
+    if (results.length < 5) {
+      try {
+        const { data: tmResponse, error: tmError } = await supabase.functions.invoke('ticketmaster', {
+          body: { 
+            endpoint: 'search', 
+            query: query,
+            params: { size: '20' }
+          }
+        });
+
+        if (tmError) {
+          console.error('Ticketmaster search error:', tmError);
+        } else if (tmResponse?.data?._embedded?.events) {
+          // Extract unique artists from events
+          const uniqueArtists = new Map<string, any>();
+
+          tmResponse.data._embedded.events.forEach((event: any) => {
+            const artist = event._embedded?.attractions?.[0];
+            if (artist && artist.id && artist.name) {
+              const normalizedName = artist.name.toLowerCase().trim();
+              if (!uniqueArtists.has(normalizedName)) {
+                uniqueArtists.set(normalizedName, {
+                  id: artist.id,
+                  name: artist.name,
+                  image_url: artist.images?.[0]?.url || event.images?.[0]?.url,
+                  ticketmaster_id: artist.id,
+                });
+              }
+            }
+          });
+
+          // Add Ticketmaster results that aren't already in our DB
+          const existingNames = new Set(results.map(r => r.name.toLowerCase()));
+          Array.from(uniqueArtists.values()).forEach(artist => {
+            if (!existingNames.has(artist.name.toLowerCase()) && results.length < 15) {
+              results.push(artist);
+            }
+          });
+        }
+      } catch (tmError) {
+        console.error('Ticketmaster API call failed:', tmError);
+      }
+    }
+
+    return results.slice(0, 15);
   } catch (error) {
-    console.error('Error searching for artists:', error);
+    console.error('Error in searchArtists:', error);
     return [];
   }
 };
@@ -58,18 +78,7 @@ export const fetchArtistEvents = async (artistName: string) => {
   console.log('Fetching events for artist:', artistName);
 
   try {
-    // Trigger auto-sync for this artist (idempotent)
-    const { data: syncResult, error } = await supabase.functions.invoke('auto-sync-artist', {
-      body: { artistName }
-    });
-
-    if (error) {
-      console.error('Auto-sync failed:', error);
-    } else {
-      console.log('Auto-sync result:', syncResult);
-    }
-
-    // Always read from DB after sync
+    // First check our database for cached shows
     const { data: artist } = await supabase
       .from('artists')
       .select('id')
@@ -79,27 +88,47 @@ export const fetchArtistEvents = async (artistName: string) => {
     if (artist) {
       const { data: shows } = await supabase
         .from('cached_shows')
-        .select(`*`)
+        .select('*')
         .eq('artist_id', artist.id)
+        .gte('date', new Date().toISOString())
         .order('date', { ascending: true });
 
       if (shows && shows.length > 0) {
-        console.log('fetchArtistEvents: Found shows in DB:', shows.length);
+        console.log('Found shows in database:', shows.length);
         return shows;
       }
     }
 
-    // Fallback – fetch events directly from Ticketmaster (client-side)
+    // Fallback to Ticketmaster API
     try {
-      const tmResponse = await callTicketmasterFunction('artist-events', artistName);
-      const events = tmResponse.data?._embedded?.events || [];
-      console.log('fetchArtistEvents: Fallback events from Ticketmaster:', events.length);
-      return events;
-    } catch (tmErr) {
-      console.error('fetchArtistEvents: Ticketmaster fallback failed', tmErr);
-    }
+      const { data: tmResponse, error } = await supabase.functions.invoke('ticketmaster', {
+        body: { 
+          endpoint: 'artist-events', 
+          query: artistName,
+          params: { size: '50' }
+        }
+      });
 
-    return [];
+      if (error) {
+        console.error('Ticketmaster API error:', error);
+        return [];
+      }
+
+      const events = tmResponse?.data?._embedded?.events || [];
+      console.log('Fetched events from Ticketmaster:', events.length);
+
+      // Trigger background sync for this artist
+      if (events.length > 0) {
+        supabase.functions.invoke('auto-sync-artist', {
+          body: { artistName }
+        }).catch(err => console.error('Auto-sync failed:', err));
+      }
+
+      return events;
+    } catch (tmError) {
+      console.error('Ticketmaster fallback failed:', tmError);
+      return [];
+    }
 
   } catch (error) {
     console.error('Error in fetchArtistEvents:', error);
@@ -111,22 +140,7 @@ export const fetchPopularTours = async () => {
   console.log('Fetching popular tours');
   
   try {
-    const response = await callTicketmasterFunction('featured', undefined, {
-      size: '50',
-      countryCode: 'US'
-    });
-
-    // Extract events from the API response
-    const events = response.data?._embedded?.events || [];
-
-    // Fire-and-forget background import to DB (idempotent)
-    if (events.length) {
-      supabase.functions.invoke('sync-popular-tours', {
-        body: { shows: events }
-      }).catch((error) => console.error('sync-popular-tours invoke failed', error));
-    }
-
-    // Prefer reading from cached_shows for consistent data & easier dedup
+    // First try to get from our database
     const { data: dbShows } = await supabase
       .from('cached_shows')
       .select('*')
@@ -134,20 +148,37 @@ export const fetchPopularTours = async () => {
       .order('date', { ascending: true })
       .limit(100);
 
-    if (dbShows && dbShows.length > 0) {
-      // Deduplicate by artist + venue + date combination
-      const unique = new Map<string, any>();
-      dbShows.forEach((show) => {
-        const key = `${show.artist_id}-${show.venue_name}-${show.date?.slice(0, 10)}`;
-        if (!unique.has(key)) {
-          unique.set(key, show);
-        }
-      });
-
-      return Array.from(unique.values());
+    if (dbShows && dbShows.length > 20) {
+      console.log('Using cached shows from database:', dbShows.length);
+      return dbShows;
     }
 
-    // Fallback to raw Ticketmaster events if DB empty
+    // Fallback to Ticketmaster API
+    const { data: response, error } = await supabase.functions.invoke('ticketmaster', {
+      body: { 
+        endpoint: 'featured',
+        params: { 
+          size: '100', 
+          countryCode: 'US' 
+        }
+      }
+    });
+
+    if (error) {
+      console.error('Error fetching popular tours:', error);
+      return dbShows || [];
+    }
+
+    const events = response?.data?._embedded?.events || [];
+    console.log('Fetched popular tours from Ticketmaster:', events.length);
+
+    // Trigger background sync
+    if (events.length > 0) {
+      supabase.functions.invoke('sync-popular-tours', {
+        body: { shows: events }
+      }).catch(err => console.error('Background sync failed:', err));
+    }
+
     return events;
   } catch (error) {
     console.error('Error fetching popular tours:', error);

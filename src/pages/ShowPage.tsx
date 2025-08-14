@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { AddSongDialog } from '@/components/setlist/AddSongDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingState } from '@/components/shows/LoadingState';
 import { SongSuggestionDialog } from '@/components/shows/SongSuggestionDialog';
@@ -12,33 +11,39 @@ import { Footer } from '@/components/layout/Footer';
 import { useGuestActions } from '@/hooks/useGuestActions';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { Helmet } from 'react-helmet-async';
+import { ThumbsUp, Plus, Music, Users, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export default function ShowPage() {
   const { showSlug } = useParams<{ showSlug: string }>();
   const urlParams = new URLSearchParams(window.location.search);
-  const eventId = urlParams.get('id') || showSlug; // fallback to slug if no ID provided
+  const eventId = urlParams.get('id') || showSlug;
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
-  const { guestActionsUsed, actionsRemaining, incrementGuestActions } = useGuestActions();
+  const { guestActionsUsed, incrementGuestActions } = useGuestActions();
 
-  // Set up real-time updates for setlist changes
-  useRealTimeUpdates(['setlist_songs', 'song_votes'], () => {
-    if (show?.id) {
-      queryClient.invalidateQueries({ queryKey: ['setlist', show.dbShowId] });
-      queryClient.invalidateQueries({ queryKey: ['user-votes', show.dbShowId, user?.id] });
-    }
-  });
   // Fetch show data
   const { data: show, isLoading: showLoading } = useQuery({
     queryKey: ['show', eventId],
     queryFn: async () => {
+      console.log('Fetching show data for:', eventId);
+      
       const { data: showRow, error } = await supabase
         .from('cached_shows')
-        .select('*')
+        .select(`
+          *,
+          artists:artist_id (
+            id,
+            name,
+            spotify_id,
+            image_url
+          )
+        `)
         .eq('ticketmaster_id', eventId)
         .maybeSingle();
 
@@ -47,38 +52,30 @@ export default function ShowPage() {
         return null;
       }
 
-      if (!showRow) return null;
-
-      // Fetch artist separately to avoid FK dependency
-      let artist = null as any;
-      if (showRow.artist_id) {
-        const { data: artistData } = await supabase
-          .from('artists')
-          .select('id, name, spotify_id, image_url')
-          .eq('id', showRow.artist_id)
-          .maybeSingle();
-        artist = artistData || null;
+      if (!showRow) {
+        console.log('Show not found in cache, searching...');
+        return null;
       }
 
-      // Also fetch the canonical `shows` table row (needed for setlists)
-      let dbShowId: string | null = null;
-      if (showRow.ticketmaster_id) {
-        const { data: showCore } = await supabase
-          .from('shows')
-          .select('id')
-          .eq('ticketmaster_id', showRow.ticketmaster_id)
-          .maybeSingle();
-        dbShowId = showCore?.id ?? null;
-      }
+      // Get the canonical shows table row for setlist operations
+      const { data: showCore } = await supabase
+        .from('shows')
+        .select('id')
+        .eq('ticketmaster_id', showRow.ticketmaster_id)
+        .maybeSingle();
 
-      return { ...showRow, artists: artist, dbShowId } as any;
+      return { 
+        ...showRow, 
+        dbShowId: showCore?.id,
+        artist: showRow.artists
+      };
     },
     enabled: !!eventId,
   });
 
-  // Set up real-time updates for setlist changes
+  // Set up real-time updates
   useRealTimeUpdates(['setlist_songs', 'song_votes'], () => {
-    if (show?.id) {
+    if (show?.dbShowId) {
       queryClient.invalidateQueries({ queryKey: ['setlist', show.dbShowId] });
       queryClient.invalidateQueries({ queryKey: ['user-votes', show.dbShowId, user?.id] });
     }
@@ -86,16 +83,12 @@ export default function ShowPage() {
 
   // Fetch or create setlist
   const { data: setlist, isLoading: setlistLoading } = useQuery({
-    // Use the canonical shows.id (dbShowId) for setlist operations
     queryKey: ['setlist', show?.dbShowId],
     queryFn: async () => {
       const showId = show?.dbShowId;
-      if (!showId) {
-        console.log('Setlist query: No show ID');
-        return null;
-      }
+      if (!showId) return null;
 
-      console.log('Setlist query: Looking for setlist for show:', showId);
+      console.log('Looking for setlist for show:', showId);
 
       // Check for existing setlist
       const { data: existingSetlist } = await supabase
@@ -104,15 +97,11 @@ export default function ShowPage() {
         .eq('show_id', showId)
         .maybeSingle();
 
-      console.log('Setlist query: Existing setlist:', existingSetlist);
-
       if (existingSetlist) {
-        // Get setlist songs with vote counts
-        console.log('Setlist query: Getting songs for existing setlist:', existingSetlist.id);
+        console.log('Found existing setlist:', existingSetlist.id);
+        
         const { data: songsData } = await supabase
           .rpc('get_setlist_with_votes', { setlist_uuid: existingSetlist.id });
-
-        console.log('Setlist query: Songs data:', songsData);
 
         return {
           id: existingSetlist.id,
@@ -120,72 +109,46 @@ export default function ShowPage() {
         };
       }
 
-      // Create new setlist if artist has Spotify ID
-      const artist = show.artists;
-      console.log('Setlist query: Artist data:', artist);
-      
-      if (artist?.spotify_id) {
-        console.log('Setlist query: Artist has Spotify ID, creating setlist for:', artist.spotify_id);
-        
-        // Get top tracks from Spotify via Edge Function
-        try {
-          console.log('Setlist query: Calling Spotify function...');
-          const { data: spotifyData, error: spotifyError } = await supabase.functions.invoke('spotify', {
-            body: {
-              action: 'getArtistTopTracks',
-              params: { artistId: artist.spotify_id }
-            }
-          });
-          
-          console.log('Setlist query: Spotify response:', spotifyData, 'Error:', spotifyError);
-          
-          if (spotifyError) {
-            console.error('Setlist query: Spotify error:', spotifyError);
-            return null;
-          }
-          
-          if (spotifyData?.data && spotifyData.data.length > 0) {
-            console.log('Setlist query: Got Spotify tracks, initializing setlist...');
-            
-            // Initialize setlist with Spotify tracks
-            const { data: newSetlistId, error: initError } = await supabase.rpc('initialize_show_setlist', {
-              p_show_id: showId,
-              p_spotify_tracks: spotifyData.data
-            });
-            
-            console.log('Setlist query: Initialize result:', newSetlistId, 'Error:', initError);
-            
-            if (initError) {
-              console.error('Setlist query: Initialize error:', initError);
-              return null;
-            }
-            
-            // Get the complete setlist with songs
-            const { data: songsData } = await supabase
-              .rpc('get_setlist_with_votes', { setlist_uuid: newSetlistId });
-
-            console.log('Setlist query: Final songs data:', songsData);
-
-            return {
-              id: newSetlistId,
-              songs: songsData || []
-            };
-          } else {
-            console.log('Setlist query: No Spotify tracks found');
-          }
-        } catch (error) {
-          console.error('Setlist query: Failed to initialize setlist:', error);
-        }
-      } else {
-        console.log('Setlist query: No Spotify ID for artist');
+      // Create new setlist if artist exists
+      const artist = show.artist;
+      if (!artist?.name) {
+        console.log('No artist data available');
+        return null;
       }
 
-      return null;
+      console.log('Creating new setlist for artist:', artist.name);
+
+      try {
+        // Initialize setlist using artist name
+        const { data: newSetlistId, error: initError } = await supabase.rpc('initialize_show_setlist', {
+          p_show_id: showId,
+          p_artist_name: artist.name
+        });
+        
+        if (initError) {
+          console.error('Failed to initialize setlist:', initError);
+          return null;
+        }
+        
+        // Get the complete setlist with songs
+        const { data: songsData } = await supabase
+          .rpc('get_setlist_with_votes', { setlist_uuid: newSetlistId });
+
+        console.log('Created setlist with songs:', songsData?.length || 0);
+
+        return {
+          id: newSetlistId,
+          songs: songsData || []
+        };
+      } catch (error) {
+        console.error('Failed to create setlist:', error);
+        return null;
+      }
     },
-    enabled: !!show?.id,
+    enabled: !!show?.dbShowId,
   });
 
-  // Get user votes for this setlist (normalized via song_votes)
+  // Get user votes for this setlist
   const { data: userVotes } = useQuery({
     queryKey: ['user-votes', setlist?.id, user?.id],
     queryFn: async () => {
@@ -204,43 +167,24 @@ export default function ShowPage() {
     enabled: !!user?.id && !!setlist?.songs?.length,
   });
 
-  // Query artist's song catalog for the dropdown
-  const { data: artistSongs = [] } = useQuery({
-    queryKey: ['artist-songs', show?.artist_id],
-    queryFn: async () => {
-      if (!show?.artist_id) return [];
-
-      const { data, error } = await supabase
-        .from('cached_songs')
-        .select('id, name, spotify_id')
-        .eq('artist_id', show.artist_id)
-        .order('name');
-
-      if (error) {
-        console.error('Error fetching artist songs:', error);
-        return [];
-      }
-
-      return data || [];
-    },
-    enabled: !!show?.artist_id,
-  });
-
   const handleVote = async (songId: string) => {
     try {
       if (!user?.id) {
-        toast({
-          title: 'Sign in Required',
-          description: 'Please sign in to vote on songs.',
-          variant: 'destructive',
-        });
-        return;
+        if (guestActionsUsed >= 1) {
+          toast({
+            title: 'Sign in Required',
+            description: 'Please sign in to vote on more songs.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        incrementGuestActions();
       }
 
       const { data: result, error } = await supabase.rpc('cast_song_vote', {
-          p_setlist_song_id: songId,
-        p_user_id: user.id,
-        });
+        p_setlist_song_id: songId,
+        p_user_id: user?.id || null,
+      });
 
       if (error) {
         throw error;
@@ -255,10 +199,10 @@ export default function ShowPage() {
         return;
       }
 
-        toast({
-          title: 'Vote Submitted',
-          description: 'Your vote has been recorded',
-        });
+      toast({
+        title: 'Vote Submitted',
+        description: 'Your vote has been recorded',
+      });
 
       // Refresh data
       queryClient.invalidateQueries({ queryKey: ['setlist', show?.dbShowId] });
@@ -286,49 +230,6 @@ export default function ShowPage() {
     setShowSuggestionDialog(true);
   };
 
-  // ---------------------------------- Add song dialog
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [selectedSong, setSelectedSong] = useState('');
-
-  const openAddDialog = () => {
-    if (!show?.artist_id || !setlist?.id) return;
-    setAddDialogOpen(true);
-  };
-
-  const handleAddFromDropdown = async () => {
-    if (!selectedSong || !setlist?.id) return;
-    
-    const song = artistSongs.find(s => s.id === selectedSong);
-    if (!song) return;
-
-    try {
-      const { error } = await supabase.rpc('add_song_to_setlist', {
-        p_setlist_id: setlist.id,
-        p_song_name: song.name,
-        p_spotify_id: song.spotify_id,
-        p_suggested: true
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Song Added',
-        description: `${song.name} has been added to the setlist`,
-      });
-
-      // Reset selection and refresh data
-      setSelectedSong('');
-      queryClient.invalidateQueries({ queryKey: ['setlist', show?.dbShowId] });
-    } catch (error) {
-      console.error('Error adding song:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to add song to setlist',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const handleSongAdded = () => {
     queryClient.invalidateQueries({ queryKey: ['setlist', show?.dbShowId] });
   };
@@ -345,12 +246,9 @@ export default function ShowPage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-white mb-4">Show Not Found</h1>
             <p className="text-zinc-400 mb-6">The show you're looking for doesn't exist or hasn't been synced yet.</p>
-            <button 
-              onClick={() => navigate('/')}
-              className="bg-primary text-black px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
-            >
+            <Button onClick={() => navigate('/')}>
               Back to Home
-            </button>
+            </Button>
           </div>
         </div>
         <Footer />
@@ -366,9 +264,8 @@ export default function ShowPage() {
       }
     : undefined;
 
-  const totalVotes = setlist?.songs?.reduce((sum, song) => sum + (song.votes || 0), 0) || 0;
-  const votingClosesIn = "2d 14h"; // This should be calculated based on show date
-  const fansVoted = 127; // This should come from actual data
+  const totalVotes = setlist?.songs?.reduce((sum: number, song: any) => sum + (song.total_votes || 0), 0) || 0;
+  const sortedSongs = setlist?.songs?.sort((a: any, b: any) => (b.total_votes || 0) - (a.total_votes || 0)) || [];
 
   return (
     <div className="min-h-screen bg-black">
@@ -378,49 +275,58 @@ export default function ShowPage() {
         <meta name="description" content={`Vote on the setlist for ${show.name}${show.venue_name ? ' at ' + show.venue_name : ''}.`} />
         <link rel="canonical" href={`${window.location.origin}${location.pathname}`} />
       </Helmet>
+
       <div className="max-w-7xl mx-auto px-6 py-12">
-        <div className="space-y-8">
-          {/* Header line-up */}
-          
-          <div className="pb-2">
-            <h1 className="text-4xl font-bold text-white mb-2">{show.artists?.name || 'Artist'}</h1>
-            <h2 className="text-2xl text-white/90 mb-3">{show.name}</h2>
-            <div className="flex items-center gap-4 text-white/80">
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                </svg>
-                <span>{new Date(show.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at {new Date(show.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
-                <span>{venueInfo?.name}, {venueInfo?.city}, {venueInfo?.state}</span>
+        {/* Show Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            {show.artist?.image_url && (
+              <img
+                src={show.artist.image_url}
+                alt={show.artist.name}
+                className="w-16 h-16 rounded-full object-cover"
+              />
+            )}
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2">{show.artist?.name || 'Artist'}</h1>
+              <h2 className="text-2xl text-white/90 mb-2">{show.name}</h2>
+              <div className="flex items-center gap-4 text-white/80 text-sm">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  <span>
+                    {new Date(show.date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })} at {new Date(show.date).toLocaleTimeString('en-US', { 
+                      hour: 'numeric', 
+                      minute: '2-digit' 
+                    })}
+                  </span>
+                </div>
+                {venueInfo && (
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                    </svg>
+                    <span>{venueInfo.name}{venueInfo.city && venueInfo.state && `, ${venueInfo.city}, ${venueInfo.state}`}</span>
+                  </div>
+                )}
               </div>
             </div>
-            
-            {/* Get Tickets Button */}
-            {show.ticket_url && (
-              <a 
-                href={show.ticket_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mt-4 bg-white text-black px-6 py-2 rounded-lg font-medium hover:bg-white/90 transition-colors"
-              >
-                Get Tickets
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-            )}
           </div>
-        </div>
-      </div>
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
+          {show.ticket_url && (
+            <Button asChild className="bg-white text-black hover:bg-white/90">
+              <a href={show.ticket_url} target="_blank" rel="noopener noreferrer">
+                Get Tickets
+              </a>
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Setlist Section */}
           <div className="lg:col-span-2">
             <div className="bg-zinc-900/50 rounded-lg p-6">
@@ -431,94 +337,111 @@ export default function ShowPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2 text-white">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <Users className="w-5 h-5" />
                     <span>{totalVotes} votes</span>
                   </div>
-                  <button className="flex items-center gap-2 text-white bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                    </svg>
-                    Share
-                  </button>
-                </div>
-              </div>
-
-              {/* Add Song Section */}
-              <div className="mb-6">
-                <p className="text-white mb-3">Add a song to this setlist:</p>
-                <div className="flex gap-3">
-                  <select 
-                    value={selectedSong}
-                    onChange={(e) => setSelectedSong(e.target.value)}
-                    className="flex-1 bg-zinc-800 text-white border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <Button
+                    onClick={handleSuggest}
+                    className="bg-green-500 hover:bg-green-600 text-black"
                   >
-                    <option value="">Select a song ({artistSongs.length} available)</option>
-                    {artistSongs.map((song) => (
-                      <option key={song.id} value={song.id}>
-                        {song.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button 
-                    onClick={selectedSong ? handleAddFromDropdown : openAddDialog}
-                    className="flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-                    disabled={!selectedSong && artistSongs.length === 0}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    {selectedSong ? 'Add to Setlist' : 'Browse Songs'}
-                  </button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Suggest Song
+                  </Button>
                 </div>
               </div>
 
               {/* Songs List */}
-              <div className="space-y-1">
-                <div className="grid grid-cols-12 gap-4 px-4 py-2 text-zinc-400 text-sm font-medium border-b border-zinc-800">
-                  <div className="col-span-8">SONG</div>
-                  <div className="col-span-4 text-right">VOTES</div>
-                </div>
-                
-                {setlist?.songs?.map((song, index) => (
-                  <div 
-                    key={song.id}
-                    className="grid grid-cols-12 gap-4 px-4 py-3 hover:bg-zinc-800/50 rounded-lg transition-colors group"
-                  >
-                    <div className="col-span-8 flex items-center gap-3">
-                      <span className="text-white font-medium">{song.name}</span>
-                    </div>
-                    <div className="col-span-4 flex items-center justify-end gap-3">
-                      <span className="text-white font-bold text-lg">{song.votes || 0}</span>
-                      <button 
-                        onClick={() => handleVote(song.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-700 rounded transition-all"
-                        disabled={userVotes?.some(v => v.setlist_song_id === song.id)}
-                      >
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                        </svg>
-                      </button>
-                    </div>
+              <div className="space-y-3">
+                {sortedSongs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Music className="w-16 h-16 mx-auto text-zinc-500 mb-4" />
+                    <h3 className="text-lg font-medium text-white mb-2">No songs yet</h3>
+                    <p className="text-zinc-400 mb-4">Be the first to suggest a song for this setlist!</p>
+                    <Button onClick={handleSuggest} className="bg-green-500 hover:bg-green-600 text-black">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Suggest the First Song
+                    </Button>
                   </div>
-                ))}
+                ) : (
+                  sortedSongs.map((song: any, index: number) => {
+                    const hasVoted = userVotes?.includes(song.id);
+                    const rank = index + 1;
+                    
+                    return (
+                      <div
+                        key={song.id}
+                        className={`
+                          bg-gray-900 border border-gray-800 rounded-lg p-4 
+                          hover:bg-gray-800 transition-all duration-200
+                          ${hasVoted ? 'ring-1 ring-green-500' : ''}
+                        `}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4 flex-1 min-w-0">
+                            <div className="flex-shrink-0">
+                              <div className={`
+                                w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
+                                ${rank <= 3 ? 'bg-green-500 text-black' : 'bg-gray-700 text-white'}
+                              `}>
+                                {rank}
+                              </div>
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-medium text-white truncate">
+                                  {song.song_name}
+                                </h3>
+                                {song.suggested && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Fan Suggested
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-400">
+                                {song.total_votes || 0} {(song.total_votes || 0) === 1 ? 'vote' : 'votes'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Button
+                            onClick={() => handleVote(song.id)}
+                            disabled={hasVoted}
+                            variant={hasVoted ? 'secondary' : 'outline'}
+                            size="sm"
+                            className={`
+                              flex-shrink-0
+                              ${hasVoted 
+                                ? 'bg-green-500 text-black hover:bg-green-600' 
+                                : 'border-gray-600 text-white hover:bg-gray-800'
+                              }
+                            `}
+                          >
+                            <ThumbsUp className={`w-4 h-4 mr-1 ${hasVoted ? 'fill-current' : ''}`} />
+                            {hasVoted ? 'Voted' : 'Vote'}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
-              <div className="mt-6 text-center text-zinc-500 text-sm">
-                Last updated less than a minute ago
-              </div>
+              {!user && guestActionsUsed > 0 && (
+                <div className="mt-6 bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
+                  <p className="text-yellow-300 text-sm">
+                    You've used your guest voting action. Sign in to vote for more songs and track your activity!
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Voting Stats Sidebar */}
           <div className="space-y-6">
-            {/* Voting Stats */}
             <div className="bg-zinc-900/50 rounded-lg p-6">
               <div className="flex items-center gap-2 mb-4">
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-                </svg>
+                <Users className="w-5 h-5 text-white" />
                 <h3 className="text-white font-bold">Voting Stats</h3>
               </div>
               
@@ -526,21 +449,16 @@ export default function ShowPage() {
                 <div>
                   <div className="text-zinc-400 text-sm mb-1">Total Votes</div>
                   <div className="text-white text-3xl font-bold">{totalVotes}</div>
-                  <div className="w-full bg-zinc-800 rounded-full h-2 mt-2">
-                    <div className="bg-blue-500 h-2 rounded-full" style={{ width: '60%' }}></div>
-                  </div>
                 </div>
                 
                 <div>
-                  <div className="text-zinc-400 text-sm mb-1">Voting Closes In</div>
-                  <div className="text-white text-2xl font-bold">{votingClosesIn}</div>
+                  <div className="text-zinc-400 text-sm mb-1">Songs in Setlist</div>
+                  <div className="text-white text-2xl font-bold">{sortedSongs.length}</div>
                 </div>
                 
                 <div className="flex items-center gap-2 text-zinc-400">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-                  </svg>
-                  <span>{fansVoted} fans have voted</span>
+                  <Music className="w-4 h-4" />
+                  <span>Live voting in progress</span>
                 </div>
               </div>
             </div>
@@ -557,19 +475,15 @@ export default function ShowPage() {
               <div className="space-y-4 text-sm text-zinc-300">
                 <div className="flex gap-3">
                   <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold mt-0.5 flex-shrink-0">1</div>
-                  <p>Vote for songs you want to hear at this show. The most voted songs rise to the top of the list.</p>
+                  <p>Vote for songs you want to hear at this show. The most voted songs rise to the top.</p>
                 </div>
                 <div className="flex gap-3">
                   <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold mt-0.5 flex-shrink-0">2</div>
-                  <p>Anyone can add songs to the setlist! Select from the dropdown above to help build the perfect concert.</p>
+                  <p>Anyone can suggest new songs to add to the setlist using the "Suggest Song" button.</p>
                 </div>
                 <div className="flex gap-3">
                   <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold mt-0.5 flex-shrink-0">3</div>
-                  <p>Non-logged in users can vote for up to 3 songs. Create an account to vote for unlimited songs!</p>
-                </div>
-                <div className="flex gap-3">
-                  <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold mt-0.5 flex-shrink-0">⏰</div>
-                  <p>Voting closes 2 hours before the show</p>
+                  <p>Guest users can vote once. Create an account to vote unlimited times!</p>
                 </div>
               </div>
             </div>
@@ -578,7 +492,6 @@ export default function ShowPage() {
       </div>
 
       {setlist?.id && (
-        <>
         <SongSuggestionDialog
           open={showSuggestionDialog}
           onOpenChange={setShowSuggestionDialog}
@@ -588,16 +501,8 @@ export default function ShowPage() {
           guestActionsUsed={guestActionsUsed}
           onGuestActionUsed={incrementGuestActions}
         />
-          
-          <AddSongDialog
-            open={addDialogOpen}
-            onOpenChange={setAddDialogOpen}
-            setlistId={setlist.id}
-            artistId={show?.artist_id || ''}
-            onSongAdded={handleSongAdded}
-          />
-        </>
       )}
+      
       <Footer />
     </div>
   );

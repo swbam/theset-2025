@@ -34,6 +34,18 @@ export interface TicketmasterEvent {
     venues?: TicketmasterVenue[];
     attractions?: TicketmasterArtist[];
   };
+  images?: Array<{
+    url: string;
+    ratio?: string;
+    width?: number;
+    height?: number;
+  }>;
+  classifications?: Array<{
+    primary: boolean;
+    segment: {
+      name: string;
+    };
+  }>;
 }
 
 export interface TicketmasterVenue {
@@ -57,6 +69,8 @@ export interface TicketmasterVenue {
     latitude: string;
     longitude: string;
   };
+  timezone?: string;
+  capacity?: number;
 }
 
 export interface TicketmasterArtist {

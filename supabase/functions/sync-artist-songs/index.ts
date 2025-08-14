@@ -1,8 +1,6 @@
 // Enterprise-grade Spotify Artist Songs Sync with advanced rate limiting and batch optimization
-// Handles intelligent caching, token management, and comprehensive error recovery
-
-import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
-import { handleCorsPreFlight, createCorsResponse } from './_shared/cors.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import { handleCorsPreFlight, createCorsResponse } from '../_shared/cors.ts';
 import {
   BatchProcessor,
   Logger,
@@ -12,7 +10,7 @@ import {
   RateLimiter,
   createApiResponse,
   sleep
-} from './_shared/utils.ts';
+} from '../_shared/utils.ts';
 import type {
   SpotifyTrack,
   SpotifyArtist,
@@ -21,84 +19,72 @@ import type {
   SyncMetrics,
   SyncJobConfig,
   ApiResponse
-} from './_shared/types.ts';
+} from '../_shared/types.ts';
 
-// Advanced Configuration
+// Configuration
 const SYNC_CONFIG: SyncJobConfig = {
   batchSize: 25,
-  maxConcurrency: 3, // Conservative for Spotify API
+  maxConcurrency: 3,
   retryAttempts: 3,
   retryDelayMs: 2000,
-  timeoutMs: 600000 // 10 minutes
+  timeoutMs: 600000
 };
 
 const SPOTIFY_RATE_LIMIT = {
   maxRequests: 100,
-  windowMs: 60000, // 1 minute
+  windowMs: 60000,
   retryAfterMs: 1000
 };
 
 const MAX_ARTISTS_PER_SYNC = 200;
-// Fetch the ENTIRE catalog; do not truncate
-const TRACKS_PER_ARTIST = Number.MAX_SAFE_INTEGER;
-const STALE_THRESHOLD_DAYS = 3; // Refresh artist data every 3 days
+const STALE_THRESHOLD_DAYS = 3;
 
 // Global instances
 const logger = Logger.getInstance().setContext('SPOTIFY_SONGS_SYNC');
 const performanceMonitor = new PerformanceMonitor();
 const retryHandler = new RetryHandler(3, 2000, 60000);
-const circuitBreaker = new CircuitBreaker(3, 120000); // More sensitive for external API
+const circuitBreaker = new CircuitBreaker(3, 120000);
 const spotifyRateLimiter = new RateLimiter(SPOTIFY_RATE_LIMIT);
 
-// Enhanced Spotify Token Manager
+// Spotify Token Manager
 class SpotifyTokenManager {
   private cachedToken: string | null = null;
   private tokenExpiry: number = 0;
   private clientId: string | null = null;
   private clientSecret: string | null = null;
 
-  constructor(private supabaseClient: SupabaseClient) {}
+  constructor(private supabaseClient: any) {}
 
   async initialize(): Promise<void> {
-    const endTimer = performanceMonitor.startTimer('spotify_credentials_fetch');
-    
-    try {
-      // Get credentials from environment variables (Supabase secrets)
-      this.clientId = Deno.env.get('SPOTIFY_CLIENT_ID');
-      this.clientSecret = Deno.env.get('SPOTIFY_CLIENT_SECRET');
+    this.clientId = Deno.env.get('SPOTIFY_CLIENT_ID');
+    this.clientSecret = Deno.env.get('SPOTIFY_CLIENT_SECRET');
 
-      // Fallback: load from DB secrets table if env vars are not available in Edge runtime
-      if (!this.clientId || !this.clientSecret) {
-        const { data, error } = await this.supabaseClient
-          .from('secrets')
-          .select('key, value')
-          .in('key', ['SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET']);
-        if (error) {
-          throw new Error(`Failed to load Spotify credentials from DB: ${error.message}`);
-        }
-        const idRow = data?.find((r: any) => r.key === 'SPOTIFY_CLIENT_ID');
-        const secretRow = data?.find((r: any) => r.key === 'SPOTIFY_CLIENT_SECRET');
-        this.clientId = this.clientId || idRow?.value || null;
-        this.clientSecret = this.clientSecret || secretRow?.value || null;
+    if (!this.clientId || !this.clientSecret) {
+      const { data, error } = await this.supabaseClient
+        .from('secrets')
+        .select('key, value')
+        .in('key', ['SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET']);
+      
+      if (error) {
+        throw new Error(`Failed to load Spotify credentials: ${error.message}`);
       }
+      
+      const idRow = data?.find((r: any) => r.key === 'SPOTIFY_CLIENT_ID');
+      const secretRow = data?.find((r: any) => r.key === 'SPOTIFY_CLIENT_SECRET');
+      this.clientId = this.clientId || idRow?.value || null;
+      this.clientSecret = this.clientSecret || secretRow?.value || null;
+    }
 
-      if (!this.clientId || !this.clientSecret) {
-        throw new Error('Spotify credentials not found in env or DB secrets');
-      }
-
-      logger.info('Spotify credentials initialized successfully');
-    } finally {
-      endTimer();
+    if (!this.clientId || !this.clientSecret) {
+      throw new Error('Spotify credentials not found');
     }
   }
 
   async getAccessToken(): Promise<string> {
-    // Return cached token if still valid
     if (this.cachedToken && Date.now() < this.tokenExpiry) {
       return this.cachedToken;
     }
 
-    // Get new token
     await this.refreshAccessToken();
     
     if (!this.cachedToken) {
@@ -109,376 +95,235 @@ class SpotifyTokenManager {
   }
 
   private async refreshAccessToken(): Promise<void> {
-    const endTimer = performanceMonitor.startTimer('spotify_token_refresh');
-    
-    try {
-      if (!this.clientId || !this.clientSecret) {
-        throw new Error('Spotify credentials not initialized');
-      }
-
-      logger.debug('Refreshing Spotify access token');
-
-      const credentials = btoa(`${this.clientId}:${this.clientSecret}`);
-      
-      const response = await retryHandler.execute(async () => {
-        return await fetch('https://accounts.spotify.com/api/token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Basic ${credentials}`
-          },
-          body: 'grant_type=client_credentials'
-        });
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Spotify token request failed: ${response.status} - ${errorText}`);
-      }
-
-      const tokenData = await response.json();
-      
-      if (!tokenData.access_token) {
-        throw new Error('Invalid token response from Spotify');
-      }
-
-      this.cachedToken = tokenData.access_token;
-      // Set expiry with 5 minute buffer
-      this.tokenExpiry = Date.now() + ((tokenData.expires_in - 300) * 1000);
-
-      logger.info('Spotify access token refreshed successfully', {
-        expiresIn: tokenData.expires_in
-      });
-    } finally {
-      endTimer();
+    if (!this.clientId || !this.clientSecret) {
+      throw new Error('Spotify credentials not initialized');
     }
+
+    const credentials = btoa(`${this.clientId}:${this.clientSecret}`);
+    
+    const response = await retryHandler.execute(async () => {
+      return await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${credentials}`
+        },
+        body: 'grant_type=client_credentials'
+      });
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Spotify token request failed: ${response.status} - ${errorText}`);
+    }
+
+    const tokenData = await response.json();
+    
+    if (!tokenData.access_token) {
+      throw new Error('Invalid token response from Spotify');
+    }
+
+    this.cachedToken = tokenData.access_token;
+    this.tokenExpiry = Date.now() + ((tokenData.expires_in - 300) * 1000);
   }
 }
 
-// Advanced Spotify API Client
+// Spotify API Client
 class SpotifyApiClient {
   constructor(private tokenManager: SpotifyTokenManager) {}
 
   async getArtistTopTracks(artistId: string): Promise<SpotifyTrack[]> {
-    const endTimer = performanceMonitor.startTimer('spotify_get_top_tracks');
+    await spotifyRateLimiter.acquire();
     
-    try {
-      await spotifyRateLimiter.acquire();
+    return await circuitBreaker.execute(async () => {
+      const token = await this.tokenManager.getAccessToken();
       
-      return await circuitBreaker.execute(async () => {
-        const token = await this.tokenManager.getAccessToken();
-        
-        const response = await retryHandler.execute(async () => {
-          const response = await fetch(
-            `https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=US`,
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-              }
+      const response = await retryHandler.execute(async () => {
+        const response = await fetch(
+          `https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=US`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
             }
-          );
-          
-          if (response.status === 429) {
-            const retryAfter = response.headers.get('Retry-After');
-            if (retryAfter) {
-              await sleep(parseInt(retryAfter) * 1000);
-            }
-            throw new Error('Rate limited by Spotify API');
           }
-          
-          return response;
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Spotify API error: ${response.status} - ${errorText}`);
+        );
+        
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          if (retryAfter) {
+            await sleep(parseInt(retryAfter) * 1000);
+          }
+          throw new Error('Rate limited by Spotify API');
         }
-
-        const data = await response.json();
-        return data.tracks || [];
+        
+        return response;
       });
-    } finally {
-      endTimer();
-    }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Spotify API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      return data.tracks || [];
+    });
   }
 
   async getArtistAlbums(artistId: string): Promise<any[]> {
-    const endTimer = performanceMonitor.startTimer('spotify_get_albums');
+    await spotifyRateLimiter.acquire();
     
-    try {
-      await spotifyRateLimiter.acquire();
+    return await circuitBreaker.execute(async () => {
+      const token = await this.tokenManager.getAccessToken();
+
+      const collected: any[] = [];
+      let nextUrl: string | null = `https://api.spotify.com/v1/artists/${artistId}/albums?market=US&limit=50&include_groups=album,single`;
       
-      return await circuitBreaker.execute(async () => {
-        const token = await this.tokenManager.getAccessToken();
-
-        // Page through ALL albums (album, single, appears_on, compilation)
-        const collected: any[] = [];
-        let nextUrl: string | null = `https://api.spotify.com/v1/artists/${artistId}/albums?market=US&limit=50&include_groups=album,single,appears_on,compilation`;
-        while (nextUrl) {
-          const response = await retryHandler.execute(async () => {
-            const resp = await fetch(nextUrl!, {
-              headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-            });
-            if (resp.status === 429) {
-              const retryAfter = resp.headers.get('Retry-After');
-              if (retryAfter) await sleep(parseInt(retryAfter) * 1000);
-              throw new Error('Rate limited by Spotify API');
-            }
-            return resp;
-          });
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Spotify API error: ${response.status} - ${errorText}`);
-          }
-          const data = await response.json();
-          collected.push(...(data.items || []));
-          nextUrl = data.next || null;
-        }
-        return collected;
-      });
-    } finally {
-      endTimer();
-    }
-  }
-
-  async getAlbumTracks(albumId: string): Promise<SpotifyTrack[]> {
-    const endTimer = performanceMonitor.startTimer('spotify_get_album_tracks');
-    
-    try {
-      await spotifyRateLimiter.acquire();
-      
-      return await circuitBreaker.execute(async () => {
-        const token = await this.tokenManager.getAccessToken();
-
-        // Page through ALL tracks for the album
-        const collected: SpotifyTrack[] = [];
-        let nextUrl: string | null = `https://api.spotify.com/v1/albums/${albumId}/tracks?market=US&limit=50`;
-        while (nextUrl) {
-          const response = await retryHandler.execute(async () => {
-            const resp = await fetch(nextUrl!, {
-              headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-            });
-            if (resp.status === 429) {
-              const retryAfter = resp.headers.get('Retry-After');
-              if (retryAfter) await sleep(parseInt(retryAfter) * 1000);
-              throw new Error('Rate limited by Spotify API');
-            }
-            return resp;
-          });
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Spotify API error: ${response.status} - ${errorText}`);
-          }
-          const data = await response.json();
-          collected.push(...(data.items || []));
-          nextUrl = data.next || null;
-        }
-        return collected;
-      });
-    } finally {
-      endTimer();
-    }
-  }
-
-  async getArtistDetails(artistId: string): Promise<SpotifyArtist | null> {
-    const endTimer = performanceMonitor.startTimer('spotify_get_artist_details');
-    
-    try {
-      await spotifyRateLimiter.acquire();
-      
-      return await circuitBreaker.execute(async () => {
-        const token = await this.tokenManager.getAccessToken();
-        
+      while (nextUrl) {
         const response = await retryHandler.execute(async () => {
-          const response = await fetch(
-            `https://api.spotify.com/v1/artists/${artistId}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-              }
-            }
-          );
-          
-          if (response.status === 429) {
-            const retryAfter = response.headers.get('Retry-After');
-            if (retryAfter) {
-              await sleep(parseInt(retryAfter) * 1000);
-            }
+          const resp = await fetch(nextUrl!, {
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+          });
+          if (resp.status === 429) {
+            const retryAfter = resp.headers.get('Retry-After');
+            if (retryAfter) await sleep(parseInt(retryAfter) * 1000);
             throw new Error('Rate limited by Spotify API');
           }
-          
-          return response;
+          return resp;
         });
-
+        
         if (!response.ok) {
-          if (response.status === 404) {
-            return null; // Artist not found
-          }
           const errorText = await response.text();
           throw new Error(`Spotify API error: ${response.status} - ${errorText}`);
         }
+        
+        const data = await response.json();
+        collected.push(...(data.items || []));
+        nextUrl = data.next || null;
+      }
+      
+      return collected;
+    });
+  }
 
-        return await response.json();
-      });
-    } finally {
-      endTimer();
-    }
+  async getAlbumTracks(albumId: string): Promise<SpotifyTrack[]> {
+    await spotifyRateLimiter.acquire();
+    
+    return await circuitBreaker.execute(async () => {
+      const token = await this.tokenManager.getAccessToken();
+
+      const collected: SpotifyTrack[] = [];
+      let nextUrl: string | null = `https://api.spotify.com/v1/albums/${albumId}/tracks?market=US&limit=50`;
+      
+      while (nextUrl) {
+        const response = await retryHandler.execute(async () => {
+          const resp = await fetch(nextUrl!, {
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+          });
+          if (resp.status === 429) {
+            const retryAfter = resp.headers.get('Retry-After');
+            if (retryAfter) await sleep(parseInt(retryAfter) * 1000);
+            throw new Error('Rate limited by Spotify API');
+          }
+          return resp;
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Spotify API error: ${response.status} - ${errorText}`);
+        }
+        
+        const data = await response.json();
+        collected.push(...(data.items || []));
+        nextUrl = data.next || null;
+      }
+      
+      return collected;
+    });
   }
 }
 
 // Database Operations Manager
 class SongsDatabaseManager {
-  constructor(private supabaseClient: SupabaseClient, private targetArtistId?: string) {}
+  constructor(private supabaseClient: any, private targetArtistId?: string) {}
 
   async getArtistsNeedingSync(): Promise<DatabaseArtist[]> {
-    const endTimer = performanceMonitor.startTimer('get_artists_needing_sync');
-    
-    try {
-      // If a specific artist is targeted, sync only that artist
-      if (this.targetArtistId) {
-        const { data: artist, error } = await this.supabaseClient
-          .from('artists')
-          .select('id, name, spotify_id, last_synced_at, popularity')
-          .eq('id', this.targetArtistId)
-          .maybeSingle();
-
-        if (error) {
-          logger.error('Failed to fetch target artist', { error });
-          throw error;
-        }
-
-        return artist && artist.spotify_id ? [artist as unknown as DatabaseArtist] : [];
-      }
-
-      const staleDate = new Date(Date.now() - (STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000)).toISOString();
-      const query = this.supabaseClient
+    if (this.targetArtistId) {
+      const { data: artist, error } = await this.supabaseClient
         .from('artists')
         .select('id, name, spotify_id, last_synced_at, popularity')
-        .not('spotify_id', 'is', null)
-        .or(`last_synced_at.is.null,last_synced_at.lt.${staleDate}`)
-        .limit(MAX_ARTISTS_PER_SYNC);
-
-      // Popularity may not exist in all schemas; avoid ordering to reduce errors
-      const { data: artists, error } = await query;
+        .eq('id', this.targetArtistId)
+        .maybeSingle();
 
       if (error) {
-        logger.error('Failed to fetch artists needing sync', { error });
         throw error;
       }
 
-      logger.info(`Found ${artists?.length || 0} artists needing song sync`);
-      return artists || [];
-    } finally {
-      endTimer();
+      return artist && artist.spotify_id ? [artist] : [];
     }
+
+    const staleDate = new Date(Date.now() - (STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000)).toISOString();
+    
+    const { data: artists, error } = await this.supabaseClient
+      .from('artists')
+      .select('id, name, spotify_id, last_synced_at, popularity')
+      .not('spotify_id', 'is', null)
+      .or(`last_synced_at.is.null,last_synced_at.lt.${staleDate}`)
+      .limit(MAX_ARTISTS_PER_SYNC);
+
+    if (error) {
+      throw error;
+    }
+
+    return artists || [];
   }
 
   async batchUpsertSongs(songs: Partial<DatabaseSong>[]): Promise<DatabaseSong[]> {
     if (songs.length === 0) return [];
     
-    const endTimer = performanceMonitor.startTimer('batch_upsert_songs');
-    
-    try {
-      logger.debug(`Batch upserting ${songs.length} songs`);
-      
-      // Prepare data for both tables
-      const cachedSongs = songs.map(song => ({
-        spotify_id: song.spotify_id,
-        artist_id: song.artist_id,
-        name: song.name,
-        album: song.album,
-        popularity: song.popularity,
-        preview_url: song.preview_url,
-        last_synced_at: song.last_synced_at
-      }));
+    const cachedSongs = songs.map(song => ({
+      spotify_id: song.spotify_id,
+      artist_id: song.artist_id,
+      name: song.name,
+      album: song.album,
+      popularity: song.popularity,
+      preview_url: song.preview_url,
+      last_synced_at: song.last_synced_at
+    }));
 
-      const mainSongs = songs.map(song => ({
-        spotify_id: song.spotify_id,
-        artist_id: song.artist_id,
-        title: song.name
-      }));
+    const { data, error } = await this.supabaseClient
+      .from('cached_songs')
+      .upsert(cachedSongs, {
+        onConflict: 'spotify_id,artist_id',
+        ignoreDuplicates: false
+      })
+      .select('id, spotify_id, artist_id, name');
 
-      // Insert to both tables in parallel
-      const [cachedResult, mainResult] = await Promise.allSettled([
-        this.supabaseClient
-          .from('cached_songs')
-          .upsert(cachedSongs, {
-            onConflict: 'spotify_id,artist_id',
-            ignoreDuplicates: false
-          })
-          .select('id, spotify_id, artist_id, name'),
-        this.supabaseClient
-          .from('songs')
-          .upsert(mainSongs, {
-            onConflict: 'spotify_id,artist_id',
-            ignoreDuplicates: false
-          })
-          .select('id, spotify_id, artist_id, title')
-      ]);
-
-      let finalData: any[] = [];
-      
-      if (cachedResult.status === 'fulfilled' && !cachedResult.value.error) {
-        finalData = cachedResult.value.data || [];
-      } else if (cachedResult.status === 'rejected') {
-        logger.error('Failed to upsert cached songs', { error: cachedResult.reason, count: songs.length });
-      }
-
-      if (mainResult.status === 'rejected') {
-        logger.warn('Failed to upsert main songs table', { error: mainResult.reason });
-      } else {
-        logger.debug('Successfully upserted to main songs table');
-      }
-
-      logger.debug(`Successfully upserted ${finalData.length} songs`);
-      return finalData;
-    } finally {
-      endTimer();
+    if (error) {
+      throw error;
     }
+
+    return data || [];
   }
 
   async updateArtistSyncTimestamp(artistId: string): Promise<void> {
-    const endTimer = performanceMonitor.startTimer('update_artist_sync_timestamp');
-    
-    try {
-      const { error } = await this.supabaseClient
-        .from('artists')
-        .update({ 
-          last_synced_at: new Date().toISOString()
-        })
-        .eq('id', artistId);
+    const { error } = await this.supabaseClient
+      .from('artists')
+      .update({ 
+        last_synced_at: new Date().toISOString()
+      })
+      .eq('id', artistId);
 
-      if (error) {
-        logger.warn('Failed to update artist sync timestamp', { artistId, error });
-      }
-    } finally {
-      endTimer();
-    }
-  }
-
-  async updateSyncMetrics(metrics: Partial<SyncMetrics>): Promise<void> {
-    try {
-      await this.supabaseClient
-        .from('sync_events')
-        .insert({
-          event_type: 'artist_songs_sync',
-          status: metrics.errors && metrics.errors > 0 ? 'failed' : 'success',
-          metadata: metrics,
-          created_at: new Date().toISOString()
-        });
-    } catch (error) {
-      logger.warn('Failed to update sync metrics', { error });
+    if (error) {
+      logger.warn('Failed to update artist sync timestamp', { artistId, error });
     }
   }
 }
 
-// Data Transformer and Validator
+// Data Transformer
 class SongDataTransformer {
   static validateAndTransformSong(track: SpotifyTrack, artistId: string): Partial<DatabaseSong> | null {
     if (!track.id || !track.name) {
-      logger.warn('Invalid track data - missing required fields', { track });
       return null;
     }
 
@@ -491,11 +336,6 @@ class SongDataTransformer {
       popularity: track.popularity || 0,
       duration_ms: track.duration_ms || 0,
       explicit: track.explicit || false,
-      metadata: {
-        spotify: track,
-        album: track.album,
-        external_urls: track.external_urls
-      },
       last_synced_at: new Date().toISOString()
     };
   }
@@ -512,41 +352,17 @@ class SongDataTransformer {
       }
     }
 
-    logger.debug(`Deduplicated tracks: ${tracks.length} -> ${deduplicated.length}`);
     return deduplicated;
   }
-
-  static prioritizeTracks(tracks: SpotifyTrack[]): SpotifyTrack[] { return tracks; }
-}
-
-// Main Artist Processing Result
-interface ArtistProcessingResult {
-  artistId: string;
-  artistName: string;
-  success: boolean;
-  songsProcessed: number;
-  error?: string;
-  executionTime: number;
 }
 
 // Main Sync Orchestrator
 class ArtistSongsSync {
-  private state = {
-    totalArtists: 0,
-    processedArtists: 0,
-    successfulArtists: 0,
-    failedArtists: 0,
-    totalSongs: 0,
-    processedSongs: 0,
-    errors: [] as string[],
-    startTime: new Date().toISOString()
-  };
-
   private dbManager: SongsDatabaseManager;
   private spotifyClient: SpotifyApiClient;
   private tokenManager: SpotifyTokenManager;
 
-  constructor(private supabaseClient: SupabaseClient, private targetArtistId?: string) {
+  constructor(private supabaseClient: any, private targetArtistId?: string) {
     this.dbManager = new SongsDatabaseManager(supabaseClient, targetArtistId);
     this.tokenManager = new SpotifyTokenManager(supabaseClient);
     this.spotifyClient = new SpotifyApiClient(this.tokenManager);
@@ -554,270 +370,129 @@ class ArtistSongsSync {
 
   async execute(): Promise<ApiResponse<SyncMetrics>> {
     const startTime = performance.now();
-    logger.info('Starting artist songs sync job');
-
+    
     try {
-      // Initialize Spotify token manager
       await this.tokenManager.initialize();
-
-      // Get artists needing sync
+      
       const artists = await this.dbManager.getArtistsNeedingSync();
-      this.state.totalArtists = artists.length;
-
+      
       if (artists.length === 0) {
-        logger.info('No artists found needing song sync');
         return createApiResponse(true, {
           processed: 0,
           errors: 0,
           skipped: 0,
           total: 0,
-          startTime: this.state.startTime,
+          startTime: new Date().toISOString(),
           endTime: new Date().toISOString(),
           executionTimeMs: Math.round(performance.now() - startTime)
         });
       }
 
-      logger.info(`Processing ${artists.length} artists for song sync`);
+      let processedCount = 0;
+      let errorCount = 0;
 
-      // Process artists in batches
-      await this.processArtistsInBatches(artists);
+      for (const artist of artists) {
+        try {
+          await this.processArtist(artist);
+          processedCount++;
+        } catch (error) {
+          errorCount++;
+          logger.error(`Failed to process artist ${artist.name}`, { error });
+        }
+      }
 
-      // Calculate final metrics
       const executionTime = performance.now() - startTime;
       const metrics: SyncMetrics = {
-        processed: this.state.processedArtists,
-        errors: this.state.failedArtists,
+        processed: processedCount,
+        errors: errorCount,
         skipped: 0,
-        total: this.state.totalArtists,
-        startTime: this.state.startTime,
+        total: artists.length,
+        startTime: new Date().toISOString(),
         endTime: new Date().toISOString(),
         executionTimeMs: Math.round(executionTime)
       };
 
-      await this.dbManager.updateSyncMetrics(metrics);
-
-      logger.info('Artist songs sync completed successfully', {
-        ...metrics,
-        totalSongs: this.state.totalSongs,
-        processedSongs: this.state.processedSongs
-      });
-
-      return createApiResponse(true, metrics, undefined, {
-        songsProcessed: this.state.processedSongs,
-        songsTotal: this.state.totalSongs,
-        circuitBreakerState: circuitBreaker.getState().state,
-        rateLimitTokens: spotifyRateLimiter.getAvailableTokens()
-      });
+      return createApiResponse(true, metrics);
 
     } catch (error) {
       const executionTime = performance.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      logger.error('Artist songs sync failed', {
-        error: errorMessage,
-        executionTime: Math.round(executionTime),
-        state: this.state
+      return createApiResponse(false, undefined, errorMessage, {
+        executionTime: Math.round(executionTime)
       });
-
-      const metrics: SyncMetrics = {
-        processed: this.state.processedArtists,
-        errors: this.state.failedArtists + 1,
-        skipped: 0,
-        total: this.state.totalArtists,
-        startTime: this.state.startTime,
-        endTime: new Date().toISOString(),
-        executionTimeMs: Math.round(executionTime)
-      };
-
-      await this.dbManager.updateSyncMetrics(metrics);
-
-      return createApiResponse(false, metrics, errorMessage);
     }
   }
 
-  private async processArtistsInBatches(artists: DatabaseArtist[]): Promise<void> {
-    const batchProcessor = new BatchProcessor<DatabaseArtist, ArtistProcessingResult>(SYNC_CONFIG);
+  private async processArtist(artist: DatabaseArtist): Promise<void> {
+    if (!artist.spotify_id) {
+      throw new Error('Artist missing Spotify ID');
+    }
 
-    const results = await batchProcessor.processBatch(
-      artists,
-      (artist) => this.processArtist(artist),
-      (processed, total) => {
-        this.state.processedArtists = processed;
-        if (processed % 10 === 0 || processed === total) {
-          logger.info(`Progress: ${processed}/${total} artists processed`);
-        }
+    const [topTracks, albums] = await Promise.all([
+      this.spotifyClient.getArtistTopTracks(artist.spotify_id),
+      this.spotifyClient.getArtistAlbums(artist.spotify_id)
+    ]);
+
+    const albumTracks: SpotifyTrack[] = [];
+    for (const album of albums.slice(0, 10)) { // Limit to 10 albums
+      try {
+        const tracks = await this.spotifyClient.getAlbumTracks(album.id);
+        albumTracks.push(...tracks);
+      } catch (error) {
+        logger.warn(`Failed to get tracks for album ${album.name}`, { error });
       }
-    );
+    }
 
-    // Aggregate results
-    const successful = results.filter(r => r.result?.success);
-    const failed = results.filter(r => r.error || !r.result?.success);
+    const allTracks = [...topTracks, ...albumTracks];
+    const deduplicatedTracks = SongDataTransformer.deduplicateTracks(allTracks);
 
-    this.state.successfulArtists = successful.length;
-    this.state.failedArtists = failed.length;
-
-    // Calculate total songs processed
-    this.state.processedSongs = successful.reduce((sum, r) => sum + (r.result?.songsProcessed || 0), 0);
-
-    // Log persistent errors
-    failed.forEach(failure => {
-      const errorMsg = failure.error?.message || failure.result?.error || 'Unknown error';
-      this.state.errors.push(errorMsg);
-      if (this.state.errors.length <= 5) { // Limit error logging
-        logger.warn('Artist processing failed', {
-          artistId: failure.item.id,
-          artistName: failure.item.name,
-          error: errorMsg
-        });
-      }
-    });
-  }
-
-  private async processArtist(artist: DatabaseArtist): Promise<ArtistProcessingResult> {
-    const startTime = performance.now();
-    
-    try {
-      if (!artist.spotify_id) {
-        throw new Error('Artist missing Spotify ID');
-      }
-
-      logger.debug(`Processing songs for artist: ${artist.name}`);
-
-      // Get comprehensive song data
-      const [topTracks, albums] = await Promise.all([
-        this.spotifyClient.getArtistTopTracks(artist.spotify_id),
-        this.spotifyClient.getArtistAlbums(artist.spotify_id)
-      ]);
-
-      // Get ALL tracks from ALL albums (with rate limiting and retries)
-      const albumTracks: SpotifyTrack[] = [];
-      for (const album of albums) {
-        try {
-          const tracks = await this.spotifyClient.getAlbumTracks(album.id);
-          albumTracks.push(...tracks);
-        } catch (error) {
-          logger.warn(`Failed to get tracks for album ${album.name}`, { error });
-        }
-      }
-
-      // Combine and process all tracks
-      const allTracks = [...topTracks, ...albumTracks];
-      const deduplicatedTracks = SongDataTransformer.deduplicateTracks(allTracks);
-      const prioritizedTracks = SongDataTransformer.prioritizeTracks(deduplicatedTracks);
-
-      this.state.totalSongs += prioritizedTracks.length;
-
-      if (prioritizedTracks.length === 0) {
-        logger.warn(`No tracks found for artist: ${artist.name}`);
-        await this.dbManager.updateArtistSyncTimestamp(artist.id);
-        return {
-          artistId: artist.id,
-          artistName: artist.name,
-          success: true,
-          songsProcessed: 0,
-          executionTime: performance.now() - startTime
-        };
-      }
-
-      // Transform tracks to database format
-      const songsToUpsert = prioritizedTracks
-        .map(track => SongDataTransformer.validateAndTransformSong(track, artist.id))
-        .filter((song): song is Partial<DatabaseSong> => song !== null);
-
-      // Batch upsert songs
-      const upsertedSongs = await this.dbManager.batchUpsertSongs(songsToUpsert);
-
-      // Update artist sync timestamp
+    if (deduplicatedTracks.length === 0) {
       await this.dbManager.updateArtistSyncTimestamp(artist.id);
-
-      logger.debug(`Successfully processed ${upsertedSongs.length} songs for ${artist.name}`);
-
-      return {
-        artistId: artist.id,
-        artistName: artist.name,
-        success: true,
-        songsProcessed: upsertedSongs.length,
-        executionTime: performance.now() - startTime
-      };
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown processing error';
-      logger.debug('Artist processing failed', { 
-        artistId: artist.id, 
-        artistName: artist.name, 
-        error: errorMessage 
-      });
-
-      return {
-        artistId: artist.id,
-        artistName: artist.name,
-        success: false,
-        songsProcessed: 0,
-        error: errorMessage,
-        executionTime: performance.now() - startTime
-      };
+      return;
     }
+
+    const songsToUpsert = deduplicatedTracks
+      .map(track => SongDataTransformer.validateAndTransformSong(track, artist.id))
+      .filter((song): song is Partial<DatabaseSong> => song !== null);
+
+    await this.dbManager.batchUpsertSongs(songsToUpsert);
+    await this.dbManager.updateArtistSyncTimestamp(artist.id);
   }
 }
 
-// Main Deno.serve Handler
+// Main Handler
 Deno.serve(async (req: Request): Promise<Response> => {
-  const startTime = performance.now();
-
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return handleCorsPreFlight();
   }
 
   try {
-    logger.info('Artist songs sync job initiated');
-
-    // Create Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Parse optional body for targeted artist sync
     let targetArtistId: string | undefined;
     try {
       if (req.headers.get('content-type')?.includes('application/json')) {
         const body = await req.json().catch(() => null);
-        if (body && typeof body === 'object' && body.artistId && typeof body.artistId === 'string') {
+        if (body?.artistId) {
           targetArtistId = body.artistId;
         }
       }
     } catch (_) {
-      // ignore body parse errors and proceed
+      // Ignore body parse errors
     }
 
-    // Execute sync
     const syncJob = new ArtistSongsSync(supabaseClient, targetArtistId);
     const result = await syncJob.execute();
-
-    const totalTime = performance.now() - startTime;
-    result.executionTime = Math.round(totalTime);
-
-    logger.info('Artist songs sync job completed', {
-      success: result.success,
-      executionTime: totalTime
-    });
 
     return createCorsResponse(result, result.success ? 200 : 500);
 
   } catch (error) {
-    const totalTime = performance.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-
-    logger.error('Sync job handler error', {
-      error: errorMessage,
-      executionTime: totalTime
-    });
-
-    const errorResponse = createApiResponse(false, undefined, errorMessage, {
-      executionTime: totalTime
-    });
-
+    const errorResponse = createApiResponse(false, undefined, errorMessage);
     return createCorsResponse(errorResponse, 500);
   }
 });

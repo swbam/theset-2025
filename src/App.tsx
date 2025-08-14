@@ -3,7 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { BottomNav } from "@/components/layout/BottomNav";
+import { MobileNavigation } from "@/components/layout/MobileNavigation";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { HelmetProvider } from "react-helmet-async";
@@ -25,7 +25,14 @@ import HowItWorks from "./pages/HowItWorks";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+    },
+  },
+});
 
 function App() {
   return (
@@ -111,7 +118,7 @@ function App() {
                   </Routes>
 
                   {/* Mobile bottom navigation */}
-                  <BottomNav />
+                  <MobileNavigation />
                 </div>
                 <Toaster />
               </ThemeProvider>

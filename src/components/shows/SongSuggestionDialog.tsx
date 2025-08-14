@@ -71,8 +71,8 @@ export function SongSuggestionDialog({
 
     setIsAdding(true);
     try {
-      // Add song via RPC for consistency
-      const { error } = await supabase.rpc('add_song_to_setlist', {
+      // Add song via RPC
+      const { data: songId, error } = await supabase.rpc('add_song_to_setlist', {
         p_setlist_id: setlistId,
         p_song_name: track.name,
         p_spotify_id: track.id,

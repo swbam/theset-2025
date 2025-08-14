@@ -49,35 +49,55 @@ const callSpotifyFunction = async (
   return data?.data;
 };
 
-// User-specific functions (still use direct API with user's token)
+// User-specific functions (use direct API with user's token)
 export const getTopArtists = async (
   accessToken: string
 ): Promise<SpotifyArtist[]> => {
-  const response = await fetch(
-    `${SPOTIFY_API_URL}/me/top/artists?limit=10&time_range=short_term`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+  try {
+    const response = await fetch(
+      `${SPOTIFY_API_URL}/me/top/artists?limit=10&time_range=short_term`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Spotify API error: ${response.status}`);
     }
-  );
-  const data = await response.json();
-  return data.items || [];
+    
+    const data = await response.json();
+    return data.items || [];
+  } catch (error) {
+    console.error('Error getting top artists:', error);
+    return [];
+  }
 };
 
 export const getFollowedArtists = async (
   accessToken: string
 ): Promise<SpotifyArtist[]> => {
-  const response = await fetch(
-    `${SPOTIFY_API_URL}/me/following?type=artist&limit=10`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+  try {
+    const response = await fetch(
+      `${SPOTIFY_API_URL}/me/following?type=artist&limit=10`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Spotify API error: ${response.status}`);
     }
-  );
-  const data = await response.json();
-  return data.artists?.items || [];
+    
+    const data = await response.json();
+    return data.artists?.items || [];
+  } catch (error) {
+    console.error('Error getting followed artists:', error);
+    return [];
+  }
 };
 
 // Server-side functions (use Edge Function to avoid CORS)
